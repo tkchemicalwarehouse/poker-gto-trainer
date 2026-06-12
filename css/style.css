@@ -162,8 +162,10 @@ button.cta:hover { background: linear-gradient(170deg, #ffe085, #e8b52e 55%, #c7
   pointer-events: none;
 }
 #board-area {
-  position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
+  position: absolute; left: 50%; top: 28%; transform: translateX(-50%);
   text-align: center;
+  z-index: 4; /* ボードカードは常にベットチップより前面 */
+  pointer-events: none;
 }
 #pot-disp { color: var(--gold); font-weight: 700; font-size: 15px; margin-bottom: 8px; text-shadow: 0 1px 3px #000; }
 #board-cards { display: flex; gap: 6px; justify-content: center; min-height: 64px; }
@@ -211,6 +213,8 @@ button.cta:hover { background: linear-gradient(170deg, #ffe085, #e8b52e 55%, #c7
 }
 .chip-stack.mini { width: 16px; }
 .chip-stack.mini .chip { width: 15px; height: 15px; border-width: 2px; box-shadow: 0 1px 2px rgba(0,0,0,.5), inset 0 0 0 2px rgba(0,0,0,.18); }
+.chip-row { position: relative; height: 24px; margin: 0 auto; }
+.chip-row .chip { top: 0; transform: none; }
 .d100 { background: #b9c4ce; }
 .d500 { background: #c0392b; }
 .d1k  { background: #e3c635; }
@@ -244,10 +248,10 @@ button.cta:hover { background: linear-gradient(170deg, #ffe085, #e8b52e 55%, #c7
 .field-badge { color: var(--accent); font-weight: 700; }
 .ft-badge { color: #ff9e3d; font-weight: 800; }
 
-/* ベットチップ置き場(テーブル中央寄り) */
+/* ベットチップ置き場(座席のすぐ内側) */
 .bet-spot {
   position: absolute; transform: translate(-50%, -50%);
-  text-align: center; z-index: 5; pointer-events: none;
+  text-align: center; z-index: 3; pointer-events: none;
 }
 .bet-amt {
   font-size: 11px; color: #ffd97a; font-weight: 800;
@@ -256,7 +260,7 @@ button.cta:hover { background: linear-gradient(170deg, #ffe085, #e8b52e 55%, #c7
 
 /* ディーラーボタン */
 #dealer-disc {
-  position: absolute; z-index: 6;
+  position: absolute; z-index: 3;
   width: 36px; height: 36px; border-radius: 50%;
   background: radial-gradient(circle at 34% 28%, #ffffff, #cfd4d9 70%, #aab2ba);
   border: 3px solid var(--gold);

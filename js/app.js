@@ -63,6 +63,16 @@ function chipStackHTML(amount, mini, cap) {
   return h + `</div>`;
 }
 
+// 横並びのチップ列(ベット用 — 縦に伸びないのでカードに被らない)
+function chipRowHTML(amount, cap) {
+  if (amount <= 0) return "";
+  const chips = chipBreakdown(amount, cap || 6);
+  const w = 24 + (chips.length - 1) * 9;
+  let h = `<div class="chip-row" style="width:${w}px">`;
+  chips.forEach((cls, i) => { h += `<div class="chip ${cls}" style="left:${i * 9}px"></div>`; });
+  return h + `</div>`;
+}
+
 /* ---------- デバイスモード(スマホ/タブレット) ---------- */
 function deviceMode() {
   try {
@@ -108,12 +118,31 @@ function buildSeats() {
         <div class="stack-gauge"><div class="sg-fill"></div></div>
       </div>`;
     table.appendChild(el);
-    // ベットチップ置き場(座席と中央の中間)
+    // ベットチップ置き場: 座席ボックスのすぐ内側(中央方向に固定ピクセルで配置)
     const bet = document.createElement("div");
     bet.className = "bet-spot";
     bet.id = "bet-" + s;
-    bet.style.left = (50 + (x - 50) * 0.56) + "%";
-    bet.style.top = (50 + (y - 50) * 0.58) + "%";
+    const tr = table.getBoundingClientRect();
+    const sx = x / 100 * tr.width, sy = y / 100 * tr.height;
+    const dx = tr.width / 2 - sx, dy = tr.height / 2 - sy;
+    const len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len, uy = dy / len;
+    // 座席ボックスは横長なので方向に応じたクリアランス(横66px/縦52px)+余白
+    const clear = Math.abs(ux) * (phone ? 52 : 68) + Math.abs(uy) * (phone ? 44 : 56) + 16;
+    let bx = sx + ux * clear;
+    let by = sy + uy * clear;
+    // ボード帯域(中央のカード・ポット領域)に入る場合は上下に退避
+    // 帯域幅は実際のカード5枚分(+ポット文字余裕)から計算
+    const cardW = phone ? 40 : 48;
+    const bandHalfW = (5 * cardW + 24) / 2 + 26;
+    const bandX0 = tr.width / 2 - bandHalfW, bandX1 = tr.width / 2 + bandHalfW;
+    // ボードエリアは上端28%固定・コンテンツ約170px(ポット文字+カード+チップ)
+    const bandY0 = tr.height * 0.28, bandY1 = tr.height * 0.28 + 175;
+    if (bx > bandX0 && bx < bandX1 && by > bandY0 - 20 && by < bandY1) {
+      by = (y < 50) ? bandY0 - 38 : bandY1 + 26;
+    }
+    bet.style.left = bx + "px";
+    bet.style.top = by + "px";
     table.appendChild(bet);
   }
   // ディーラーボタン
@@ -129,10 +158,10 @@ function moveDealerDisc(state) {
   const phone = document.body.classList.contains("mode-phone");
   const rx = phone ? 40 : 44;
   const ry = phone ? 44 : 42;
-  // ボタン席の少し中央寄り・反時計側にずらして置く
+  // ボタン席の少し内側・反時計側(ボードに被らない距離)に置く
   const t = seatCoords[state.btn].theta - 0.30;
-  const x = 50 + rx * 0.70 * Math.cos(t);
-  const y = 50 + ry * 0.68 * Math.sin(t);
+  const x = 50 + rx * 0.82 * Math.cos(t);
+  const y = 50 + ry * 0.80 * Math.sin(t);
   disc.style.left = x + "%";
   disc.style.top = y + "%";
 }
@@ -164,7 +193,7 @@ function render(state) {
 
   const pot = potTotal(state);
   $("pot-disp").textContent = state.street === "idle" ? "" : `ポット: ${fmtChips(pot)} (${fmtBB(pot)}BB)`;
-  $("pot-chips").innerHTML = state.street === "idle" ? "" : chipStackHTML(pot, false, 14);
+  $("pot-chips").innerHTML = state.street === "idle" ? "" : chipStackHTML(pot, false, 8);
   setCards($("board-cards"), state.board.join(","), state.board.map(c => cardHTML(c)).join(""));
   moveDealerDisc(state);
 
@@ -206,7 +235,7 @@ function render(state) {
     const betEl = $("bet-" + s);
     if (betEl) {
       betEl.innerHTML = (p.streetBet > 0 && state.street !== "idle")
-        ? chipStackHTML(p.streetBet) + `<div class="bet-amt">${fmtChips(p.streetBet)}</div>`
+        ? chipRowHTML(p.streetBet, 6) + `<div class="bet-amt">${fmtChips(p.streetBet)}</div>`
         : "";
     }
   }
