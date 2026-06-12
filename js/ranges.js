@@ -262,6 +262,30 @@ const HU_REJAM = {
 // BBのSBオープンに対するコール(HUはポットオッズ最良で非常に広い)
 const HU_DEFEND_TOTAL = "22+,A2+,K2+,Q2+,J2s+,J6o+,T3s+,T7o+,93s+,96o+,84s+,86o+,74s+,75o+,63s+,64o+,53s+,43s,42s";
 
+/* ---------- リジャム均衡データ(data-rejam.js)ヘルパー ---------- */
+function rejamNashAvailable() {
+  return typeof REJAM_THRESH !== "undefined";
+}
+// ジャムする最大有効スタック(BB)。cls: EP/MP/LP/SB/HU、heroType: BB/IP
+function rejamThreshold(cls, heroType, label) {
+  if (!rejamNashAvailable() || !REJAM_THRESH[cls]) return null;
+  const tbl = REJAM_THRESH[cls][heroType] || REJAM_THRESH[cls]["BB"];
+  if (!tbl) return null;
+  const h = ALL_HANDS.indexOf(label);
+  return h >= 0 ? tbl[h] / 2 : null;
+}
+function rejamRangeAtEff(cls, heroType, effBB) {
+  const range = new Map();
+  if (!rejamNashAvailable() || !REJAM_THRESH[cls]) return range;
+  const tbl = REJAM_THRESH[cls][heroType] || REJAM_THRESH[cls]["BB"];
+  if (!tbl) return range;
+  const s2 = Math.min(effBB, 25) * 2;
+  for (let h = 0; h < 169; h++) {
+    if (tbl[h] >= s2) range.set(ALL_HANDS[h], 1);
+  }
+  return range;
+}
+
 /* ---------- ナッシュ均衡データ(data-nash.js)ヘルパー ---------- */
 function nashAvailable() {
   return typeof NASH_PUSH_THRESH !== "undefined";

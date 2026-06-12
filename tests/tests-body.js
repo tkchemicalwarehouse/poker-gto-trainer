@@ -99,6 +99,21 @@ const nr = nashRangeAt(0, 10);
 console.log("  ナッシュUTG10BBレンジ:", rangePercent(nr).toFixed(1) + "%");
 assert(rangePercent(nr) > 8 && rangePercent(nr) < 22, "UTG10BBナッシュ ≈ 10-20%");
 
+/* リジャム均衡とICM */
+assert(typeof REJAM_THRESH !== "undefined", "リジャム閾値読込");
+assert(rejamThreshold("EP", "BB", "AA") >= 24, "AAはEPオープンにも常にリジャム");
+assert(rejamThreshold("EP", "BB", "76s") <= 8, "76sはEPに対し浅い時だけ got " + rejamThreshold("EP", "BB", "76s"));
+assert(rejamThreshold("LP", "BB", "A9o") > rejamThreshold("EP", "BB", "A9o"), "A9oはルーズなオープンに対して広くジャム");
+const icmStacks = [100000, 100000, 50000, 30000];
+const evs = Icm.icmEVs(icmStacks, [0.4, 0.27, 0.18, 0.15]);
+console.log("  ICM EV(等4人):", evs.map(x => (x * 100).toFixed(1) + "%").join(", "));
+assert(Math.abs(evs.reduce((a, b) => a + b, 0) - 1.0) < 0.001, "ICM EVの合計=賞金総額");
+assert(evs[0] > evs[2] && evs[2] > evs[3], "ICM EVはスタック順");
+// ビッグスタック同士の対決はICM必要勝率が上がる
+const req = Icm.requiredEq({ stacks: [100000, 100000, 50000, 30000], heroI: 0, villI: 1, potChips: 105000, toCallChips: 95000, payouts: [0.4, 0.27, 0.18, 0.15] });
+console.log("  ICM必要勝率(ビッグ同士):", (req.req * 100).toFixed(1) + "% (チップEVなら約48%)");
+assert(req.req > 0.50, "ビッグスタック同士はICMで必要勝率上昇");
+
 /* 採点ロジック */
 (async () => {
   // 5BB UTGのAKs → ジャムが正解

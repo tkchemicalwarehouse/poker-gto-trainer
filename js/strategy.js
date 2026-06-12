@@ -226,24 +226,49 @@ async function preflopAdvice(ctx) {
   if (ctx.facing === "open") {
     const opClass = ctx.openerClass;
     const hu = data.hu && ctx.posIdx === POS_BB;
-    const rejam = hu ? Ranges.huRejam(ctx.effBB) : Ranges.rejam(opClass, ctx.effBB);
+    const cls = hu ? "HU" : opClass;
+    const heroType = ctx.posIdx === POS_BB ? "BB" : "IP";
     data.kind = "facingOpen";
-    data.rejamRange = rejam;
-    data.rejamPct = rangePercent(rejam);
     data.openerClass = opClass;
+
+    // ジャム判定: 計算済み均衡の閾値(なければ手書きチャートにフォールバック)
+    const th = rejamThreshold(cls, heroType, label);
+    let jamDecided = null; // true/false/"mix"
+    if (th !== null) {
+      data.nashRejam = true;
+      data.threshold = th;
+      data.marginBB = th - ctx.effBB;
+      data.rejamRange = rejamRangeAtEff(cls, heroType, ctx.effBB);
+      if (th >= 25 && ctx.effBB > 25) data.marginBB = 1; // 上限到達ハンドは深くてもジャム可
+      if (Math.abs(data.marginBB) <= 0.5) jamDecided = "mix";
+      else jamDecided = data.marginBB > 0;
+    } else {
+      data.rejamRange = hu ? Ranges.huRejam(ctx.effBB) : Ranges.rejam(opClass, ctx.effBB);
+      jamDecided = rangeHas(data.rejamRange, label);
+    }
+    data.rejamPct = rangePercent(data.rejamRange);
     // オープンレンジに対する実エクイティ(テーブルがあれば)
-    const openRange = hu ? Ranges.huOpen() : null;
+    const openRange = hu ? Ranges.huOpen() : (typeof OPEN_RANGES !== "undefined"
+      ? parseRange(OPEN_RANGES[ctx.effBB <= 20 ? 15 : 25][{ EP: 1, MP: 4, LP: 6, SB: 7 }[opClass]]) : null);
     if (openRange) data.eqVsOpen = eqVsRangeTable(label, openRange);
+
     if (ctx.posIdx === POS_BB) {
       const callR = hu ? Ranges.huCall(ctx.effBB) : Ranges.bbCall(opClass, ctx.effBB);
       data.callRange = callR;
       data.callPct = rangePercent(callR);
-      if (rangeHas(rejam, label)) freqs.jam = 1;
-      else if (rangeHas(callR, label)) freqs.call = 1;
+      const inCall = rangeHas(callR, label);
+      if (jamDecided === "mix") {
+        freqs.jam = 0.5;
+        if (inCall) freqs.call = 0.5; else freqs.fold = 0.5;
+      }
+      else if (jamDecided) freqs.jam = 1;
+      else if (inCall) freqs.call = 1;
       else freqs.fold = 1;
     } else {
       // BB以外はリジャム or フォールド(浅スタックの標準戦略)
-      if (rangeHas(rejam, label)) freqs.jam = 1; else freqs.fold = 1;
+      if (jamDecided === "mix") { freqs.jam = 0.5; freqs.fold = 0.5; }
+      else if (jamDecided) freqs.jam = 1;
+      else freqs.fold = 1;
     }
     return { freqs, primary: maxFreqAction(freqs), data };
   }
@@ -260,6 +285,15 @@ async function preflopAdvice(ctx) {
     let margin = 0.005;
     margin += 0.03 * (ctx.playersBehind || 0);       // 後ろに残るプレイヤー
     margin += 0.06 * Math.max(0, (ctx.jamCount || 1) - 1); // 追加のオールイン
+    // FTのICM補正(賞金圧力で必要勝率が上がる)
+    if (ctx.icm && typeof Icm !== "undefined") {
+      const r = Icm.requiredEq(ctx.icm);
+      if (r && isFinite(r.req) && r.req > be) {
+        data.icmReq = r.req;
+        data.icmPremium = r.req - be;
+        margin += r.req - be;
+      }
+    }
     const threshold = be + margin;
     data.kind = "facingJam";
     data.equity = eq;
@@ -374,6 +408,15 @@ async function postflopAdvice(ctx) {
     data.equity = eqRes.equity;
     data.breakeven = be;
     data.threshold = be + 0.01;
+    // FTのICM補正
+    if (ctx.icm && typeof Icm !== "undefined") {
+      const r = Icm.requiredEq(ctx.icm);
+      if (r && isFinite(r.req) && r.req > be) {
+        data.icmReq = r.req;
+        data.icmPremium = r.req - be;
+        data.threshold = r.req + 0.01;
+      }
+    }
     data.vsLabel = "相手のオールインレンジ";
     const diff = eqRes.equity - data.threshold;
     if (diff > 0.02) setF(freqs, { call: 1 });

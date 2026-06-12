@@ -492,11 +492,18 @@ function buildCtx(state, p, currentBet, street) {
       openerClassV = state.preflopOpen.cls;
       effBB = Math.min(toBB(p.startChips), state.preflopOpen.stackBB);
     }
+    // FTでジャムに直面 → ICM補正用コンテキスト
+    let icm = null;
+    if ((facing === "jam" || facing === "rejamOverMyOpen") && state.preflopJams.length > 0) {
+      icm = icmCtxFor(state, p, state.preflopJams[0].seat);
+      if (icm) icm.toCallChips = toCall;
+    }
     return {
       phase: "preflop",
       heroCards: p.cards, heroLabel: handLabelOf(p.cards[0], p.cards[1]),
       posIdx, stackBB: toBB(p.startChips), effBB,
       tableN: aliveSeats(state).length,
+      icm,
       facing, openerClass: openerClassV,
       openerPosIdx: state.preflopOpen ? state.preflopOpen.posIdx : null,
       openSizeBB: state.preflopOpen ? state.preflopOpen.sizeBB : 0,
@@ -525,8 +532,15 @@ function buildCtx(state, p, currentBet, street) {
   }
   const effBehind = Math.min(p.chips, mainOpp ? mainOpp.chips + mainOpp.streetBet : p.chips);
   const oppCanRespond = opps.some(q => !q.allIn);
+  // FTで相手のオールインに直面 → ICM補正
+  let icm = null;
+  if (facing !== "none" && mainOpp && mainOpp.allIn) {
+    icm = icmCtxFor(state, p, mainOpp.seat);
+    if (icm) icm.toCallChips = toCall;
+  }
   return {
     phase: "postflop",
+    icm,
     heroCards: p.cards, heroLabel: handLabelOf(p.cards[0], p.cards[1]),
     board: state.board.slice(), street,
     potBB: toBB(pot), toCallBB: toBB(toCall),
@@ -536,6 +550,23 @@ function buildCtx(state, p, currentBet, street) {
     canRaise: toCall > 0 && p.chips > toCall && oppCanRespond,
     fast: state.fastMode,
     posIdx, seatName: posNameOf(state, p.seat),
+  };
+}
+
+/* FTでのICMコンテキスト(全員のスタック既知の時のみ) */
+function icmCtxFor(state, p, villainSeat) {
+  if (!state.finalTable || typeof Icm === "undefined") return null;
+  const alive = state.players.filter(q => !q.out);
+  if (alive.length < 2) return null;
+  const heroI = alive.indexOf(p);
+  const villI = alive.findIndex(q => q.seat === villainSeat);
+  if (heroI < 0 || villI < 0 || heroI === villI) return null;
+  return {
+    stacks: alive.map(q => q.chips),
+    heroI, villI,
+    potChips: potTotal(state),
+    toCallChips: 0, // 呼び出し側で設定
+    payouts: Icm.payoutsFor(state.fieldSize, alive.length),
   };
 }
 

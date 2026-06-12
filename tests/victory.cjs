@@ -2,7 +2,7 @@
 const fs = require("fs");
 const path = require("path");
 const dir = path.join(__dirname, "..", "js");
-let src = ["engine.js", "data-equity.js", "data-nash.js", "ranges.js", "strategy.js", "poker.js", "coach.js"]
+let src = ["engine.js", "data-equity.js", "data-nash.js", "data-rejam.js", "icm.js", "ranges.js", "strategy.js", "poker.js", "coach.js"]
   .map(f => fs.readFileSync(path.join(dir, f), "utf8")).join("\n;\n");
 src += `
 (async () => {

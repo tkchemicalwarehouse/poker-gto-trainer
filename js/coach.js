@@ -44,6 +44,12 @@ function gradeDecision(ctx, advice, chosenId) {
     const m = Math.abs(d.marginBB);
     verdict = m < 2.5 ? "minor" : "blunder";
   }
+  // リジャム閾値も同様(ジャムの有無を間違えた場合のみ)
+  if (d.kind === "facingOpen" && d.nashRejam && (verdict === "minor" || verdict === "blunder") &&
+      ((chosen === "jam") !== (advice.primary === "jam"))) {
+    const m = Math.abs(d.marginBB);
+    verdict = m < 2.5 ? "minor" : "blunder";
+  }
 
   // EV損失推定(BB)
   let evLoss = 0;
@@ -143,6 +149,17 @@ function buildExplanation(ctx, advice, chosen, verdict) {
     const openerDesc = d.hu ? "<b>ヘッズアップ</b>のSBオープン(超ワイドレンジ)" : `${d.openerClass}ポジションからのオープン`;
     lines.push(`<p>${openerDesc}に対する有効${ctx.effBB.toFixed(0)}BBの戦略: リジャム上位 <b>${d.rejamPct.toFixed(1)}%</b>` +
       (d.callRange ? ` / コール <b>${d.callPct.toFixed(1)}%</b>` : " / コールなし(ジャムかフォールド)") + `。</p>`);
+    if (d.nashRejam && d.threshold !== null) {
+      const th = d.threshold, m = d.marginBB;
+      const thText = th <= 0 ? `${hand} はどの有効スタックでもリジャムしません`
+        : th >= 25 ? `${hand} は有効25BB以上でもリジャムできます`
+        : `${hand} のリジャムは<b>有効${th.toFixed(1)}BB以下</b>(計算済み均衡)`;
+      let nuance = "";
+      if (Math.abs(m) <= 0.5) nuance = " — ちょうど境界の混合域です";
+      else if (m > 0 && m < 2) nuance = ` — ぎりぎり圏内(余裕${m.toFixed(1)}BB)`;
+      else if (m < 0 && m > -2) nuance = ` — 僅かに圏外(あと${(-m).toFixed(1)}BB浅ければジャム)`;
+      lines.push(`<p>${thText}。現在 有効<b>${ctx.effBB.toFixed(1)}BB</b>${nuance}。</p>`);
+    }
     if (d.eqVsOpen != null) {
       lines.push(`<p>相手のオープンレンジに対する ${hand} の生エクイティ: <b>${pct(d.eqVsOpen)}</b>(事前計算テーブルによる厳密値)</p>`);
     }
@@ -174,7 +191,12 @@ function buildExplanation(ctx, advice, chosen, verdict) {
       `<p>相手のジャムレンジ: 上位 <b>${d.jamRangePct.toFixed(1)}%</b><br>` +
       `${hand} のエクイティ: <b>${pct(d.equity)}</b>${d.eqExact ? `<span style="color:var(--dim)">(169×169厳密計算)</span>` : ""}<br>` +
       `必要勝率(ポットオッズ): <b>${pct(d.breakeven)}</b>` +
-      (d.margin > 0.02 ? ` + 後続/マルチ補正 ${pct(d.margin)}` : "") + `</p>`);
+      (d.margin > 0.02 && !d.icmPremium ? ` + 後続/マルチ補正 ${pct(d.margin)}` : "") + `</p>`);
+    if (d.icmPremium > 0.005) {
+      lines.push(`<p>🏆 <b>ICM補正(ファイナルテーブル)</b>: 賞金圧力により必要勝率が ` +
+        `${pct(d.breakeven)} → <b>${pct(d.icmReq)}</b>(+${pct(d.icmPremium)})に上昇。` +
+        `チップで勝てる勝負でも、飛んだ時に失う「賞金の期待値」が大きいため、より強い手でしかコールできません。</p>`);
+    }
     if (chosen === "call" && ev < -0.3) lines.push(`<p>「ここまで来たら…」の感情コールは分散ではなくミスです。数字はフォールドと言っています。</p>`);
     if (chosen === "fold" && ev > 0.3) lines.push(`<p>トーナメントの勝者は、この+EVコールを淡々と積み重ねた人です。</p>`);
   }
@@ -182,7 +204,8 @@ function buildExplanation(ctx, advice, chosen, verdict) {
     const c = d.cls;
     lines.push(`<p>あなたのハンド: <b>${c.label}</b> (強度ティア ${c.tier}/5)<br>` +
       (d.equity !== undefined ? `${d.vsLabel}に対するエクイティ: <b>${pct(d.equity)}</b><br>` : "") +
-      (d.breakeven !== undefined ? `必要勝率: <b>${pct(d.breakeven)}</b><br>` : "") +
+      (d.breakeven !== undefined ? `必要勝率: <b>${pct(d.breakeven)}</b>` +
+        (d.icmPremium > 0.005 ? ` → ICM補正後 <b>${pct(d.icmReq)}</b>(🏆FT賞金圧力)` : "") + `<br>` : "") +
       `SPR(スタック/ポット比): <b>${d.spr.toFixed(1)}</b></p>`);
     lines.push(`<p>${postflopReason(ctx, advice, chosen)}</p>`);
   }
