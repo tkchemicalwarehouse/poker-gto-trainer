@@ -559,63 +559,36 @@ body.mode-phone #pot-disp { font-size: 13px; }
 }
 
 /* =========================================================
- * 8BIT MODE — ファミコン風ドット絵スタイル(全体上書き)
+ * 8BITドット絵 — 表紙(ホーム画面)のみ
+ * プレイ画面・説明画面は視認性優先で通常スタイルのまま
  * ========================================================= */
-body {
+#screen-home {
   font-family: "DotGothic16", "Hiragino Sans", monospace;
-  image-rendering: pixelated;
 }
-/* CRT走査線 + ビネット */
-body::after {
-  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 9000;
+/* CRT走査線 + ビネット(表紙のみ) */
+#screen-home::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 5;
   background:
     repeating-linear-gradient(0deg, rgba(0,0,0,.15) 0 2px, transparent 2px 4px),
-    radial-gradient(ellipse at center, transparent 62%, rgba(0,0,0,.32) 100%);
+    radial-gradient(ellipse at center, transparent 62%, rgba(0,0,0,.3) 100%);
 }
 
-/* 角丸の全廃(ドット絵化) */
-button, select, input, .card, .card::after, .seat-box, .home-stats, .setup-row,
-.modal-inner, #coach-panel, .stat-card, .sim-summary, .bust-cause, .victory-inner,
-.sizer-panel, .fan-card, .pos-badge, .stack-gauge, .sg-fill, .rg-grid, .rg-cell,
-.histo .bar, .chip-legend, #coach-verdict, #coach-body .ex-gto, .btn-marker, .dev-btn {
-  border-radius: 0 !important;
-}
-
-/* ピクセルボタン */
-button {
-  border: 3px solid #000;
+/* ピクセルボタン(表紙のみ) */
+#screen-home button, #screen-home select {
+  border-radius: 0; border: 3px solid #000;
   box-shadow: inset -3px -3px 0 rgba(0,0,0,.4), inset 3px 3px 0 rgba(255,255,255,.16), 3px 3px 0 #000;
-  transition: none;
+  transition: none; font-family: inherit;
 }
-button:active { transform: translate(3px, 3px); box-shadow: inset -3px -3px 0 rgba(0,0,0,.4), inset 3px 3px 0 rgba(255,255,255,.16); }
-button.cta { animation: none; border: 3px solid #000; }
+#screen-home button:active {
+  transform: translate(3px, 3px);
+  box-shadow: inset -3px -3px 0 rgba(0,0,0,.4), inset 3px 3px 0 rgba(255,255,255,.16);
+}
+#screen-home .home-stats, #screen-home .setup-row {
+  border-radius: 0; border: 3px solid #000; box-shadow: 3px 3px 0 rgba(0,0,0,.5);
+}
+button.cta { animation: none; }
 
-/* ピクセルテーブル(楕円→チャンキー矩形) */
-#table {
-  border-radius: 0;
-  border: 8px solid #6b4226;
-  background: #1d7a44;
-  box-shadow: inset 0 0 0 5px #14532e, inset 0 0 0 8px #1d7a44, 6px 6px 0 rgba(0,0,0,.55);
-}
-#table::before { border-radius: 0; inset: 7% 5%; border: 3px dashed rgba(255,255,255,.12); }
-
-/* ピクセルカード */
-.card {
-  border-radius: 0;
-  background: #f8f4e6;
-  border: 2px solid #1a1a1a;
-  box-shadow: 3px 3px 0 rgba(0,0,0,.55);
-  animation: dealIn .2s steps(3) both;
-}
-.card::after { display: none; }
-.card.back {
-  background: #1d3a66;
-  border: 2px solid #e8e4d8;
-}
-.seat-box { border-width: 3px; box-shadow: 3px 3px 0 rgba(0,0,0,.5); }
-.seat.actor .seat-box { animation: actorPulse 0.8s steps(2) infinite; }
-
-/* ロゴ(ドット絵化) */
+/* ロゴ(ドット絵) */
 .logo {
   background: none; -webkit-text-fill-color: currentColor; color: #e8c352;
   filter: none; text-shadow: 4px 4px 0 #7a2633, 8px 8px 0 rgba(0,0,0,.55);
@@ -653,22 +626,12 @@ button.cta { animation: none; border: 3px solid #000; }
 .tagline { font-size: 12px; letter-spacing: 3px; }
 .fan-card { border: 2px solid #1a1a1a; box-shadow: 4px 4px 0 rgba(0,0,0,.55); }
 
-/* 優勝演出のドット絵化 */
-.victory-title {
-  background: none; -webkit-text-fill-color: currentColor; color: #ffd75e;
-  filter: none; text-shadow: 5px 5px 0 #7a2633, 0 0 24px rgba(255,215,94,.8);
-  animation: titleZoom .4s steps(4) .5s both;
-}
-.victory-inner { border-width: 4px; box-shadow: 8px 8px 0 rgba(0,0,0,.6), 0 0 50px rgba(232,195,82,.4); }
-.trophy { animation: trophyBounce .8s steps(6) .25s both, trophyGlow 1.2s steps(2) 1.2s infinite alternate; }
-.confetti { border-radius: 0; }
-
-/* レイズ額指定スライダー */
-.act-sizer { background: #5a2d7a; border-color: #000; }
+/* レイズ額指定スライダー(通常スタイル) */
+.act-sizer { background: #5a2d7a; border-color: #8a5dab; }
 .sizer-panel {
   width: min(560px, 94vw); margin: 10px auto 0;
-  background: var(--panel); border: 3px solid #000;
-  box-shadow: 3px 3px 0 #000;
+  background: var(--panel); border: 1px solid #3a4a5d; border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.45);
   padding: 12px 14px;
 }
 .sizer-panel input[type="range"] {
@@ -684,9 +647,4 @@ body.mode-phone .act-row { width: 100%; display: flex; gap: 7px; }
 body.mode-phone .act-row button { flex: 1; min-width: 0; font-size: 13px; padding: 13px 4px; }
 body.mode-phone .sizer-panel { width: 100%; }
 
-/* ピクセルゲージ/バッジ微調整 */
-.stack-gauge { height: 6px; box-shadow: inset 0 0 0 1px #000; }
-.sg-fill { transition: width .3s steps(6); }
-.pos-badge { border: 1px solid #000; }
-#dealer-disc { border-radius: 0; border: 3px solid #000; box-shadow: 3px 3px 0 rgba(0,0,0,.6), 0 0 12px rgba(232,195,82,.7); transition: left .4s steps(8), top .4s steps(8); }
-.chip { box-shadow: 0 2px 0 rgba(0,0,0,.55), inset 0 0 0 3px rgba(0,0,0,.18); }
+.fan-card { border-radius: 0; }
