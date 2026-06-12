@@ -193,6 +193,15 @@ function render(state) {
   const pot = potTotal(state);
   $("pot-disp").textContent = state.street === "idle" ? "" : `ポット: ${fmtChips(pot)} (${fmtBB(pot)}BB)`;
   $("pot-chips").innerHTML = state.street === "idle" ? "" : chipStackHTML(pot, false, 8);
+  // プリフロップ: ポットはテーブルの真ん中(左上の席のチップと誤認しない位置)。
+  // フロップが開いたら定位置(ボード上)へスライド。
+  const potRow = document.querySelector(".pot-row");
+  if (potRow) {
+    const tbl = $("table");
+    const dy = (state.board.length === 0 && state.street !== "idle") ? Math.round(tbl.clientHeight * 0.22) : 0;
+    const tf = dy ? `translateY(${dy}px)` : "";
+    if (potRow.style.transform !== tf) potRow.style.transform = tf;
+  }
   setCards($("board-cards"), state.board.join(","), state.board.map(c => cardHTML(c)).join(""));
   moveDealerDisc(state);
   checkAARun(state);
@@ -717,8 +726,8 @@ window.addEventListener("DOMContentLoaded", () => {
     const hb = localStorage.getItem("pgt_herobb");
     if (hb) $("hero-bb").value = hb;
   } catch (e) { }
-  // マスコットKIMをホームに常駐
-  if (typeof Mascot !== "undefined") Mascot.mount($("mascot-home"));
+  // ホームの対決シーン(KIM DWAN vs NGUYEN)
+  if (typeof Scene !== "undefined") Scene.mount($("scene-home"));
   $("btn-mute").textContent = Sfx.isMuted() ? "🔇" : "🔊";
   $("btn-mute").onclick = () => { $("btn-mute").textContent = Sfx.toggle() ? "🔇" : "🔊"; };
 
