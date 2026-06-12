@@ -630,6 +630,29 @@ button.cta { animation: none; }
 .tagline { font-size: 12px; letter-spacing: 3px; }
 .fan-card { border: 2px solid #1a1a1a; box-shadow: 4px 4px 0 rgba(0,0,0,.55); }
 
+/* スライダー操作中の中央ドット文字巨大表示 */
+#sizer-big {
+  position: fixed; left: 50%; top: 36%;
+  transform: translate(-50%, -50%);
+  z-index: 70; pointer-events: none; text-align: center;
+  font-family: "Press Start 2P", "DotGothic16", monospace;
+}
+#sizer-big-amt {
+  font-size: clamp(38px, 10vw, 72px);
+  color: #ffd75e;
+  text-shadow: 5px 5px 0 #7a2633, 0 0 26px rgba(255,215,94,.7), 0 0 60px rgba(255,215,94,.35);
+  letter-spacing: 2px;
+}
+#sizer-big-bb {
+  font-size: clamp(16px, 4.5vw, 28px);
+  color: #4dffff;
+  margin-top: 12px;
+  text-shadow: 3px 3px 0 #00454f, 0 0 16px rgba(77,255,255,.6);
+}
+#sizer-big.sb-allin #sizer-big-amt { animation: allinColors .7s steps(1) infinite; }
+#sizer-big.sb-allin #sizer-big-bb { color: #ff3355; text-shadow: 3px 3px 0 #55000f, 0 0 16px rgba(255,51,85,.7); }
+body.mode-phone #sizer-big { top: 30%; }
+
 /* レイズ額指定スライダー(通常スタイル) */
 .act-sizer { background: #5a2d7a; border-color: #8a5dab; }
 .sizer-panel {

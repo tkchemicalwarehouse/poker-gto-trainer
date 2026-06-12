@@ -292,7 +292,8 @@ function showActionButtons(legal) {
     const bar = $("action-bar");
     bar.innerHTML = "";
     bar.classList.remove("hidden");
-    const done = a => { bar.classList.add("hidden"); resolve(a); };
+    const big = $("sizer-big");
+    const done = a => { bar.classList.add("hidden"); big.classList.add("hidden"); resolve(a); };
     const raiseTo = legal.find(a => a.id === "raiseTo");
 
     const btnRow = document.createElement("div");
@@ -330,11 +331,24 @@ function showActionButtons(legal) {
       const val = panel.querySelector("#sizer-val");
       const update = () => {
         const v = parseInt(range.value);
-        val.textContent = `${fmtChips(v)} (${(v / LIVE.bb).toFixed(1)}BB)` + (v >= max ? " = オールイン" : "");
+        const isAllin = v >= max;
+        val.textContent = `${fmtChips(v)} (${(v / LIVE.bb).toFixed(1)}BB)` + (isAllin ? " = オールイン" : "");
+        // 画面中央のドット文字巨大表示
+        if (!panel.classList.contains("hidden")) {
+          big.classList.remove("hidden");
+          $("sizer-big-amt").textContent = fmtChips(v);
+          $("sizer-big-bb").textContent = `${(v / LIVE.bb).toFixed(1)} BB` + (isAllin ? "  ALL IN!" : "");
+          big.classList.toggle("sb-allin", isAllin);
+        }
       };
       update();
       range.oninput = update;
-      tg.onclick = () => { panel.classList.toggle("hidden"); Sfx.play("chip"); };
+      tg.onclick = () => {
+        panel.classList.toggle("hidden");
+        if (panel.classList.contains("hidden")) big.classList.add("hidden");
+        else update();
+        Sfx.play("chip");
+      };
       panel.querySelector("#sizer-min").onclick = () => { range.value = min; update(); };
       panel.querySelector("#sizer-semi").onclick = () => { range.value = Math.max(min, max - 1000); update(); };
       panel.querySelector("#sizer-ok").onclick = () => {
