@@ -12,7 +12,12 @@
 <div id="screen-home" class="screen">
   <div class="home-inner">
     <h1>MTT GTO<span class="accent">サバイバル</span></h1>
-    <p class="sub">5〜30BB 中盤戦トレーナー — ブラインド固定 2,000 / 4,000 (BBアンティ 4,000)</p>
+    <p class="sub">5〜30BB 中盤戦トレーナー — 2,000/4,000スタート (BBアンティ) ・ 2周ごとにブラインドアップ</p>
+    <div class="device-toggle">
+      <span class="dev-label">プレイ端末:</span>
+      <button id="dev-phone" class="dev-btn">📱 スマホ</button>
+      <button id="dev-tablet" class="dev-btn">🖥️ タブレット / PC</button>
+    </div>
     <div id="home-stats" class="home-stats"></div>
     <div class="menu">
       <button id="btn-start" class="big primary">▶ トーナメント開始</button>
@@ -29,6 +34,7 @@
   <div id="game-top">
     <span id="game-info"></span>
     <span id="game-controls">
+      <button id="btn-mute" title="効果音オン/オフ">🔊</button>
       <label>コーチ表示:
         <select id="coach-mode">
           <option value="mistakes" selected>ミスのみ</option>
@@ -124,12 +130,15 @@
       <p><b>もう一つの大事な目的:</b> GTO通りにプレイしても、トーナメントでは頻繁にバストします。それが「ミス」なのか「分散」なのかを区別する感覚を、回数を重ねて体に入れることです。バスト時には敗因の分解を表示します。</p>
       <h3>ルール設定</h3>
       <ul>
-        <li>9人テーブル / ブラインド固定 2,000/4,000 / BBアンティ4,000 (1BB = 4,000点)</li>
+        <li>9人テーブル / ブラインド 2,000/4,000 スタート(BBアンティ=BB額)</li>
+        <li>ブラインドは2周(18ハンド)ごとにアップ: 2,000/4,000 → 2,500/5,000 → 3,000/6,000 → 4,000/8,000 →…</li>
         <li>全員5〜30BBのランダムスタックで開始。バストしたボットは新しいボットと入れ替わり</li>
         <li>ベットサイズはGTOソルバー風に抽象化: プリフロップ=2.2BBレイズ or オールイン、ポストフロップ=ポットの33% / 66% / オールイン</li>
       </ul>
       <h3>チップの額面</h3>
       <div class="chip-legend">
+        <span><i class="chip-dot d500k"></i>500,000</span>
+        <span><i class="chip-dot d100k"></i>100,000</span>
         <span><i class="chip-dot d25k"></i>25,000</span>
         <span><i class="chip-dot d5k"></i>5,000</span>
         <span><i class="chip-dot d1k"></i>1,000</span>
@@ -150,6 +159,7 @@
   </div>
 </div>
 
+<script src="js/sounds.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/ranges.js"></script>
 <script src="js/strategy.js"></script>

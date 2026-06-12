@@ -1,30 +1,45 @@
 /* =========================================================
  * poker.js — トーナメントエンジン
- * 固定ブラインド 2000/4000・BBアンティ4000。全員5〜30BBで開始。
- * バストしたボットは新しい5〜30BBのボットと入れ替わり(常に9人)。
+ * ブラインド 2000/4000 スタート(BBアンティ=BB)。2周(18ハンド)ごとにアップ。
+ * 全員5〜30BBで開始。バストしたボットは新しいボットと入れ替わり(常に9人)。
  * ========================================================= */
 "use strict";
 
 const CFG = {
-  SB: 2000,
-  BB: 4000,
-  ANTE: 4000,
   MIN_BB: 5,
   MAX_BB: 30,
   SEATS: 9,
-  OPEN_SIZE: 2.2, // オープンレイズはBBの2.2倍
+  OPEN_SIZE: 2.2,       // オープンレイズはBBの2.2倍
+  HANDS_PER_LEVEL: 18,  // 2周(9人×2)ごとにブラインドアップ
 };
+
+// ブラインド構成 [SB, BB] (BBアンティ = BB)
+const BLIND_LEVELS = [
+  [2000, 4000], [2500, 5000], [3000, 6000], [4000, 8000], [5000, 10000],
+  [6000, 12000], [8000, 16000], [10000, 20000], [12500, 25000], [15000, 30000],
+  [20000, 40000], [25000, 50000], [30000, 60000], [40000, 80000], [50000, 100000],
+];
+
+// 現在のブラインド(playHand開始時にstate.handNoから設定される)
+let LIVE = { sb: 2000, bb: 4000, ante: 4000, level: 0 };
+function setLevel(level) {
+  const li = Math.min(level, BLIND_LEVELS.length - 1);
+  LIVE = { sb: BLIND_LEVELS[li][0], bb: BLIND_LEVELS[li][1], ante: BLIND_LEVELS[li][1], level: li };
+}
+function levelForHand(handNo) {
+  return Math.min(Math.floor((handNo - 1) / CFG.HANDS_PER_LEVEL), BLIND_LEVELS.length - 1);
+}
 
 const BOT_NAMES = ["鷹", "龍", "桜", "雪", "嵐", "鋼", "影", "月", "燕", "雷", "霧", "蓮", "隼", "楓", "弦"];
 let botNameCounter = 0;
 
-function toBB(chips) { return chips / CFG.BB; }
-function fmtBB(chips) { return (chips / CFG.BB).toFixed(1); }
+function toBB(chips) { return chips / LIVE.bb; }
+function fmtBB(chips) { return (chips / LIVE.bb).toFixed(1); }
 function fmtChips(n) { return n.toLocaleString("ja-JP"); }
 
 function randomStack() {
   const bb = CFG.MIN_BB + Math.random() * (CFG.MAX_BB - CFG.MIN_BB);
-  return Math.round(bb * CFG.BB / 100) * 100; // 100点単位
+  return Math.round(bb * LIVE.bb / 100) * 100; // 100点単位
 }
 
 function makeBot(seat) {
@@ -45,6 +60,7 @@ function makePlayer(seat, name, isHero, chips) {
 
 function newTournament(heroName) {
   botNameCounter = 0;
+  setLevel(0);
   const players = [];
   for (let s = 0; s < CFG.SEATS; s++) {
     if (s === 0) players.push(makePlayer(0, heroName || "あなた", true, randomStack()));
@@ -86,11 +102,19 @@ function posNameOf(state, seat) { return POSITIONS[posIdxOf(state, seat)]; }
  * io = {
  *   delay(ms), render(state), log(msg, cls),
  *   heroAct(ctx, legal) -> Promise<{id, chips}>,
- *   onShowdown(state, results), fast
+ *   sound(name)?  ※省略可
  * }
  * ========================================================= */
 async function playHand(state, io) {
   state.handNo++;
+  // ブラインドレベル(2周=18ハンドごとにアップ)
+  const lvl = levelForHand(state.handNo);
+  const leveledUp = lvl !== LIVE.level;
+  setLevel(lvl);
+  if (leveledUp) {
+    io.log(`📈 ブラインドアップ! Lv${lvl + 1}: ${fmtChips(LIVE.sb)} / ${fmtChips(LIVE.bb)} (アンティ ${fmtChips(LIVE.ante)})`, "levelup");
+    if (io.sound) io.sound("levelup");
+  }
   state.board = [];
   state.deadPot = 0;
   state.street = "preflop";
@@ -122,20 +146,21 @@ async function playHand(state, io) {
   const sbP = state.players[sbSeat], bbP = state.players[bbSeat];
 
   // BBアンティ(デッドマネー)
-  const ante = Math.min(bbP.chips, CFG.ANTE);
+  const ante = Math.min(bbP.chips, LIVE.ante);
   bbP.chips -= ante; state.deadPot += ante;
   // ブラインド
-  postBet(sbP, Math.min(sbP.chips, CFG.SB));
-  postBet(bbP, Math.min(bbP.chips, CFG.BB));
+  postBet(sbP, Math.min(sbP.chips, LIVE.sb));
+  postBet(bbP, Math.min(bbP.chips, LIVE.bb));
   if (bbP.chips === 0) bbP.allIn = true;
   if (sbP.chips === 0) sbP.allIn = true;
 
   io.log(`─── ハンド #${state.handNo} ─── BTN: ${state.players[state.btn].name}`, "hand-sep");
+  if (io.sound) io.sound("deal");
   io.render(state);
   await io.delay(300);
 
   // プリフロップ
-  await bettingRound(state, "preflop", CFG.BB, io);
+  await bettingRound(state, "preflop", LIVE.bb, io);
 
   const streets = [["flop", 3], ["turn", 1], ["river", 1]];
   for (const [street, n] of streets) {
@@ -144,6 +169,7 @@ async function playHand(state, io) {
     for (let i = 0; i < n; i++) state.board.push(state.deck.pop());
     for (const p of state.players) { p.streetBet = 0; p.hasActed = false; p.hadAggression = false; }
     io.log(`【${streetJP(street)}】 ${state.board.map(cardText).join(" ")}`, "street");
+    if (io.sound) io.sound("deal");
     io.render(state);
     await io.delay(450);
     if (canAct(state).length >= 2) {
@@ -242,7 +268,7 @@ async function bettingRound(state, street, initialBet, io) {
 }
 
 /* ---------- 合法アクション ----------
- * 各要素: {id, label, chips(支払額ではなくこのストリートの合計ベット目標)}
+ * 各要素: {id, label, target(このストリートの合計ベット目標)}
  */
 function legalActions(state, p, currentBet, street) {
   const toCall = currentBet - p.streetBet;
@@ -251,7 +277,7 @@ function legalActions(state, p, currentBet, street) {
   // プリフロップ未オープン(ブラインドのみ): リンプ無し → フォールド/レイズ2.2BB/オールイン
   if (street === "preflop" && toCall > 0 && !state.preflopOpen && state.preflopJams.length === 0) {
     out.push({ id: "fold", label: "フォールド" });
-    const target = Math.round(CFG.OPEN_SIZE * CFG.BB);
+    const target = Math.round(CFG.OPEN_SIZE * LIVE.bb);
     if (p.chips + p.streetBet > target && toBB(p.startChips) > 13.5) {
       out.push({ id: "raise", label: `レイズ ${fmtChips(target)}`, target });
     }
@@ -271,14 +297,14 @@ function legalActions(state, p, currentBet, street) {
     out.push({ id: "check", label: "チェック" });
     if (street === "preflop") {
       // オープンレイズ(2.2BB)
-      const target = Math.round(CFG.OPEN_SIZE * CFG.BB);
+      const target = Math.round(CFG.OPEN_SIZE * LIVE.bb);
       if (p.chips + p.streetBet > target) {
         out.push({ id: "raise", label: `レイズ ${fmtChips(target)}`, target });
       }
       out.push({ id: "jam", label: `オールイン ${fmtChips(p.chips + p.streetBet)}`, target: p.streetBet + p.chips });
     } else {
-      const b33 = Math.max(CFG.BB, Math.round(pot * 0.33 / 100) * 100);
-      const b66 = Math.max(CFG.BB, Math.round(pot * 0.66 / 100) * 100);
+      const b33 = Math.max(LIVE.bb, Math.round(pot * 0.33 / 100) * 100);
+      const b66 = Math.max(LIVE.bb, Math.round(pot * 0.66 / 100) * 100);
       if (p.chips > b33) out.push({ id: "bet33", label: `ベット33% (${fmtChips(b33)})`, target: b33 });
       if (p.chips > b66 && b66 > b33) out.push({ id: "bet66", label: `ベット66% (${fmtChips(b66)})`, target: b66 });
       out.push({ id: "jam", label: `オールイン ${fmtChips(p.chips)}`, target: p.streetBet + p.chips });
@@ -294,10 +320,12 @@ function applyAction(state, p, action, currentBet, street, io) {
   if (action.id === "fold") {
     p.folded = true;
     io.log(`${tag}: フォールド`, "fold");
+    if (io.sound) io.sound("fold");
     return;
   }
   if (action.id === "check") {
     io.log(`${tag}: チェック`, "check");
+    if (io.sound) io.sound("check");
     return;
   }
   if (action.id === "call") {
@@ -306,6 +334,7 @@ function applyAction(state, p, action, currentBet, street, io) {
     if (p.chips === 0) p.allIn = true;
     if (street === "preflop" && state.preflopJams.length > 0) state.jamCallers++;
     io.log(`${tag}: コール ${fmtChips(toCall)}${p.allIn ? " (オールイン)" : ""}`, "call");
+    if (io.sound) io.sound("chip");
     return;
   }
   // ベット/レイズ/ジャム
@@ -330,16 +359,19 @@ function applyAction(state, p, action, currentBet, street, io) {
       p.assumedRange = range;
       state.preflopJams.push({ seat: p.seat, range, posIdx });
       io.log(`${tag}: オールイン ${fmtChips(target)} (${fmtBB(target)}BB)`, "jam");
+      if (io.sound) io.sound("jam");
     } else {
       p.assumedRange = Ranges.open(posIdx, stackBB);
       p.rangeNote = "オープンレイズ";
       state.preflopOpen = { seat: p.seat, posIdx, cls: openerClass(posIdx), sizeBB: toBB(target), stackBB };
       io.log(`${tag}: レイズ ${fmtChips(target)}`, "raise");
+      if (io.sound) io.sound("chip");
     }
   } else {
     const lbl = action.id === "jam" ? `オールイン ${fmtChips(target)}` :
       `ベット ${fmtChips(pay)}`;
     io.log(`${tag}: ${lbl}`, action.id === "jam" ? "jam" : "raise");
+    if (io.sound) io.sound(action.id === "jam" ? "jam" : "chip");
   }
 }
 
@@ -362,13 +394,6 @@ function buildCtx(state, p, currentBet, street) {
       openerClassV = state.preflopOpen.cls;
       effBB = Math.min(toBB(p.startChips), state.preflopOpen.stackBB);
     }
-    // 自分の後ろのまだアクションしていないプレイヤー数(ブラインド除く考慮なしの簡易版)
-    let behind = 0;
-    for (const q of state.players) {
-      if (q.folded || q.allIn || q === p || q.out) continue;
-      if (!q.hasActed && q.streetBet < currentBet || !q.hasActed) behind++;
-    }
-    behind = Math.max(0, behind - (facing === "none" ? 0 : 0));
     return {
       phase: "preflop",
       heroCards: p.cards, heroLabel: handLabelOf(p.cards[0], p.cards[1]),
@@ -457,6 +482,7 @@ async function resolveHand(state, io) {
     w.chips += pot;
     resetCommit(state);
     io.log(`${w.name} がポット ${fmtChips(pot)} を獲得`, "win");
+    if (io.sound) io.sound(w.isHero ? "win" : "collect");
     io.render(state);
     await io.delay(500);
     recordHandResult(state, [{ name: w.name, isHero: w.isHero, amount: pot }], false);
@@ -517,6 +543,7 @@ async function resolveHand(state, io) {
   for (const w of winners) {
     io.log(`${w.name} が ${fmtChips(w.amount)} を獲得 (${w.hand})`, "win");
   }
+  if (io.sound) io.sound(winners.some(w => w.isHero) ? "win" : "collect");
   io.render(state);
   await io.delay(900);
   recordHandResult(state, winners, true);

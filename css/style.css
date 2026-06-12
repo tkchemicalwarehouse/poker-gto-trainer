@@ -46,6 +46,17 @@ h1 .accent { color: var(--accent); }
 .menu { display: flex; flex-direction: column; gap: 12px; margin: 24px 0; }
 .home-stats { background: var(--panel); border-radius: 10px; padding: 12px 16px; font-size: 14px; color: var(--dim); }
 .home-stats b { color: var(--text); }
+.device-toggle {
+  display: flex; gap: 10px; align-items: center; justify-content: center;
+  margin-bottom: 16px; flex-wrap: wrap;
+}
+.dev-label { color: var(--dim); font-size: 13px; }
+.dev-btn { font-size: 14px; padding: 8px 16px; opacity: .55; }
+.dev-btn.active {
+  opacity: 1; border-color: var(--accent);
+  background: #1f3a5a;
+  box-shadow: 0 0 10px rgba(77,163,255,.35);
+}
 .disclaimer { color: #5d6c7c; font-size: 11px; margin-top: 24px; line-height: 1.6; }
 
 /* ---------- ゲーム画面 ---------- */
@@ -133,6 +144,8 @@ h1 .accent { color: var(--accent); }
 .d1k  { background: #e3c635; }
 .d5k  { background: #e67e22; }
 .d25k { background: #8e44ad; }
+.d100k { background: #23272e; }
+.d500k { background: #c2569d; }
 .chip-dot {
   display: inline-block; width: 14px; height: 14px; border-radius: 50%;
   border: 2px dashed rgba(255,255,255,.9); margin: 0 4px -2px 0;
@@ -166,25 +179,51 @@ h1 .accent { color: var(--accent); }
 }
 
 /* カード */
-.card {
-  width: 40px; height: 56px; border-radius: 5px;
-  background: #fdfdf8; color: #222;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  font-weight: 800; font-size: 17px; line-height: 1;
-  box-shadow: 0 2px 5px rgba(0,0,0,.45);
+@keyframes dealIn {
+  from { transform: translateY(-10px) scale(.8); opacity: 0; }
+  to   { transform: none; opacity: 1; }
 }
-.card .suit { font-size: 15px; }
-.card.small { width: 32px; height: 44px; font-size: 14px; }
-.card.small .suit { font-size: 12px; }
+.card {
+  position: relative;
+  width: 40px; height: 56px; border-radius: 6px;
+  background: linear-gradient(155deg, #ffffff 0%, #f7f4ec 55%, #e9e4d3 100%);
+  color: #222; font-weight: 800; line-height: 1; font-size: 16px;
+  box-shadow: 0 3px 6px rgba(0,0,0,.5), inset 0 0 0 1px rgba(0,0,0,.07);
+  animation: dealIn .28s ease-out;
+}
+.card::after {
+  content: ""; position: absolute; inset: 2px;
+  border-radius: 4px; border: 1px solid rgba(0,0,0,.07);
+  pointer-events: none;
+}
+.c-idx {
+  position: absolute; top: 3px; left: 4px;
+  font-size: 1em; letter-spacing: -.5px;
+  display: flex; flex-direction: column; align-items: center;
+}
+.c-idx span { font-size: .68em; margin-top: 1px; }
+.c-pip {
+  position: absolute; right: 2px; bottom: 0;
+  font-size: 1.65em; opacity: .92;
+  text-shadow: 0 1px 1px rgba(0,0,0,.15);
+}
+.card.small { width: 31px; height: 43px; font-size: 12px; border-radius: 5px; }
 .card.back {
-  background: repeating-linear-gradient(45deg, #2e5f9e, #2e5f9e 4px, #234a7c 4px, #234a7c 8px);
-  border: 2px solid #d8dde2;
+  background: linear-gradient(140deg, #1d3a66, #0f2342);
+  border: 2px solid #e8e4d8;
+  box-shadow: 0 2px 5px rgba(0,0,0,.5);
+}
+.card.back::after {
+  inset: 3px; border: 1px solid rgba(255,255,255,.22); border-radius: 3px;
+  background:
+    repeating-linear-gradient(45deg, transparent 0 4px, rgba(255,255,255,.08) 4px 8px),
+    repeating-linear-gradient(-45deg, transparent 0 4px, rgba(255,255,255,.08) 4px 8px);
 }
 .card.s0 { color: #1a1a1a; } /* ♠ */
 .card.s1 { color: #d33; }    /* ♥ */
 .card.s2 { color: #2277dd; } /* ♦ */
 .card.s3 { color: #2a8f2a; } /* ♣ */
-#board-cards .card { width: 48px; height: 66px; font-size: 20px; }
+#board-cards .card { width: 48px; height: 66px; font-size: 19px; }
 
 /* アクションバー */
 #action-bar {
@@ -256,6 +295,7 @@ h1 .accent { color: var(--accent); }
   max-height: 200px; overflow-y: auto;
 }
 #log-panel .hand-sep { color: var(--gold); font-weight: 700; margin-top: 6px; }
+#log-panel .levelup { color: #ff9e3d; font-weight: 800; margin-top: 4px; }
 #log-panel .street { color: var(--accent); font-weight: 600; }
 #log-panel .jam { color: var(--red); font-weight: 600; }
 #log-panel .raise { color: var(--orange); }
@@ -309,15 +349,51 @@ h1 .accent { color: var(--accent); }
 .help-body h3 { margin: 18px 0 6px; color: var(--text); }
 .help-body ul { margin-left: 22px; }
 
+/* ---------- スマホモード(縦長テーブル・大ボタン) ---------- */
+body.mode-phone #table-wrap { padding: 6px; }
+body.mode-phone #table {
+  width: 94vw;
+  height: min(125vw, calc(100vh - 215px));
+  border-width: 7px;
+}
+body.mode-phone .seat { width: 86px; }
+body.mode-phone .seat-name { font-size: 11px; }
+body.mode-phone .seat-stack { font-size: 10px; }
+body.mode-phone .seat-cards { min-height: 36px; }
+body.mode-phone .card.small { width: 25px; height: 35px; font-size: 10px; }
+body.mode-phone .seat.hero .card { width: 38px; height: 53px; font-size: 15px; }
+body.mode-phone #board-cards .card { width: 40px; height: 56px; font-size: 16px; }
+body.mode-phone .chip { width: 16px; height: 16px; border-width: 2px; }
+body.mode-phone .chip-stack { width: 18px; }
+body.mode-phone .chip-stack.mini .chip { width: 11px; height: 11px; }
+body.mode-phone .seat-pile { left: -15px; }
+body.mode-phone #dealer-disc { width: 26px; height: 26px; font-size: 13px; border-width: 2px; }
+body.mode-phone #game-top { padding: 6px 8px; font-size: 12px; }
+body.mode-phone #game-info { font-size: 11px; }
+body.mode-phone #game-controls { gap: 8px; }
+body.mode-phone #game-controls label { font-size: 11px; }
+body.mode-phone #action-bar {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  background: rgba(13, 18, 24, .97);
+  border-top: 1px solid #3a4a5d;
+  padding: 10px 8px calc(10px + env(safe-area-inset-bottom));
+  gap: 7px; z-index: 60;
+}
+body.mode-phone #action-bar button {
+  flex: 1; min-width: 0; font-size: 14px; padding: 14px 4px;
+}
+body.mode-phone #log-panel { max-height: 130px; padding-bottom: 96px; font-size: 11px; }
+body.mode-phone #coach-panel {
+  position: fixed; inset: 0; width: auto; border-radius: 0;
+  padding: 16px 14px calc(16px + env(safe-area-inset-bottom));
+}
+body.mode-phone .rg-cell { font-size: 7px; }
+body.mode-phone #toast { top: 12%; font-size: 14px; padding: 8px 18px; }
+body.mode-phone .bet-amt { font-size: 10px; }
+body.mode-phone #pot-disp { font-size: 13px; }
+
+/* 画面幅による微調整(モード未選択時の保険) */
 @media (max-width: 700px) {
-  #table { height: 80vw; }
-  .seat { width: 92px; }
-  .card { width: 30px; height: 42px; font-size: 13px; }
-  .card .suit { font-size: 11px; }
-  #board-cards .card { width: 38px; height: 53px; font-size: 16px; }
-  #coach-panel { left: 4vw; right: 4vw; width: auto; top: 10vh; }
-  .chip { width: 17px; height: 17px; border-width: 2px; }
-  .chip-stack { width: 18px; }
-  .seat-pile { left: -18px; }
-  #dealer-disc { width: 26px; height: 26px; font-size: 13px; border-width: 2px; }
+  #coach-panel { left: 4vw; right: 4vw; width: auto; top: 8vh; }
+  .histo { height: 120px; }
 }

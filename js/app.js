@@ -34,6 +34,8 @@ function newTally() {
  * 額面: 25,000=紫 / 5,000=橙 / 1,000=黄 / 500=赤 / 100=白
  */
 const CHIP_DENOMS = [
+  { v: 500000, cls: "d500k" },
+  { v: 100000, cls: "d100k" },
   { v: 25000, cls: "d25k" },
   { v: 5000, cls: "d5k" },
   { v: 1000, cls: "d1k" },
@@ -61,19 +63,40 @@ function chipStackHTML(amount, mini, cap) {
   return h + `</div>`;
 }
 
+/* ---------- デバイスモード(スマホ/タブレット) ---------- */
+function deviceMode() {
+  try {
+    const saved = localStorage.getItem("pgt_device");
+    if (saved) return saved;
+  } catch (e) { }
+  return window.innerWidth < 700 ? "phone" : "tablet";
+}
+function applyDeviceMode(mode, save) {
+  document.body.classList.toggle("mode-phone", mode === "phone");
+  if (save) { try { localStorage.setItem("pgt_device", mode); } catch (e) { } }
+  const bp = $("dev-phone"), bt = $("dev-tablet");
+  if (bp) bp.classList.toggle("active", mode === "phone");
+  if (bt) bt.classList.toggle("active", mode !== "phone");
+  // ゲーム中なら座席を組み直す
+  if (G) { buildSeats(); render(G); }
+}
+
 /* ---------- 座席DOM ---------- */
 const seatCoords = [];
 function buildSeats() {
   const table = $("table");
   table.querySelectorAll(".seat, .bet-spot, #dealer-disc").forEach(e => e.remove());
+  const phone = document.body.classList.contains("mode-phone");
+  const rx = phone ? 40 : 44;
+  const ry = phone ? 44 : 42;
   for (let s = 0; s < CFG.SEATS; s++) {
     const el = document.createElement("div");
     el.className = "seat";
     el.id = "seat-" + s;
     // ヒーロー(seat0)が下中央
     const theta = Math.PI / 2 + s * 2 * Math.PI / CFG.SEATS;
-    const x = 50 + 44 * Math.cos(theta);
-    const y = 50 + 42 * Math.sin(theta);
+    const x = 50 + rx * Math.cos(theta);
+    const y = 50 + ry * Math.sin(theta);
     seatCoords[s] = { x, y, theta };
     el.style.left = x + "%";
     el.style.top = y + "%";
@@ -103,31 +126,44 @@ function buildSeats() {
 function moveDealerDisc(state) {
   const disc = $("dealer-disc");
   if (!disc || !seatCoords[state.btn]) return;
+  const phone = document.body.classList.contains("mode-phone");
+  const rx = phone ? 40 : 44;
+  const ry = phone ? 44 : 42;
   // ボタン席の少し中央寄り・反時計側にずらして置く
   const t = seatCoords[state.btn].theta - 0.30;
-  const x = 50 + 44 * 0.70 * Math.cos(t);
-  const y = 50 + 42 * 0.68 * Math.sin(t);
+  const x = 50 + rx * 0.70 * Math.cos(t);
+  const y = 50 + ry * 0.68 * Math.sin(t);
   disc.style.left = x + "%";
   disc.style.top = y + "%";
 }
 
 function cardHTML(c, small) {
+  const r = cardRank(c) === 8 ? "10" : RANK_CHARS[cardRank(c)];
+  const s = SUIT_SYMBOLS[cardSuit(c)];
   return `<div class="card s${cardSuit(c)}${small ? " small" : ""}">` +
-    `<div>${RANK_CHARS[cardRank(c)]}</div><div class="suit">${SUIT_SYMBOLS[cardSuit(c)]}</div></div>`;
+    `<div class="c-idx">${r}<span>${s}</span></div>` +
+    `<div class="c-pip">${s}</div></div>`;
 }
 function backHTML(small) { return `<div class="card back${small ? " small" : ""}"></div>`; }
+
+// カードDOMは変化した時だけ差し替える(配牌アニメを変化時のみ再生するため)
+function setCards(el, key, html) {
+  if (el.dataset.k === key) return;
+  el.dataset.k = key;
+  el.innerHTML = html;
+}
 
 /* ---------- レンダリング ---------- */
 function render(state) {
   if (!state) return;
   const hero = state.players[0];
   $("game-info").textContent =
-    `ハンド #${state.handNo}　ブラインド 2,000/4,000(A4,000)　あなた: ${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)`;
+    `#${state.handNo}　Lv${LIVE.level + 1}: ${fmtChips(LIVE.sb)}/${fmtChips(LIVE.bb)}(A)　あなた: ${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)`;
 
   const pot = potTotal(state);
   $("pot-disp").textContent = state.street === "idle" ? "" : `ポット: ${fmtChips(pot)} (${fmtBB(pot)}BB)`;
   $("pot-chips").innerHTML = state.street === "idle" ? "" : chipStackHTML(pot, false, 14);
-  $("board-cards").innerHTML = state.board.map(c => cardHTML(c)).join("");
+  setCards($("board-cards"), state.board.join(","), state.board.map(c => cardHTML(c)).join(""));
   moveDealerDisc(state);
 
   for (let s = 0; s < CFG.SEATS; s++) {
@@ -144,9 +180,9 @@ function render(state) {
       `${fmtChips(p.chips)} <span class="bb">(${fmtBB(p.chips)}BB)</span>`;
     el.querySelector(".seat-pile").innerHTML = chipStackHTML(p.chips, true);
     const cardsEl = el.querySelector(".seat-cards");
-    if (state.street === "idle" || p.folded) cardsEl.innerHTML = "";
-    else if (p.isHero || p.showCards) cardsEl.innerHTML = p.cards.map(c => cardHTML(c, !p.isHero)).join("");
-    else cardsEl.innerHTML = backHTML(true) + backHTML(true);
+    if (state.street === "idle" || p.folded) setCards(cardsEl, "none", "");
+    else if (p.isHero || p.showCards) setCards(cardsEl, "f" + p.cards.join(","), p.cards.map(c => cardHTML(c, !p.isHero)).join(""));
+    else setCards(cardsEl, "back" + state.handNo, backHTML(true) + backHTML(true));
     // ベットチップ(座席と中央の中間に表示)
     const betEl = $("bet-" + s);
     if (betEl) {
@@ -174,6 +210,7 @@ const gameIO = {
   render,
   log: logMsg,
   heroAct: heroActUI,
+  sound: n => Sfx.play(n),
 };
 
 function autoAction(legal) {
@@ -184,6 +221,7 @@ async function heroActUI(ctx, legal) {
   if (aborting) return autoAction(legal);
   // 先にGTOアドバイスを計算(MC含む)
   const advice = ctx.phase === "preflop" ? await preflopAdvice(ctx) : await postflopAdvice(ctx);
+  Sfx.play("turn");
   const act = await showActionButtons(legal);
   const grade = gradeDecision(ctx, advice, act.id);
 
@@ -194,8 +232,9 @@ async function heroActUI(ctx, legal) {
   tally.perHand[G.handNo].push({ verdict: grade.verdict, evLoss: grade.evLoss, action: act.id, phase: ctx.phase });
 
   const mode = coachMode();
+  const isOK = grade.verdict === "best" || grade.verdict === "mixed";
+  Sfx.play(isOK ? "good" : "bad");
   if (mode !== "off") {
-    const isOK = grade.verdict === "best" || grade.verdict === "mixed";
     if (isOK && mode !== "always") showToast(grade.verdict);
     else await showCoachPanel(grade, advice, ctx, act.id);
   }
@@ -245,6 +284,7 @@ function showCoachPanel(grade, advice, ctx, chosenId) {
 
 /* ---------- トーナメント進行 ---------- */
 async function startTournament() {
+  simCancel = true; // 実行中のシミュレーションがあれば停止
   showScreen("screen-game");
   $("log-panel").innerHTML = "";
   $("coach-panel").classList.add("hidden");
@@ -268,6 +308,7 @@ async function startTournament() {
 }
 
 function finishTournament() {
+  Sfx.play("bust");
   // 敗因分析: 最終ハンドにブランダー/大ミスがあったか
   const lastDecisions = tally.perHand[G.handNo] || [];
   const mistakeInFinal = lastDecisions.some(d => d.verdict === "blunder" || (d.verdict === "minor" && d.evLoss >= 0.5));
@@ -300,32 +341,34 @@ function finishTournament() {
 }
 
 /* ---------- シミュレーション ---------- */
+let simCancel = false;
 async function runSim() {
   const n = parseInt($("sim-count").value);
   $("sim-run").disabled = true;
   $("sim-result").innerHTML = "";
+  simCancel = false;
   const results = [];
 
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < n && !simCancel; i++) {
     const st = newTournament("GTOボット");
     st.fastMode = true;
-    const heroP = st.players[0];
     const simIO = {
       delay: () => Promise.resolve(),
       render: () => { },
       log: () => { },
       heroAct: (ctx, legal) => botAct(st, st.players[0], ctx, legal, simIO),
     };
-    while (!st.over && st.handNo < 300) {
+    while (!st.over && st.handNo < 300 && !simCancel) {
       await playHand(st, simIO);
     }
+    if (simCancel) break;
     results.push(st.handNo >= 300 ? 300 : st.handNo);
     $("sim-progress").textContent = `実行中… ${i + 1} / ${n} トーナメント`;
     await new Promise(r => setTimeout(r, 0));
   }
-  $("sim-progress").textContent = `完了: ${n}トーナメント`;
+  $("sim-progress").textContent = simCancel ? "中断しました" : `完了: ${n}トーナメント`;
   $("sim-run").disabled = false;
-  renderSimResult(results);
+  if (results.length > 0 && !simCancel) renderSimResult(results);
 }
 
 function renderSimResult(results) {
@@ -429,8 +472,14 @@ function renderStats() {
 /* ---------- イベント登録 ---------- */
 window.addEventListener("DOMContentLoaded", () => {
   renderHomeStats();
+  applyDeviceMode(deviceMode(), false);
   // ハンド強度テーブルをバックグラウンドで事前計算
   setTimeout(() => { try { getHandPower(); } catch (e) { } }, 400);
+
+  $("dev-phone").onclick = () => applyDeviceMode("phone", true);
+  $("dev-tablet").onclick = () => applyDeviceMode("tablet", true);
+  $("btn-mute").textContent = Sfx.isMuted() ? "🔇" : "🔊";
+  $("btn-mute").onclick = () => { $("btn-mute").textContent = Sfx.toggle() ? "🔇" : "🔊"; };
 
   $("btn-start").onclick = () => startTournament();
   $("btn-sim").onclick = () => { showScreen("screen-sim"); };
@@ -446,7 +495,7 @@ window.addEventListener("DOMContentLoaded", () => {
   };
 
   $("sim-run").onclick = () => runSim();
-  $("sim-back").onclick = () => showScreen("screen-home");
+  $("sim-back").onclick = () => { simCancel = true; showScreen("screen-home"); };
   $("stats-back").onclick = () => showScreen("screen-home");
   $("stats-reset").onclick = () => {
     if (confirm("成績をすべて削除しますか?")) { localStorage.removeItem(REC_KEY); renderStats(); renderHomeStats(); }
