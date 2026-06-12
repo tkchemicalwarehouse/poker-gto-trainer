@@ -223,6 +223,27 @@ function teachRejamBreakdown(label, rejamRange, openRange, effBB, posted) {
   return { S, pCall, potNow, eqVsCall, finalPot, risk, openerBE, ev };
 }
 
+/* FTでのジャムEVを賞金期待値(ICM)で評価
+ * pFoldAll: 全員降りる確率, eqVsCall: コールされた時の勝率
+ * 戻り: {evJam, evFold}(プライズプール比) | null
+ */
+function icmJamEval(icmCtx, pFoldAll, eqVsCall) {
+  try {
+    if (!icmCtx || typeof Icm === "undefined") return null;
+    const { stacks, heroI, villI, potChips, payouts } = icmCtx;
+    const heroBehind = stacks[heroI], villBehind = stacks[villI];
+    const callAmt = Math.min(villBehind, heroBehind);
+    const foldS = stacks.slice(); foldS[villI] += potChips;          // 降りる→相手がポット回収(近似)
+    const stealS = stacks.slice(); stealS[heroI] += potChips;        // 全員フォールド
+    const winS = stacks.slice(); winS[heroI] = heroBehind + potChips + callAmt; winS[villI] = villBehind - callAmt;
+    const loseS = stacks.slice(); loseS[heroI] = heroBehind - callAmt; loseS[villI] = villBehind + potChips + callAmt;
+    const e = s => Icm.icmEVs(s, payouts)[heroI];
+    const evJam = pFoldAll * e(stealS) + (1 - pFoldAll) * (eqVsCall * e(winS) + (1 - eqVsCall) * e(loseS));
+    const evFold = e(foldS);
+    return { evJam, evFold };
+  } catch (e) { return null; }
+}
+
 /* =========================================================
  * プリフロップ・アドバイス
  * ctx: {
@@ -257,10 +278,22 @@ async function preflopAdvice(ctx) {
         if (Math.abs(data.marginBB) <= 0.5) { freqs.jam = 0.5; freqs.fold = 0.5; } // 境界=混合域
         else if (data.marginBB > 0) freqs.jam = 1;
         else freqs.fold = 1;
-        // 教材用: ジャムEVの分解(UI時のみ)
-        if (!ctx.fast) {
+        // 教材用: ジャムEVの分解(UI時 or FTのICM評価に必要な時)
+        if (!ctx.fast || ctx.icmJam) {
           const posted = ctx.posIdx === POS_SB ? 0.5 : 0;
-          data.calc = teachJamBreakdown(label, data.range, ctx.stackBB, 8 - ctx.posIdx, posted);
+          const defenders = ctx.defendersN != null ? ctx.defendersN : 8 - ctx.posIdx;
+          data.calc = teachJamBreakdown(label, data.range, ctx.stackBB, defenders, posted);
+        }
+        // FT: ジャム自体を賞金期待値で再評価(ICMはジャム側も締める)
+        if (ctx.icmJam && data.calc && freqs.jam > 0) {
+          const r = icmJamEval(ctx.icmJam, data.calc.pNo, data.calc.eqVsCall);
+          if (r) {
+            data.icmJamEval = r;
+            const diff = r.evJam - r.evFold;
+            if (Math.abs(diff) < 0.002) { freqs.jam = 0.5; freqs.fold = 0.5; data.icmMix = true; }
+            else if (diff < 0) { freqs.jam = 0; freqs.fold = 1; data.icmVeto = true; }
+            else data.icmConfirm = true;
+          }
         }
       } else {
         const push = Ranges.push(ctx.posIdx, ctx.stackBB);
@@ -306,10 +339,21 @@ async function preflopAdvice(ctx) {
     const openRange = hu ? Ranges.huOpen() : (typeof OPEN_RANGES !== "undefined"
       ? parseRange(OPEN_RANGES[ctx.effBB <= 20 ? 15 : 25][{ EP: 1, MP: 4, LP: 6, SB: 7 }[opClass]]) : null);
     if (openRange) data.eqVsOpen = eqVsRangeTable(label, openRange);
-    // 教材用: リジャムEVの分解(UI時のみ)
-    if (!ctx.fast && openRange && data.rejamRange) {
+    // 教材用: リジャムEVの分解(UI時 or FTのICM評価に必要な時)
+    if ((!ctx.fast || ctx.icmJam) && openRange && data.rejamRange) {
       const posted = ctx.posIdx === POS_BB ? 1 : (ctx.posIdx === POS_SB ? 0.5 : 0);
       data.calc = teachRejamBreakdown(label, data.rejamRange, openRange, ctx.effBB, posted);
+    }
+    // FT: リジャム自体を賞金期待値で再評価
+    if (ctx.icmJam && data.calc && jamDecided !== false) {
+      const r = icmJamEval(ctx.icmJam, 1 - data.calc.pCall, data.calc.eqVsCall);
+      if (r) {
+        data.icmJamEval = r;
+        const diff = r.evJam - r.evFold;
+        if (Math.abs(diff) < 0.002) { jamDecided = "mix"; data.icmMix = true; }
+        else if (diff < 0) { jamDecided = false; data.icmVeto = true; }
+        else data.icmConfirm = true;
+      }
     }
 
     if (ctx.posIdx === POS_BB) {

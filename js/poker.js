@@ -54,7 +54,7 @@ function makePlayer(seat, name, isHero, chips) {
     cards: [], folded: true, allIn: false, out: false,
     streetBet: 0, committed: 0, hasActed: false, hadAggression: false,
     assumedRange: null, rangeNote: "",
-    showCards: false,
+    showCards: false, lastAction: null,
   };
 }
 
@@ -169,13 +169,13 @@ async function playHand(state, io) {
   for (const p of state.players) {
     if (p.out) {
       p.folded = true; p.cards = []; p.showCards = false;
-      p.streetBet = 0; p.committed = 0; p.allIn = false;
+      p.streetBet = 0; p.committed = 0; p.allIn = false; p.lastAction = null;
       continue;
     }
     p.cards = [deck.pop(), deck.pop()];
     p.folded = false; p.allIn = false;
     p.streetBet = 0; p.committed = 0; p.hasActed = false; p.hadAggression = false;
-    p.assumedRange = null; p.rangeNote = ""; p.showCards = false;
+    p.assumedRange = null; p.rangeNote = ""; p.showCards = false; p.lastAction = null;
     p.startChips = p.chips;
   }
 
@@ -213,7 +213,7 @@ async function playHand(state, io) {
     state.street = street;
     state.curStreetAggressor = null;
     for (let i = 0; i < n; i++) state.board.push(state.deck.pop());
-    for (const p of state.players) { p.streetBet = 0; p.hasActed = false; p.hadAggression = false; }
+    for (const p of state.players) { p.streetBet = 0; p.hasActed = false; p.hadAggression = false; if (!p.folded) p.lastAction = null; }
     io.log(`【${streetJP(street)}】 ${state.board.map(cardText).join(" ")}`, "street");
     if (io.sound) io.sound("deal");
     io.render(state);
@@ -234,11 +234,12 @@ async function playHand(state, io) {
   await resolveHand(state, io);
 
   // バスト処理: 補欠(他テーブルの選手)がいる間は席が埋まり、いなければ席が消える
+  // ※FT以降は絶対に補充しない(ダブルKO時の幽霊着席→誤優勝判定バグの防止)
   for (const p of state.players) {
     if (!p.isHero && !p.out && p.chips <= 0) {
       state.fieldLeft--;
       const tableAlive = state.players.filter(q => !q.out && q.chips > 0).length;
-      if (state.fieldLeft > tableAlive) {
+      if (!state.finalTable && state.fieldLeft > tableAlive) {
         const fresh = makeBot(p.seat);
         io.log(`${p.name} がバスト(残り${state.fieldLeft}人)。${fresh.name} が移動してきた (${fmtBB(fresh.chips)}BB)`, "info");
         state.players[p.seat] = fresh;
@@ -425,11 +426,13 @@ function applyAction(state, p, action, currentBet, street, io) {
   const tag = `${p.name}(${pos})`;
   if (action.id === "fold") {
     p.folded = true;
+    p.lastAction = "FOLD";
     io.log(`${tag}: フォールド`, "fold");
     if (io.sound) io.sound("fold");
     return;
   }
   if (action.id === "check") {
+    p.lastAction = "CHECK";
     io.log(`${tag}: チェック`, "check");
     if (io.sound) io.sound("check");
     return;
@@ -439,6 +442,7 @@ function applyAction(state, p, action, currentBet, street, io) {
     postBet(p, toCall);
     if (p.chips === 0) p.allIn = true;
     if (street === "preflop" && state.preflopJams.length > 0) state.jamCallers++;
+    p.lastAction = p.allIn ? "ALL IN" : "CALL";
     io.log(`${tag}: コール ${fmtChips(toCall)}${p.allIn ? " (オールイン)" : ""}`, "call");
     if (io.sound) io.sound("chip");
     return;
@@ -449,6 +453,8 @@ function applyAction(state, p, action, currentBet, street, io) {
   postBet(p, pay);
   p.hadAggression = true;
   if (p.chips === 0) p.allIn = true;
+  p.lastAction = (action.id === "jam" || p.allIn) ? "ALL IN"
+    : (street === "preflop" ? "RAISE" : (currentBet > 0 ? "RAISE" : "BET"));
 
   if (street === "preflop") {
     const posIdx = posIdxOf(state, p.seat);
@@ -513,12 +519,34 @@ function buildCtx(state, p, currentBet, street) {
       icm = icmCtxFor(state, p, state.preflopJams[0].seat);
       if (icm) icm.toCallChips = toCall;
     }
+    // FTでジャムする側 → ICM評価用コンテキスト(相手=最も脅威な後続スタック)
+    let icmJam = null;
+    if (state.finalTable && (facing === "none" || facing === "open") && typeof Icm !== "undefined") {
+      let villSeat = -1, villChips = -1;
+      if (facing === "open" && state.preflopOpen) {
+        villSeat = state.preflopOpen.seat;
+      } else {
+        for (const q of state.players) {
+          if (q.out || q.folded || q === p) continue;
+          if (q.chips > villChips) { villChips = q.chips; villSeat = q.seat; }
+        }
+      }
+      if (villSeat >= 0) {
+        icmJam = icmCtxFor(state, p, villSeat);
+        if (icmJam) {
+          icmJam.bbChips = LIVE.bb;
+          icmJam.heroPostedChips = p.committed;
+        }
+      }
+    }
+    // 残っているディフェンダー数(ショートハンド・前のフォールドを正確に反映)
+    const defendersN = state.players.filter(q => !q.out && !q.folded && q !== p).length;
     return {
       phase: "preflop",
       heroCards: p.cards, heroLabel: handLabelOf(p.cards[0], p.cards[1]),
       posIdx, stackBB: toBB(p.startChips), effBB,
       tableN: aliveSeats(state).length,
-      icm,
+      icm, icmJam, defendersN,
       facing, openerClass: openerClassV,
       openerPosIdx: state.preflopOpen ? state.preflopOpen.posIdx : null,
       openSizeBB: state.preflopOpen ? state.preflopOpen.sizeBB : 0,

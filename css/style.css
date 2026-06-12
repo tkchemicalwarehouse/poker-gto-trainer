@@ -447,6 +447,54 @@ button.cta:hover { background: linear-gradient(170deg, #ffe085, #e8b52e 55%, #c7
   border: 8px solid transparent; border-top-color: #fff; border-bottom: 0;
 }
 
+/* 直近アクションのドット文字バッジ */
+.seat-act {
+  position: absolute; left: 50%; top: 46%;
+  transform: translate(-50%, -50%);
+  font-family: "Press Start 2P", monospace;
+  font-size: 10px; padding: 4px 7px; white-space: nowrap;
+  background: rgba(5, 8, 12, .85); border: 2px solid #fff;
+  z-index: 7; letter-spacing: 1px;
+  animation: actPop .16s steps(2) both;
+  box-shadow: 2px 2px 0 rgba(0,0,0,.6);
+}
+@keyframes actPop { from { transform: translate(-50%, -50%) scale(.4); } }
+.sa-fold  { color: #8a97a5; border-color: #8a97a5; }
+.sa-check { color: #ffffff; border-color: #ffffff; }
+.sa-call  { color: #46c47c; border-color: #46c47c; }
+.sa-raise { color: #ff9e3d; border-color: #ff9e3d; }
+.sa-allin { color: #ff3355; border-color: #ff3355; animation: actPop .16s steps(2) both, allinColors .7s steps(1) infinite; }
+body.mode-phone .seat-act { font-size: 8px; padding: 3px 5px; }
+
+/* 右下の大型ブラインド表示 */
+#blind-corner {
+  position: fixed; right: 14px; bottom: 14px; z-index: 30;
+  text-align: right; pointer-events: none;
+  font-family: "Press Start 2P", monospace;
+  text-shadow: 3px 3px 0 rgba(0,0,0,.7);
+}
+#blind-corner .bc-lv { color: var(--accent); font-size: 13px; margin-bottom: 4px; }
+#blind-corner .bc-blinds { color: var(--gold); font-size: clamp(18px, 3.2vw, 30px); }
+#blind-corner .bc-blinds span { color: var(--dim); margin: 0 4px; }
+#blind-corner .bc-ante { color: #ff9e3d; font-size: 11px; margin-top: 4px; }
+body.mode-phone #blind-corner { bottom: 96px; right: 8px; }
+body.mode-phone #blind-corner .bc-blinds { font-size: 16px; }
+
+/* 中央の決定ボタン(スライダー用・ドット絵スタイル) */
+#sizer-big-ok {
+  pointer-events: auto;
+  display: block; margin: 16px auto 0;
+  font-family: "Press Start 2P", monospace;
+  font-size: 16px; padding: 14px 26px;
+  background: linear-gradient(170deg, #f0cf6b, #d9a627);
+  color: #2a2008; border: 3px solid #000; border-radius: 0;
+  box-shadow: inset -3px -3px 0 rgba(0,0,0,.35), inset 3px 3px 0 rgba(255,255,255,.3), 4px 4px 0 #000;
+  cursor: pointer;
+  animation: ctaPulse 1.6s ease-in-out infinite;
+}
+#sizer-big-ok:active { transform: translate(4px, 4px); box-shadow: none; }
+#sizer-big { pointer-events: none; }
+
 /* 計算方法ボックス(教材) */
 .calc-box {
   background: linear-gradient(170deg, #1f2a38, #18212d);

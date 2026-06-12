@@ -114,6 +114,7 @@ function buildSeats() {
         <div class="seat-stack"></div>
         <div class="seat-cards"></div>
         <div class="stack-gauge"><div class="sg-fill"></div></div>
+        <div class="seat-act hidden"></div>
       </div>`;
     table.appendChild(el);
     // ベットチップ置き場: 座席ボックスのすぐ内側(中央方向に固定ピクセルで配置)
@@ -195,6 +196,17 @@ function render(state) {
   setCards($("board-cards"), state.board.join(","), state.board.map(c => cardHTML(c)).join(""));
   moveDealerDisc(state);
   checkAARun(state);
+  // 右下の大型ブラインド表示(コーチパネル表示中は隠す)
+  const bc = $("blind-corner");
+  if (bc) {
+    const coachOpen = !$("coach-panel").classList.contains("hidden");
+    bc.classList.toggle("hidden", coachOpen);
+    const txt = `LV ${LIVE.level + 1}|${fmtChips(LIVE.sb)} / ${fmtChips(LIVE.bb)}`;
+    if (bc.dataset.t !== txt) {
+      bc.dataset.t = txt;
+      bc.innerHTML = `<div class="bc-lv">LV ${LIVE.level + 1}</div><div class="bc-blinds">${fmtChips(LIVE.sb)}<span>/</span>${fmtChips(LIVE.bb)}</div><div class="bc-ante">ANTE ${fmtChips(LIVE.ante)}</div>`;
+    }
+  }
 
   for (let s = 0; s < CFG.SEATS; s++) {
     const p = state.players[s];
@@ -230,6 +242,18 @@ function render(state) {
     if (state.street === "idle" || p.folded) setCards(cardsEl, "none", "");
     else if (p.isHero || p.showCards) setCards(cardsEl, "f" + p.cards.join(","), p.cards.map(c => cardHTML(c, !p.isHero)).join(""));
     else setCards(cardsEl, "back" + state.handNo, backHTML(true) + backHTML(true));
+    // 直近アクションのドット文字バッジ(CHECK/FOLD/RAISE等)
+    const actEl = el.querySelector(".seat-act");
+    if (p.lastAction && state.street !== "idle") {
+      const typeCls = { "FOLD": "sa-fold", "CHECK": "sa-check", "CALL": "sa-call", "RAISE": "sa-raise", "BET": "sa-raise", "ALL IN": "sa-allin" }[p.lastAction] || "sa-check";
+      if (actEl.textContent !== p.lastAction || !actEl.classList.contains(typeCls)) {
+        actEl.className = "seat-act " + typeCls;
+        actEl.textContent = p.lastAction;
+      }
+    } else {
+      actEl.className = "seat-act hidden";
+      actEl.textContent = "";
+    }
     // ベットチップ(座席と中央の中間に表示)
     const betEl = $("bet-" + s);
     if (betEl) {
@@ -348,6 +372,19 @@ function showActionButtons(legal) {
       bar.appendChild(panel);
       const range = panel.querySelector("#sizer-range");
       const val = panel.querySelector("#sizer-val");
+      const confirmRaise = () => {
+        const target = parseInt(range.value);
+        done({ id: "raiseTo", target, minTarget: min, maxTarget: max, label: `レイズ ${fmtChips(target)}` });
+      };
+      // 画面中央の巨大表示の直下に「決定」ボタン(スクロール不要で確定できる)
+      let bigOk = $("sizer-big-ok");
+      if (!bigOk) {
+        bigOk = document.createElement("button");
+        bigOk.id = "sizer-big-ok";
+        big.appendChild(bigOk);
+      }
+      bigOk.textContent = "▼ 決 定 ▼";
+      bigOk.onclick = confirmRaise;
       const update = () => {
         const v = parseInt(range.value);
         const isAllin = v >= max;
@@ -370,10 +407,7 @@ function showActionButtons(legal) {
       };
       panel.querySelector("#sizer-min").onclick = () => { range.value = min; update(); };
       panel.querySelector("#sizer-semi").onclick = () => { range.value = Math.max(min, max - 1000); update(); };
-      panel.querySelector("#sizer-ok").onclick = () => {
-        const target = parseInt(range.value);
-        done({ id: "raiseTo", target, minTarget: min, maxTarget: max, label: `レイズ ${fmtChips(target)}` });
-      };
+      panel.querySelector("#sizer-ok").onclick = confirmRaise;
       return;
     }
     bar.appendChild(btnRow);
@@ -408,8 +442,10 @@ function showCoachPanel(grade, advice, ctx, chosenId) {
     $("coach-verdict").className = info.cls;
     $("coach-body").innerHTML = grade.explanation;
     $("coach-panel").classList.remove("hidden");
+    $("blind-corner").classList.add("hidden");
     $("coach-continue").onclick = () => {
       $("coach-panel").classList.add("hidden");
+      $("blind-corner").classList.remove("hidden");
       resolve();
     };
   });

@@ -50,6 +50,12 @@ function gradeDecision(ctx, advice, chosenId) {
     const m = Math.abs(d.marginBB);
     verdict = m < 2.5 ? "minor" : "blunder";
   }
+  // 有効18BB以上でのノンオールイン3ベットは正解の一つとして許容
+  // (本アプリのゲーム木はジャムに単純化しているが、実GTOは小さい3ベットも混ぜる)
+  if (d.kind === "facingOpen" && advice.primary === "jam" && chosen === "raise" && ctx.effBB >= 18 &&
+      (verdict === "minor" || verdict === "blunder")) {
+    verdict = "mixed";
+  }
 
   // EV損失推定(BB)
   let evLoss = 0;
@@ -137,6 +143,14 @@ function buildExplanation(ctx, advice, chosen, verdict) {
         lines.push(`<p>${sever}。` +
           (chosen === "jam" ? `フォールドエクイティを考慮してもEVが足りません。` : "") + `</p>`);
       }
+      // FTのICM判定
+      if (d.icmJamEval) {
+        const i = d.icmJamEval;
+        const line = `ジャムの賞金期待値 <b>${(i.evJam * 100).toFixed(2)}%</b> vs フォールド <b>${(i.evFold * 100).toFixed(2)}%</b>`;
+        if (d.icmVeto) lines.push(`<p>🏆 <b>ICM判定(FT)</b>: チップEVのナッシュではジャム圏内ですが、${line} — <b>賞金ベースではフォールド優位</b>に逆転します。</p>`);
+        else if (d.icmMix) lines.push(`<p>🏆 <b>ICM判定(FT)</b>: ${line} — 境界の混合域です。</p>`);
+        else lines.push(`<p>🏆 <b>ICM検証(FT)</b>: ${line} — 賞金ベースでもジャム優位です。</p>`);
+      }
       lines.push(`<p>この${ctx.stackBB.toFixed(1)}BBでの${ctx.seatName}のナッシュ・ジャムレンジは上位 <b>${d.rangePct.toFixed(1)}%</b>:</p>`);
       // 📐 計算方法
       if (d.calc) {
@@ -211,6 +225,17 @@ function buildExplanation(ctx, advice, chosen, verdict) {
       lines.push(`<p>${hand} はジャムするには弱く、捨てるには強い「コール向き」のハンドです。ジャムだと相手の継続レンジ(上位${d.rejamPct.toFixed(0)}%級)に対して分が悪くなります。</p>`);
     } else if (correct === "fold" && (chosen === "call" || chosen === "jam")) {
       lines.push(`<p>${hand} はリジャムにもコールにも届きません。${ctx.posIdx === POS_BB ? "BBのポットオッズをもってしても継続は-EVです。" : "ポジション外から弱いハンドで参加すると、その後の全ストリートで損をし続けます。"}</p>`);
+    }
+    if (correct === "jam" && chosen === "raise" && ctx.effBB >= 18) {
+      lines.push(`<p>💡 <b>あなたのノンオールイン3ベットも正解の一つです。</b>本アプリのゲーム木は浅いスタックの標準に合わせて「ジャムかフォールド」に単純化していますが、有効18BB以上の実際のGTOは約3〜3.5倍の小さい3ベットも混ぜます(4ベットジャムされた時の対応計画はセットで)。</p>`);
+    }
+    // FTのICM判定
+    if (d.icmJamEval) {
+      const i = d.icmJamEval;
+      const line = `ジャムの賞金期待値 <b>${(i.evJam * 100).toFixed(2)}%</b> vs フォールド <b>${(i.evFold * 100).toFixed(2)}%</b>(プライズプール比)`;
+      if (d.icmVeto) lines.push(`<p>🏆 <b>ICM判定(FT)</b>: チップEVではジャム圏内ですが、${line} — <b>賞金ベースではフォールド優位</b>。ペイジャンプを前にリスクを取る価値が下がっています。</p>`);
+      else if (d.icmMix) lines.push(`<p>🏆 <b>ICM判定(FT)</b>: ${line} — ほぼ互角の境界。どちらでもOKです。</p>`);
+      else lines.push(`<p>🏆 <b>ICM検証(FT)</b>: ${line} — 賞金ベースでもジャム優位を確認済み。</p>`);
     }
     // 📐 計算方法
     if (d.calc) {
