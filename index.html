@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MTT GTOサバイバル — 5〜30BB中盤戦トレーナー</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ホーム画面 -->
+<div id="screen-home" class="screen">
+  <div class="home-inner">
+    <h1>MTT GTO<span class="accent">サバイバル</span></h1>
+    <p class="sub">5〜30BB 中盤戦トレーナー — ブラインド固定 2,000 / 4,000 (BBアンティ 4,000)</p>
+    <div id="home-stats" class="home-stats"></div>
+    <div class="menu">
+      <button id="btn-start" class="big primary">▶ トーナメント開始</button>
+      <button id="btn-sim" class="big">⚡ GTOシミュレーション(分散体感)</button>
+      <button id="btn-stats" class="big">📊 成績</button>
+      <button id="btn-help" class="big">❓ 遊び方</button>
+    </div>
+    <p class="disclaimer">プリフロップ: ナッシュ均衡チャート / ポストフロップ: ソルバー傾向ヒューリスティック+リアルタイムエクイティ計算による近似</p>
+  </div>
+</div>
+
+<!-- ゲーム画面 -->
+<div id="screen-game" class="screen hidden">
+  <div id="game-top">
+    <span id="game-info"></span>
+    <span id="game-controls">
+      <label>コーチ表示:
+        <select id="coach-mode">
+          <option value="mistakes" selected>ミスのみ</option>
+          <option value="always">毎回</option>
+          <option value="off">なし(結果のみ)</option>
+        </select>
+      </label>
+      <label>速度:
+        <select id="game-speed">
+          <option value="1" selected>普通</option>
+          <option value="0.4">速い</option>
+          <option value="2">遅い</option>
+        </select>
+      </label>
+      <button id="btn-quit">退出</button>
+    </span>
+  </div>
+
+  <div id="table-wrap">
+    <div id="table">
+      <div id="board-area">
+        <div id="pot-disp"></div>
+        <div id="board-cards"></div>
+        <div id="pot-chips"></div>
+      </div>
+      <!-- 座席はJSで生成 -->
+    </div>
+  </div>
+
+  <div id="action-bar" class="hidden"></div>
+  <div id="toast" class="hidden"></div>
+
+  <div id="coach-panel" class="hidden">
+    <div id="coach-verdict"></div>
+    <div id="coach-body"></div>
+    <button id="coach-continue" class="primary">続ける ▶</button>
+  </div>
+
+  <div id="log-panel"></div>
+</div>
+
+<!-- バスト(トーナメント終了)モーダル -->
+<div id="bust-modal" class="modal hidden">
+  <div class="modal-inner">
+    <h2 id="bust-title">バスト…</h2>
+    <div id="bust-body"></div>
+    <div class="modal-btns">
+      <button id="bust-again" class="primary">もう一度挑戦</button>
+      <button id="bust-home">ホームへ</button>
+    </div>
+  </div>
+</div>
+
+<!-- シミュレーション画面 -->
+<div id="screen-sim" class="screen hidden">
+  <div class="panel-inner">
+    <h2>⚡ GTOシミュレーション</h2>
+    <p>あなたの代わりにGTOボットがプレイし、「完璧にGTO通り打っても何ハンドで飛ぶか」の分布を体感します。<br>
+    トーナメントは最大300ハンドで生存打ち切りとします。</p>
+    <div class="sim-controls">
+      <label>回数:
+        <select id="sim-count">
+          <option value="20">20回</option>
+          <option value="50" selected>50回</option>
+          <option value="100">100回</option>
+        </select>
+      </label>
+      <button id="sim-run" class="primary">実行</button>
+      <button id="sim-back">戻る</button>
+    </div>
+    <div id="sim-progress"></div>
+    <div id="sim-result"></div>
+  </div>
+</div>
+
+<!-- 成績画面 -->
+<div id="screen-stats" class="screen hidden">
+  <div class="panel-inner">
+    <h2>📊 成績</h2>
+    <div id="stats-body"></div>
+    <button id="stats-back">戻る</button>
+    <button id="stats-reset" class="danger">成績をリセット</button>
+  </div>
+</div>
+
+<!-- 遊び方画面 -->
+<div id="screen-help" class="screen hidden">
+  <div class="panel-inner">
+    <h2>❓ 遊び方</h2>
+    <div class="help-body">
+      <h3>このアプリの目的</h3>
+      <p>MTT中盤戦(全員5〜30BB)を、チップが尽きるまで実戦形式でプレイします。すべての判断はGTO基準で採点され、ズレた瞬間に「なぜ間違いか」をEV・エクイティの実数で解説します。</p>
+      <p><b>もう一つの大事な目的:</b> GTO通りにプレイしても、トーナメントでは頻繁にバストします。それが「ミス」なのか「分散」なのかを区別する感覚を、回数を重ねて体に入れることです。バスト時には敗因の分解を表示します。</p>
+      <h3>ルール設定</h3>
+      <ul>
+        <li>9人テーブル / ブラインド固定 2,000/4,000 / BBアンティ4,000 (1BB = 4,000点)</li>
+        <li>全員5〜30BBのランダムスタックで開始。バストしたボットは新しいボットと入れ替わり</li>
+        <li>ベットサイズはGTOソルバー風に抽象化: プリフロップ=2.2BBレイズ or オールイン、ポストフロップ=ポットの33% / 66% / オールイン</li>
+      </ul>
+      <h3>チップの額面</h3>
+      <div class="chip-legend">
+        <span><i class="chip-dot d25k"></i>25,000</span>
+        <span><i class="chip-dot d5k"></i>5,000</span>
+        <span><i class="chip-dot d1k"></i>1,000</span>
+        <span><i class="chip-dot d500"></i>500</span>
+        <span><i class="chip-dot d100"></i>100</span>
+      </div>
+      <h3>採点</h3>
+      <ul>
+        <li><b class="v-best-t">✓ GTO通り</b> — 最高頻度のアクション</li>
+        <li><b class="v-mixed-t">✓ OK(混合戦略)</b> — GTOが混ぜる選択肢のひとつ</li>
+        <li><b class="v-minor-t">△ 僅かなミス</b> — EV損失は小さい</li>
+        <li><b class="v-blunder-t">✗ ブランダー</b> — 明確なEV損失</li>
+      </ul>
+      <h3>GTOの中身(正直な話)</h3>
+      <p>プリフロップはナッシュ均衡チャート(オープンジャム/オープンレイズ/リジャム/BBディフェンス)+オールインに対してはリアルタイムのモンテカルロ・エクイティ計算で正確に判定します。ポストフロップの完全GTOはソルバー級の計算が必要なため、ソルバーの傾向(レンジベット、SPR別のコミット基準、セミブラフ選択など)を模したヒューリスティックで近似しています。</p>
+    </div>
+    <button id="help-back">戻る</button>
+  </div>
+</div>
+
+<script src="js/engine.js"></script>
+<script src="js/ranges.js"></script>
+<script src="js/strategy.js"></script>
+<script src="js/poker.js"></script>
+<script src="js/coach.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
