@@ -498,6 +498,16 @@ button.cta:hover { background: linear-gradient(170deg, #ffe085, #e8b52e 55%, #c7
 .help-body { font-size: 14px; line-height: 1.9; color: #c9d4df; }
 .help-body h3 { margin: 18px 0 6px; color: var(--text); }
 .help-body ul { margin-left: 22px; }
+.cmp-table {
+  width: 100%; border-collapse: collapse; margin: 12px 0;
+  font-size: 12.5px; line-height: 1.5;
+}
+.cmp-table th, .cmp-table td {
+  border: 1px solid #344350; padding: 6px 8px; text-align: left;
+}
+.cmp-table th { background: var(--panel2); color: var(--text); }
+.cmp-table td:first-child { color: var(--dim); white-space: nowrap; }
+.cmp-table b { color: var(--green); }
 
 /* ---------- スマホモード(縦長テーブル・大ボタン) ---------- */
 body.mode-phone #table-wrap { padding: 6px; }
