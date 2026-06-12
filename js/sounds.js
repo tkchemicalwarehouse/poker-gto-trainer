@@ -45,29 +45,38 @@ const Sfx = (() => {
     s.start(a.currentTime + t0);
   }
 
+  /* ---------- ファミコン風チップチューン ----------
+   * 矩形波(パルス)2ch + 三角波ベース、短い音とアルペジオが8bitの肝
+   */
   const lib = {
-    deal()    { noise(0, 0.07, 0.07, 2500); noise(0.07, 0.07, 0.05, 2500); },
-    chip()    { tone(2100, 0, 0.035, "square", 0.045); tone(1700, 0.045, 0.035, "square", 0.045); },
-    fold()    { noise(0, 0.12, 0.04, 600); },
-    check()   { tone(190, 0, 0.045, "sine", 0.16); tone(165, 0.085, 0.05, "sine", 0.13); },
-    jam()     { tone(290, 0, 0.26, "sawtooth", 0.06, 540); noise(0.03, 0.14, 0.04, 900); },
-    turn()    { tone(880, 0, 0.09, "sine", 0.07); },
-    good()    { tone(660, 0, 0.07, "sine", 0.08); tone(990, 0.07, 0.11, "sine", 0.08); },
-    bad()     { tone(230, 0, 0.16, "square", 0.05, 185); tone(150, 0.15, 0.24, "square", 0.06); },
-    win()     { tone(523, 0, 0.09, "triangle", 0.1); tone(659, 0.09, 0.09, "triangle", 0.1); tone(784, 0.18, 0.16, "triangle", 0.11); },
-    collect() { tone(1900, 0, 0.03, "square", 0.035); tone(1450, 0.04, 0.03, "square", 0.035); },
-    levelup() { tone(440, 0, 0.11, "triangle", 0.1); tone(587, 0.12, 0.11, "triangle", 0.1); tone(740, 0.24, 0.18, "triangle", 0.11); },
-    bust()    { tone(392, 0, 0.2, "sawtooth", 0.06, 330); tone(294, 0.2, 0.24, "sawtooth", 0.06, 245); tone(196, 0.44, 0.42, "sawtooth", 0.07, 145); },
-    final()   { tone(440, 0, 0.11, "square", 0.07); tone(554, 0.12, 0.11, "square", 0.07); tone(659, 0.24, 0.3, "square", 0.09); tone(880, 0.42, 0.4, "triangle", 0.1); },
+    deal()    { tone(1568, 0, 0.04, "square", 0.05); tone(1175, 0.05, 0.04, "square", 0.045); },
+    chip()    { tone(988, 0, 0.035, "square", 0.06); tone(1319, 0.04, 0.05, "square", 0.05); },
+    fold()    { tone(330, 0, 0.05, "square", 0.05); tone(220, 0.06, 0.07, "square", 0.045); },
+    check()   { tone(262, 0, 0.04, "square", 0.07); tone(262, 0.08, 0.04, "square", 0.06); },
+    jam()     { [262, 330, 392, 523, 659].forEach((f, i) => tone(f, i * 0.05, 0.05, "square", 0.07)); },
+    turn()    { tone(1047, 0, 0.05, "square", 0.06); tone(1319, 0.055, 0.07, "square", 0.05); },
+    good()    { tone(988, 0, 0.06, "square", 0.07); tone(1319, 0.06, 0.12, "square", 0.07); }, // コイン音
+    bad()     { tone(196, 0, 0.09, "square", 0.07); tone(147, 0.1, 0.09, "square", 0.07); tone(98, 0.2, 0.16, "square", 0.07); },
+    win()     { [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.07, 0.08, "square", 0.07)); tone(262, 0, 0.3, "triangle", 0.06); },
+    collect() { tone(784, 0, 0.04, "square", 0.04); tone(988, 0.05, 0.05, "square", 0.04); },
+    levelup() { [392, 494, 587, 784, 988].forEach((f, i) => tone(f, i * 0.07, 0.08, "square", 0.07)); tone(196, 0, 0.4, "triangle", 0.06); },
+    bust()    { [392, 370, 349, 330].forEach((f, i) => tone(f, i * 0.15, 0.14, "square", 0.07)); tone(165, 0.65, 0.5, "square", 0.06, 82); tone(98, 0.65, 0.6, "triangle", 0.06); },
+    final()   { [330, 330, 330, 262].forEach((f, i) => tone(f, i * 0.12, 0.1, "square", 0.08)); tone(392, 0.55, 0.35, "square", 0.09); tone(98, 0, 0.9, "triangle", 0.06); },
     victory() {
-      // ファンファーレ: タタタターン! → メロディ → キラキラ → フィナーレ和音
-      const intro = [[523, 0, 0.13], [523, 0.14, 0.13], [523, 0.28, 0.13], [659, 0.42, 0.5]];
-      for (const [f, t, d] of intro) { tone(f, t, d, "triangle", 0.13); tone(f / 2, t, d, "square", 0.05); }
-      const melody = [[784, 1.0, 0.18], [659, 1.2, 0.18], [784, 1.4, 0.18], [1047, 1.6, 0.62]];
-      for (const [f, t, d] of melody) { tone(f, t, d, "triangle", 0.13); tone(f * 1.5, t, d, "sine", 0.04); }
-      for (let i = 0; i < 14; i++) tone(1400 + Math.random() * 1800, 1.7 + i * 0.1, 0.09, "sine", 0.035);
-      [523, 659, 784, 1047].forEach(f => { tone(f, 3.2, 1.4, "triangle", 0.07); tone(f, 3.2, 1.4, "sine", 0.04); });
-      tone(131, 3.2, 1.4, "square", 0.05);
+      // 8bitファンファーレ: タタタターン → 主旋律 → アルペジオの滝 → フィナーレ分散和音
+      const seq = [
+        [784, 0, .1], [784, .12, .1], [784, .24, .1], [1047, .36, .42],
+        [932, .85, .14], [1047, 1.0, .14], [1175, 1.15, .42],
+        [1047, 1.65, .12], [1175, 1.78, .12], [1319, 1.9, .55],
+      ];
+      for (const [f, t, d] of seq) { tone(f, t, d, "square", 0.08); tone(f / 2, t, d, "square", 0.04); }
+      // 三角波ベースライン
+      [131, 165, 196, 262].forEach((f, i) => tone(f, i * 0.6, 0.55, "triangle", 0.07));
+      // アルペジオの滝
+      for (let i = 0; i < 12; i++) tone(1047 * Math.pow(2, (i % 4) / 4), 2.5 + i * 0.07, 0.06, "square", 0.04);
+      // フィナーレ
+      [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 3.4 + i * 0.03, 1.1, "square", 0.045));
+      tone(131, 3.4, 1.2, "triangle", 0.07);
     },
   };
 

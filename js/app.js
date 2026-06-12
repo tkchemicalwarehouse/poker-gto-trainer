@@ -39,8 +39,6 @@ const CHIP_DENOMS = [
   { v: 25000, cls: "d25k" },
   { v: 5000, cls: "d5k" },
   { v: 1000, cls: "d1k" },
-  { v: 500, cls: "d500" },
-  { v: 100, cls: "d100" },
 ];
 function chipBreakdown(amount, cap) {
   const chips = [];
@@ -50,7 +48,7 @@ function chipBreakdown(amount, cap) {
     rest -= n * d.v;
     for (let i = 0; i < Math.min(n, 5); i++) chips.push(d.cls);
   }
-  if (chips.length === 0 && amount > 0) chips.push("d100");
+  if (chips.length === 0 && amount > 0) chips.push("d1k");
   return chips.slice(0, cap || 12);
 }
 function chipStackHTML(amount, mini, cap) {
@@ -271,7 +269,7 @@ async function heroActUI(ctx, legal) {
   const advice = ctx.phase === "preflop" ? await preflopAdvice(ctx) : await postflopAdvice(ctx);
   Sfx.play("turn");
   const act = await showActionButtons(legal);
-  const grade = gradeDecision(ctx, advice, act.id);
+  const grade = gradeDecision(ctx, advice, gradeIdFor(act, ctx));
 
   tally.decisions++;
   tally[grade.verdict]++;
@@ -294,14 +292,68 @@ function showActionButtons(legal) {
     const bar = $("action-bar");
     bar.innerHTML = "";
     bar.classList.remove("hidden");
+    const done = a => { bar.classList.add("hidden"); resolve(a); };
+    const raiseTo = legal.find(a => a.id === "raiseTo");
+
+    const btnRow = document.createElement("div");
+    btnRow.className = "act-row";
     for (const a of legal) {
+      if (a.id === "raiseTo") continue;
       const b = document.createElement("button");
       b.className = "act-" + a.id;
       b.textContent = a.label;
-      b.onclick = () => { bar.classList.add("hidden"); resolve(a); };
-      bar.appendChild(b);
+      b.onclick = () => done(a);
+      btnRow.appendChild(b);
     }
+    // レイズ額指定(スライダー)トグル
+    if (raiseTo) {
+      const tg = document.createElement("button");
+      tg.className = "act-sizer";
+      tg.textContent = "🎚 " + raiseTo.label;
+      btnRow.appendChild(tg);
+
+      const panel = document.createElement("div");
+      panel.className = "sizer-panel hidden";
+      const min = raiseTo.minTarget, max = raiseTo.maxTarget;
+      const init = Math.min(max, Math.max(min, Math.round((min * 2) / 1000) * 1000));
+      panel.innerHTML = `
+        <input type="range" id="sizer-range" min="${min}" max="${max}" step="1000" value="${init}">
+        <div class="sizer-row">
+          <button id="sizer-min" class="sizer-mini">最小</button>
+          <span id="sizer-val"></span>
+          <button id="sizer-semi" class="sizer-mini">1,000残し</button>
+          <button id="sizer-ok" class="primary">確定</button>
+        </div>`;
+      bar.appendChild(btnRow);
+      bar.appendChild(panel);
+      const range = panel.querySelector("#sizer-range");
+      const val = panel.querySelector("#sizer-val");
+      const update = () => {
+        const v = parseInt(range.value);
+        val.textContent = `${fmtChips(v)} (${(v / LIVE.bb).toFixed(1)}BB)` + (v >= max ? " = オールイン" : "");
+      };
+      update();
+      range.oninput = update;
+      tg.onclick = () => { panel.classList.toggle("hidden"); Sfx.play("chip"); };
+      panel.querySelector("#sizer-min").onclick = () => { range.value = min; update(); };
+      panel.querySelector("#sizer-semi").onclick = () => { range.value = Math.max(min, max - 1000); update(); };
+      panel.querySelector("#sizer-ok").onclick = () => {
+        const target = parseInt(range.value);
+        done({ id: "raiseTo", target, minTarget: min, maxTarget: max, label: `レイズ ${fmtChips(target)}` });
+      };
+      return;
+    }
+    bar.appendChild(btnRow);
   });
+}
+
+// スライダー指定額を採点用の抽象アクションに変換
+function gradeIdFor(act, ctx) {
+  if (act.id !== "raiseTo") return act.id;
+  if (act.target >= act.maxTarget - LIVE.bb) return "jam"; // 1,000残しセミオールイン等はジャム扱い
+  if (ctx.phase === "preflop") return "raise";
+  const potChips = ctx.potBB * LIVE.bb;
+  return act.target <= potChips * 0.45 ? "bet33" : "bet66";
 }
 
 let toastTimer = null;

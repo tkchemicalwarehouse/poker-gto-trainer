@@ -13,11 +13,11 @@ const CFG = {
   HANDS_PER_LEVEL: 18,  // 2周(9人×2)ごとにブラインドアップ
 };
 
-// ブラインド構成 [SB, BB] (BBアンティ = BB)
+// ブラインド構成 [SB, BB] (BBアンティ = BB、全額1,000チップ単位)
 const BLIND_LEVELS = [
-  [2000, 4000], [2500, 5000], [3000, 6000], [4000, 8000], [5000, 10000],
-  [6000, 12000], [8000, 16000], [10000, 20000], [12500, 25000], [15000, 30000],
-  [20000, 40000], [25000, 50000], [30000, 60000], [40000, 80000], [50000, 100000],
+  [2000, 4000], [3000, 6000], [4000, 8000], [5000, 10000], [6000, 12000],
+  [8000, 16000], [10000, 20000], [12000, 24000], [15000, 30000], [20000, 40000],
+  [25000, 50000], [30000, 60000], [40000, 80000], [50000, 100000],
 ];
 
 // 現在のブラインド(playHand開始時にstate.handNoから設定される)
@@ -39,7 +39,7 @@ function fmtChips(n) { return n.toLocaleString("ja-JP"); }
 
 function randomStack() {
   const bb = CFG.MIN_BB + Math.random() * (CFG.MAX_BB - CFG.MIN_BB);
-  return Math.round(bb * LIVE.bb / 100) * 100; // 100点単位
+  return Math.round(bb * LIVE.bb / 1000) * 1000; // 1,000チップ単位
 }
 
 function makeBot(seat) {
@@ -301,6 +301,8 @@ async function bettingRound(state, street, initialBet, io) {
 
   let guard = 0;
   let cursor = firstSeat;
+  // ミニマムレイズ追跡(プリフロップはBB、ポストフロップは最低ベット=BB)
+  let lastRaise = street === "preflop" ? LIVE.bb : LIVE.bb;
   while (guard++ < 200) {
     if (activeCount(state) <= 1) return;
     // 次にアクションが必要なプレイヤーを探す
@@ -313,6 +315,7 @@ async function bettingRound(state, street, initialBet, io) {
     if (!actor) { state.actorSeat = null; return; }
     cursor = (actor.seat + 1) % CFG.SEATS;
     state.actorSeat = actor.seat;
+    state.minRaiseTarget = currentBet + lastRaise;
     io.render(state);
 
     const legal = legalActions(state, actor, currentBet, street);
@@ -327,8 +330,10 @@ async function bettingRound(state, street, initialBet, io) {
     }
     state.actorSeat = null;
     applyAction(state, actor, action, currentBet, street, io);
-    if (action.id === "bet33" || action.id === "bet66" || action.id === "raise" || action.id === "jam") {
-      currentBet = actor.streetBet;
+    if (["bet33", "bet66", "raise", "jam", "raiseTo"].includes(action.id)) {
+      const newBet = actor.streetBet;
+      if (newBet - currentBet > 0) lastRaise = Math.max(lastRaise, newBet - currentBet);
+      currentBet = newBet;
       for (const q of ps) if (q !== actor && !q.folded && !q.allIn) q.hasActed = false;
     }
     actor.hasActed = true;
@@ -343,40 +348,57 @@ function legalActions(state, p, currentBet, street) {
   const toCall = currentBet - p.streetBet;
   const pot = potTotal(state);
   const out = [];
-  // プリフロップ未オープン(ブラインドのみ): リンプ無し → フォールド/レイズ2.2BB/オールイン
+  const maxTarget = p.streetBet + p.chips;
+  const r1k = v => Math.round(v / 1000) * 1000;
+
+  // プリフロップ未オープン(ブラインドのみ): リンプ無し → フォールド/レイズ/オールイン
   if (street === "preflop" && toCall > 0 && !state.preflopOpen && state.preflopJams.length === 0) {
     out.push({ id: "fold", label: "フォールド" });
-    const target = Math.round(CFG.OPEN_SIZE * LIVE.bb);
-    if (p.chips + p.streetBet > target && toBB(p.startChips) > 13.5) {
+    const target = r1k(CFG.OPEN_SIZE * LIVE.bb);
+    if (maxTarget > target) {
       out.push({ id: "raise", label: `レイズ ${fmtChips(target)}`, target });
     }
-    out.push({ id: "jam", label: `オールイン ${fmtChips(p.chips + p.streetBet)}`, target: p.streetBet + p.chips });
+    // レイズ額指定(ミニレイズ=2BB 〜 オールイン未満)
+    const minOpen = 2 * LIVE.bb;
+    if (maxTarget > minOpen) {
+      out.push({ id: "raiseTo", label: "レイズ額指定", minTarget: minOpen, maxTarget });
+    }
+    out.push({ id: "jam", label: `オールイン ${fmtChips(maxTarget)}`, target: maxTarget });
     return out;
   }
   if (toCall > 0) {
     out.push({ id: "fold", label: "フォールド" });
     const callAmt = Math.min(toCall, p.chips);
     out.push({ id: "call", label: `コール ${fmtChips(callAmt)}`, pay: callAmt });
-    // レイズはオールインのみ(ショートスタック抽象化)
     const opp = state.players.filter(q => !q.folded && !q.allIn && q !== p);
     if (p.chips > toCall && opp.length > 0) {
-      out.push({ id: "jam", label: `オールイン ${fmtChips(p.chips + p.streetBet)}`, target: p.streetBet + p.chips, isRaise: true });
+      // レイズ額指定(ミニマムレイズ 〜 オールイン未満)
+      const minR = Math.min(state.minRaiseTarget || (currentBet + LIVE.bb), maxTarget);
+      if (maxTarget > minR) {
+        out.push({ id: "raiseTo", label: "レイズ額指定", minTarget: minR, maxTarget });
+      }
+      out.push({ id: "jam", label: `オールイン ${fmtChips(maxTarget)}`, target: maxTarget, isRaise: true });
     }
   } else {
     out.push({ id: "check", label: "チェック" });
     if (street === "preflop") {
-      // オープンレイズ(2.2BB)
-      const target = Math.round(CFG.OPEN_SIZE * LIVE.bb);
-      if (p.chips + p.streetBet > target) {
+      const target = r1k(CFG.OPEN_SIZE * LIVE.bb);
+      if (maxTarget > target) {
         out.push({ id: "raise", label: `レイズ ${fmtChips(target)}`, target });
       }
-      out.push({ id: "jam", label: `オールイン ${fmtChips(p.chips + p.streetBet)}`, target: p.streetBet + p.chips });
+      if (maxTarget > 2 * LIVE.bb) {
+        out.push({ id: "raiseTo", label: "レイズ額指定", minTarget: 2 * LIVE.bb, maxTarget });
+      }
+      out.push({ id: "jam", label: `オールイン ${fmtChips(maxTarget)}`, target: maxTarget });
     } else {
-      const b33 = Math.max(LIVE.bb, Math.round(pot * 0.33 / 100) * 100);
-      const b66 = Math.max(LIVE.bb, Math.round(pot * 0.66 / 100) * 100);
+      const b33 = Math.max(LIVE.bb, r1k(pot * 0.33));
+      const b66 = Math.max(LIVE.bb, r1k(pot * 0.66));
       if (p.chips > b33) out.push({ id: "bet33", label: `ベット33% (${fmtChips(b33)})`, target: b33 });
       if (p.chips > b66 && b66 > b33) out.push({ id: "bet66", label: `ベット66% (${fmtChips(b66)})`, target: b66 });
-      out.push({ id: "jam", label: `オールイン ${fmtChips(p.chips)}`, target: p.streetBet + p.chips });
+      if (maxTarget > LIVE.bb) {
+        out.push({ id: "raiseTo", label: "ベット額指定", minTarget: LIVE.bb, maxTarget });
+      }
+      out.push({ id: "jam", label: `オールイン ${fmtChips(p.chips)}`, target: maxTarget });
     }
   }
   return out;
@@ -429,6 +451,13 @@ function applyAction(state, p, action, currentBet, street, io) {
       state.preflopJams.push({ seat: p.seat, range, posIdx });
       io.log(`${tag}: オールイン ${fmtChips(target)} (${fmtBB(target)}BB)`, "jam");
       if (io.sound) io.sound("jam");
+    } else if (state.preflopOpen && state.preflopOpen.seat !== p.seat) {
+      // 非オールインの3ベット: リジャムレンジ相当とみなす
+      p.assumedRange = Ranges.rejam(state.preflopOpen.cls, Math.min(stackBB, state.preflopOpen.stackBB));
+      p.rangeNote = "3ベット";
+      state.preflopOpen = { seat: p.seat, posIdx, cls: openerClass(posIdx), sizeBB: toBB(target), stackBB };
+      io.log(`${tag}: レイズ ${fmtChips(target)}`, "raise");
+      if (io.sound) io.sound("chip");
     } else {
       p.assumedRange = Ranges.open(posIdx, stackBB);
       p.rangeNote = "オープンレイズ";
@@ -595,7 +624,7 @@ async function resolveHand(state, io) {
     let best = -1;
     for (const p of pt.eligible) if (scores.get(p) > best) best = scores.get(p);
     const ws = pt.eligible.filter(p => scores.get(p) === best);
-    const share = Math.floor(pt.amt / ws.length / 100) * 100;
+    const share = Math.floor(pt.amt / ws.length / 1000) * 1000;
     let dealt = 0;
     for (let i = 0; i < ws.length; i++) {
       const give = i === ws.length - 1 ? pt.amt - dealt : share;

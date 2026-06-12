@@ -557,3 +557,136 @@ body.mode-phone #pot-disp { font-size: 13px; }
   #coach-panel { left: 4vw; right: 4vw; width: auto; top: 8vh; }
   .histo { height: 120px; }
 }
+
+/* =========================================================
+ * 8BIT MODE — ファミコン風ドット絵スタイル(全体上書き)
+ * ========================================================= */
+body {
+  font-family: "DotGothic16", "Hiragino Sans", monospace;
+  image-rendering: pixelated;
+}
+/* CRT走査線 + ビネット */
+body::after {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 9000;
+  background:
+    repeating-linear-gradient(0deg, rgba(0,0,0,.15) 0 2px, transparent 2px 4px),
+    radial-gradient(ellipse at center, transparent 62%, rgba(0,0,0,.32) 100%);
+}
+
+/* 角丸の全廃(ドット絵化) */
+button, select, input, .card, .card::after, .seat-box, .home-stats, .setup-row,
+.modal-inner, #coach-panel, .stat-card, .sim-summary, .bust-cause, .victory-inner,
+.sizer-panel, .fan-card, .pos-badge, .stack-gauge, .sg-fill, .rg-grid, .rg-cell,
+.histo .bar, .chip-legend, #coach-verdict, #coach-body .ex-gto, .btn-marker, .dev-btn {
+  border-radius: 0 !important;
+}
+
+/* ピクセルボタン */
+button {
+  border: 3px solid #000;
+  box-shadow: inset -3px -3px 0 rgba(0,0,0,.4), inset 3px 3px 0 rgba(255,255,255,.16), 3px 3px 0 #000;
+  transition: none;
+}
+button:active { transform: translate(3px, 3px); box-shadow: inset -3px -3px 0 rgba(0,0,0,.4), inset 3px 3px 0 rgba(255,255,255,.16); }
+button.cta { animation: none; border: 3px solid #000; }
+
+/* ピクセルテーブル(楕円→チャンキー矩形) */
+#table {
+  border-radius: 0;
+  border: 8px solid #6b4226;
+  background: #1d7a44;
+  box-shadow: inset 0 0 0 5px #14532e, inset 0 0 0 8px #1d7a44, 6px 6px 0 rgba(0,0,0,.55);
+}
+#table::before { border-radius: 0; inset: 7% 5%; border: 3px dashed rgba(255,255,255,.12); }
+
+/* ピクセルカード */
+.card {
+  border-radius: 0;
+  background: #f8f4e6;
+  border: 2px solid #1a1a1a;
+  box-shadow: 3px 3px 0 rgba(0,0,0,.55);
+  animation: dealIn .2s steps(3) both;
+}
+.card::after { display: none; }
+.card.back {
+  background: #1d3a66;
+  border: 2px solid #e8e4d8;
+}
+.seat-box { border-width: 3px; box-shadow: 3px 3px 0 rgba(0,0,0,.5); }
+.seat.actor .seat-box { animation: actorPulse 0.8s steps(2) infinite; }
+
+/* ロゴ(ドット絵化) */
+.logo {
+  background: none; -webkit-text-fill-color: currentColor; color: #e8c352;
+  filter: none; text-shadow: 4px 4px 0 #7a2633, 8px 8px 0 rgba(0,0,0,.55);
+  font-size: clamp(26px, 6vw, 38px); margin-bottom: 0;
+}
+.logo.logo-master { color: #fff; font-size: clamp(20px, 5vw, 30px); letter-spacing: 12px; margin: 2px 0 6px; }
+
+/* ★ ALL IN 極派手ロゴ ★ */
+.allin-logo {
+  font-family: "Press Start 2P", "DotGothic16", monospace;
+  font-size: clamp(36px, 11vw, 72px);
+  line-height: 1.1; letter-spacing: 4px;
+  margin: 6px 0 2px;
+  animation: allinZoom 1.6s steps(4) infinite;
+}
+.allin-logo span {
+  display: inline-block;
+  animation: allinColors 0.7s steps(1) infinite, allinJump 0.7s steps(2) infinite;
+}
+.allin-logo span:nth-child(1) { animation-delay: 0s, 0s; }
+.allin-logo span:nth-child(2) { animation-delay: .1s, .1s; }
+.allin-logo span:nth-child(3) { animation-delay: .2s, .2s; }
+.allin-logo span:nth-child(5) { animation-delay: .3s, .3s; }
+.allin-logo span:nth-child(6) { animation-delay: .4s, .4s; }
+@keyframes allinColors {
+  0%   { color: #ff3355; text-shadow: 4px 4px 0 #7a0f22, 0 0 18px #ff3355; }
+  25%  { color: #ffd75e; text-shadow: 4px 4px 0 #8a6a00, 0 0 18px #ffd75e; }
+  50%  { color: #4dffff; text-shadow: 4px 4px 0 #006a7a, 0 0 18px #4dffff; }
+  75%  { color: #ff7bff; text-shadow: 4px 4px 0 #7a007a, 0 0 18px #ff7bff; }
+  100% { color: #ff3355; text-shadow: 4px 4px 0 #7a0f22, 0 0 18px #ff3355; }
+}
+@keyframes allinJump { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes allinZoom { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+
+.tagline { font-size: 12px; letter-spacing: 3px; }
+.fan-card { border: 2px solid #1a1a1a; box-shadow: 4px 4px 0 rgba(0,0,0,.55); }
+
+/* 優勝演出のドット絵化 */
+.victory-title {
+  background: none; -webkit-text-fill-color: currentColor; color: #ffd75e;
+  filter: none; text-shadow: 5px 5px 0 #7a2633, 0 0 24px rgba(255,215,94,.8);
+  animation: titleZoom .4s steps(4) .5s both;
+}
+.victory-inner { border-width: 4px; box-shadow: 8px 8px 0 rgba(0,0,0,.6), 0 0 50px rgba(232,195,82,.4); }
+.trophy { animation: trophyBounce .8s steps(6) .25s both, trophyGlow 1.2s steps(2) 1.2s infinite alternate; }
+.confetti { border-radius: 0; }
+
+/* レイズ額指定スライダー */
+.act-sizer { background: #5a2d7a; border-color: #000; }
+.sizer-panel {
+  width: min(560px, 94vw); margin: 10px auto 0;
+  background: var(--panel); border: 3px solid #000;
+  box-shadow: 3px 3px 0 #000;
+  padding: 12px 14px;
+}
+.sizer-panel input[type="range"] {
+  width: 100%; accent-color: var(--gold); height: 28px; cursor: pointer;
+}
+.sizer-row { display: flex; gap: 10px; align-items: center; justify-content: center; margin-top: 6px; flex-wrap: wrap; }
+#sizer-val { font-size: 16px; font-weight: 800; color: var(--gold); min-width: 170px; text-align: center; }
+.sizer-mini { font-size: 12px; padding: 6px 10px; }
+#action-bar { flex-direction: column; align-items: center; }
+.act-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+body.mode-phone #action-bar { flex-direction: column; }
+body.mode-phone .act-row { width: 100%; display: flex; gap: 7px; }
+body.mode-phone .act-row button { flex: 1; min-width: 0; font-size: 13px; padding: 13px 4px; }
+body.mode-phone .sizer-panel { width: 100%; }
+
+/* ピクセルゲージ/バッジ微調整 */
+.stack-gauge { height: 6px; box-shadow: inset 0 0 0 1px #000; }
+.sg-fill { transition: width .3s steps(6); }
+.pos-badge { border: 1px solid #000; }
+#dealer-disc { border-radius: 0; border: 3px solid #000; box-shadow: 3px 3px 0 rgba(0,0,0,.6), 0 0 12px rgba(232,195,82,.7); transition: left .4s steps(8), top .4s steps(8); }
+.chip { box-shadow: 0 2px 0 rgba(0,0,0,.55), inset 0 0 0 3px rgba(0,0,0,.18); }
