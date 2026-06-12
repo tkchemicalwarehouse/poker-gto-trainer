@@ -102,10 +102,10 @@ function buildSeats() {
     el.style.top = y + "%";
     el.innerHTML = `
       <div class="seat-box">
-        <div class="seat-pile"></div>
         <div class="seat-name"></div>
         <div class="seat-stack"></div>
         <div class="seat-cards"></div>
+        <div class="stack-gauge"><div class="sg-fill"></div></div>
       </div>`;
     table.appendChild(el);
     // ベットチップ置き場(座席と中央の中間)
@@ -157,8 +157,10 @@ function setCards(el, key, html) {
 function render(state) {
   if (!state) return;
   const hero = state.players[0];
-  $("game-info").textContent =
-    `#${state.handNo}　Lv${LIVE.level + 1}: ${fmtChips(LIVE.sb)}/${fmtChips(LIVE.bb)}(A)　あなた: ${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)`;
+  $("game-info").innerHTML =
+    `#${state.handNo}　Lv${LIVE.level + 1}: ${fmtChips(LIVE.sb)}/${fmtChips(LIVE.bb)}(A)　` +
+    `<span class="${state.finalTable ? "ft-badge" : "field-badge"}">${state.finalTable ? "🔥FT " : ""}残り${state.fieldLeft}人</span>　` +
+    `あなた: ${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)`;
 
   const pot = potTotal(state);
   $("pot-disp").textContent = state.street === "idle" ? "" : `ポット: ${fmtChips(pot)} (${fmtBB(pot)}BB)`;
@@ -169,6 +171,18 @@ function render(state) {
   for (let s = 0; s < CFG.SEATS; s++) {
     const p = state.players[s];
     const el = $("seat-" + s);
+    if (p.out) {
+      el.classList.add("out");
+      el.classList.remove("folded", "actor", "hero");
+      el.querySelector(".seat-name").innerHTML = `<span class="out-label">空席</span>`;
+      el.querySelector(".seat-stack").innerHTML = "";
+      setCards(el.querySelector(".seat-cards"), "none", "");
+      el.querySelector(".sg-fill").style.width = "0%";
+      const bo = $("bet-" + s);
+      if (bo) bo.innerHTML = "";
+      continue;
+    }
+    el.classList.remove("out");
     const pos = posNameOf(state, s);
     el.classList.toggle("folded", p.folded && state.street !== "idle");
     el.classList.toggle("hero", p.isHero);
@@ -176,9 +190,14 @@ function render(state) {
     const badgeCls = pos === "BTN" ? "pb-btn" : pos === "SB" ? "pb-sb" : pos === "BB" ? "pb-bb" : "";
     el.querySelector(".seat-name").innerHTML =
       `${p.name}<span class="pos-badge ${badgeCls}">${pos}</span>`;
+    // スタックゲージ: BB量を色で表現(赤<10 / 黄10-20 / 緑20-35 / 青35+)
+    const bb = toBB(p.chips);
+    const sgCls = bb < 10 ? "sg-danger" : bb < 20 ? "sg-warn" : bb < 35 ? "sg-ok" : "sg-big";
     el.querySelector(".seat-stack").innerHTML =
-      `${fmtChips(p.chips)} <span class="bb">(${fmtBB(p.chips)}BB)</span>`;
-    el.querySelector(".seat-pile").innerHTML = chipStackHTML(p.chips, true);
+      `${fmtChips(p.chips)} <span class="bb ${sgCls}-t">(${fmtBB(p.chips)}BB)</span>`;
+    const fill = el.querySelector(".sg-fill");
+    fill.className = "sg-fill " + sgCls;
+    fill.style.width = Math.min(100, bb / 40 * 100) + "%";
     const cardsEl = el.querySelector(".seat-cards");
     if (state.street === "idle" || p.folded) setCards(cardsEl, "none", "");
     else if (p.isHero || p.showCards) setCards(cardsEl, "f" + p.cards.join(","), p.cards.map(c => cardHTML(c, !p.isHero)).join(""));
@@ -283,6 +302,12 @@ function showCoachPanel(grade, advice, ctx, chosenId) {
 }
 
 /* ---------- トーナメント進行 ---------- */
+function fieldSizeSel() {
+  const v = parseInt(($("field-size") || {}).value) || 27;
+  try { localStorage.setItem("pgt_field", String(v)); } catch (e) { }
+  return v;
+}
+
 async function startTournament() {
   simCancel = true; // 実行中のシミュレーションがあれば停止
   showScreen("screen-game");
@@ -290,54 +315,93 @@ async function startTournament() {
   $("coach-panel").classList.add("hidden");
   buildSeats();
   aborting = false;
-  G = newTournament("あなた");
+  G = newTournament("あなた", fieldSizeSel());
   tally = newTally();
   const hero = G.players[0];
-  logMsg(`トーナメント開始。あなたのスタック: ${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)`, "info");
+  logMsg(`${G.fieldSize}人トーナメント開始! あなたのスタック: ${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)`, "info");
   render(G);
 
   while (!G.over && !aborting) {
     await playHand(G, gameIO);
   }
   if (!aborting) {
-    finishTournament();
+    finishTournament(G.won);
   } else {
     showScreen("screen-home");
     renderHomeStats();
   }
 }
 
-function finishTournament() {
-  Sfx.play("bust");
-  // 敗因分析: 最終ハンドにブランダー/大ミスがあったか
+function tallySummaryHTML() {
+  const okRate = tally.decisions > 0 ? ((tally.best + tally.mixed) / tally.decisions * 100) : 100;
+  return `<p>判断数: <b>${tally.decisions}</b>　GTO一致率: <b>${okRate.toFixed(1)}%</b><br>
+    内訳 — ✓GTO通り ${tally.best} / ✓混合 ${tally.mixed} / △僅差 ${tally.minor} / ✗ブランダー ${tally.blunder}<br>
+    ミスによる累計EV損失: <b>${tally.evLost.toFixed(2)} BB</b></p>`;
+}
+
+function recordTournament(result, place) {
   const lastDecisions = tally.perHand[G.handNo] || [];
   const mistakeInFinal = lastDecisions.some(d => d.verdict === "blunder" || (d.verdict === "minor" && d.evLoss >= 0.5));
-  const cause = mistakeInFinal ? "mistake" : "variance";
-
-  const okRate = tally.decisions > 0 ? ((tally.best + tally.mixed) / tally.decisions * 100) : 100;
+  const cause = result === "win" ? "win" : (mistakeInFinal ? "mistake" : "variance");
   const rec = loadRecord();
   rec.tournaments.push({
     hands: G.handNo,
     decisions: tally.decisions,
     best: tally.best, mixed: tally.mixed, minor: tally.minor, blunder: tally.blunder,
     evLost: Math.round(tally.evLost * 100) / 100,
-    cause,
+    cause, result, place, field: G.fieldSize,
     date: new Date().toISOString().slice(0, 10),
   });
   saveRecord(rec);
+  return cause;
+}
 
-  $("bust-title").textContent = `バスト — ${G.handNo}ハンド生存`;
+function finishTournament(won) {
+  if (won) {
+    recordTournament("win", 1);
+    showVictory();
+    return;
+  }
+  Sfx.play("bust");
+  const place = Math.max(2, G.fieldLeft);
+  const cause = recordTournament("bust", place);
+
+  $("bust-title").textContent = `バスト — ${G.fieldSize}人中 ${place}位 (${G.handNo}ハンド生存)`;
   const causeHTML = cause === "variance"
     ? `<div class="bust-cause variance">⚖ 最終ハンドの判断はGTO通りでした。これは<b>分散</b>です。<br>正しくプレイしても飛ぶときは飛ぶ — それがトーナメント。次も同じ判断をしてください。</div>`
     : `<div class="bust-cause mistake">⚠ 最終ハンドに<b>ミスが含まれて</b>いました。下のコーチ解説を振り返りましょう。</div>`;
   $("bust-body").innerHTML = `
-    <div class="big-num">${G.handNo} ハンド</div>
+    <div class="big-num">${place}位 / ${G.fieldSize}人</div>
     ${causeHTML}
-    <p>判断数: <b>${tally.decisions}</b>　GTO一致率: <b>${okRate.toFixed(1)}%</b><br>
-    内訳 — ✓GTO通り ${tally.best} / ✓混合 ${tally.mixed} / △僅差 ${tally.minor} / ✗ブランダー ${tally.blunder}<br>
-    ミスによる累計EV損失: <b>${tally.evLost.toFixed(2)} BB</b></p>
+    ${tallySummaryHTML()}
     <p style="color:var(--dim)">GTO通りに打っても5〜30BBの中盤戦は分散が非常に大きい領域です。シミュレーションで「GTOボットの生存分布」も見てみてください。</p>`;
   $("bust-modal").classList.remove("hidden");
+}
+
+/* ---------- 優勝演出 ---------- */
+function showVictory() {
+  Sfx.play("victory");
+  // 紙吹雪を生成
+  const layer = $("confetti-layer");
+  layer.innerHTML = "";
+  const colors = ["#e8c352", "#e05252", "#46c47c", "#4da3ff", "#c2569d", "#e67e22", "#fff"];
+  for (let i = 0; i < 80; i++) {
+    const c = document.createElement("div");
+    c.className = "confetti";
+    const sz = 6 + Math.random() * 8;
+    c.style.cssText =
+      `left:${Math.random() * 100}%;` +
+      `width:${sz}px;height:${sz * (0.4 + Math.random() * 0.8)}px;` +
+      `background:${colors[i % colors.length]};` +
+      `animation-delay:${Math.random() * 2.5}s;` +
+      `animation-duration:${2.6 + Math.random() * 2.4}s;`;
+    layer.appendChild(c);
+  }
+  $("victory-body").innerHTML = `
+    <div class="victory-place">🏆 ${G.fieldSize}人トーナメント 優勝 🏆</div>
+    <p class="victory-hands">${G.handNo}ハンドの激闘を制しました!</p>
+    ${tallySummaryHTML()}`;
+  $("victory-modal").classList.remove("hidden");
 }
 
 /* ---------- シミュレーション ---------- */
@@ -348,9 +412,10 @@ async function runSim() {
   $("sim-result").innerHTML = "";
   simCancel = false;
   const results = [];
+  let simWins = 0;
 
   for (let i = 0; i < n && !simCancel; i++) {
-    const st = newTournament("GTOボット");
+    const st = newTournament("GTOボット", fieldSizeSel());
     st.fastMode = true;
     const simIO = {
       delay: () => Promise.resolve(),
@@ -362,16 +427,17 @@ async function runSim() {
       await playHand(st, simIO);
     }
     if (simCancel) break;
+    if (st.won) simWins++;
     results.push(st.handNo >= 300 ? 300 : st.handNo);
     $("sim-progress").textContent = `実行中… ${i + 1} / ${n} トーナメント`;
     await new Promise(r => setTimeout(r, 0));
   }
   $("sim-progress").textContent = simCancel ? "中断しました" : `完了: ${n}トーナメント`;
   $("sim-run").disabled = false;
-  if (results.length > 0 && !simCancel) renderSimResult(results);
+  if (results.length > 0 && !simCancel) renderSimResult(results, simWins);
 }
 
-function renderSimResult(results) {
+function renderSimResult(results, simWins) {
   const sorted = [...results].sort((a, b) => a - b);
   const avg = results.reduce((s, x) => s + x, 0) / results.length;
   const med = sorted[Math.floor(sorted.length / 2)];
@@ -399,11 +465,12 @@ function renderSimResult(results) {
     <h3 style="margin-top:18px">GTOボットの生存ハンド数分布</h3>
     ${bars}
     <div class="sim-summary">
+      優勝: <b>🏆${simWins || 0}回 / ${results.length}回 (${(100 * (simWins || 0) / results.length).toFixed(0)}%)</b><br>
       平均生存: <b>${avg.toFixed(1)}ハンド</b>　中央値: <b>${med}ハンド</b><br>
       10ハンド以内にバスト: <b>${under10.toFixed(0)}%</b>　30ハンド以内: <b>${under30.toFixed(0)}%</b>
       ${survived > 0 ? `<br>300ハンド生存(打ち切り): <b>${survived}回</b>` : ""}
       <br><br>
-      <span style="color:var(--dim)">完璧なGTOでもこれだけ早く飛ぶことがある — これが分散です。
+      <span style="color:var(--dim)">完璧なGTOでも優勝はこの程度の確率、早く飛ぶことも多い — これが分散です。
       自分の成績がこの分布の範囲内なら、それはミスではなく運の問題です。</span>
     </div>`;
 }
@@ -416,11 +483,11 @@ function renderHomeStats() {
     $("home-stats").innerHTML = "まだ記録がありません。トーナメントに挑戦しましょう。";
     return;
   }
-  const avgHands = ts.reduce((s, t) => s + t.hands, 0) / ts.length;
+  const wins = ts.filter(t => t.result === "win").length;
   const dec = ts.reduce((s, t) => s + t.decisions, 0);
   const ok = ts.reduce((s, t) => s + t.best + t.mixed, 0);
   $("home-stats").innerHTML =
-    `挑戦 <b>${ts.length}回</b> ・ 平均生存 <b>${avgHands.toFixed(1)}ハンド</b> ・ GTO一致率 <b>${dec ? (ok / dec * 100).toFixed(1) : "—"}%</b>`;
+    `挑戦 <b>${ts.length}回</b> ・ 優勝 <b>🏆${wins}回</b> ・ GTO一致率 <b>${dec ? (ok / dec * 100).toFixed(1) : "—"}%</b>`;
 }
 
 function renderStats() {
@@ -431,12 +498,13 @@ function renderStats() {
     return;
   }
   const avgHands = ts.reduce((s, t) => s + t.hands, 0) / ts.length;
-  const best = Math.max(...ts.map(t => t.hands));
+  const wins = ts.filter(t => t.result === "win").length;
   const dec = ts.reduce((s, t) => s + t.decisions, 0);
   const ok = ts.reduce((s, t) => s + t.best + t.mixed, 0);
   const blunders = ts.reduce((s, t) => s + t.blunder, 0);
   const evLost = ts.reduce((s, t) => s + t.evLost, 0);
-  const varBusts = ts.filter(t => t.cause === "variance").length;
+  const busts = ts.filter(t => t.result !== "win");
+  const varBusts = busts.filter(t => t.cause === "variance").length;
 
   // 生存ヒストグラム
   const max = Math.max(...ts.map(t => t.hands));
@@ -456,12 +524,12 @@ function renderStats() {
   $("stats-body").innerHTML = `
     <div class="stat-grid">
       <div class="stat-card"><div class="num">${ts.length}</div><div class="lbl">挑戦回数</div></div>
+      <div class="stat-card"><div class="num">🏆${wins}</div><div class="lbl">優勝回数</div></div>
       <div class="stat-card"><div class="num">${avgHands.toFixed(1)}</div><div class="lbl">平均生存ハンド</div></div>
-      <div class="stat-card"><div class="num">${best}</div><div class="lbl">最長生存</div></div>
       <div class="stat-card"><div class="num">${dec ? (ok / dec * 100).toFixed(1) : "—"}%</div><div class="lbl">GTO一致率</div></div>
       <div class="stat-card"><div class="num">${blunders}</div><div class="lbl">ブランダー数</div></div>
       <div class="stat-card"><div class="num">${evLost.toFixed(1)}BB</div><div class="lbl">累計EV損失(推定)</div></div>
-      <div class="stat-card"><div class="num">${(varBusts / ts.length * 100).toFixed(0)}%</div><div class="lbl">分散によるバスト率</div></div>
+      <div class="stat-card"><div class="num">${busts.length ? (varBusts / busts.length * 100).toFixed(0) : "—"}%</div><div class="lbl">分散によるバスト率</div></div>
     </div>
     <h3>生存ハンド数の分布</h3>
     ${bars}
@@ -478,6 +546,10 @@ window.addEventListener("DOMContentLoaded", () => {
 
   $("dev-phone").onclick = () => applyDeviceMode("phone", true);
   $("dev-tablet").onclick = () => applyDeviceMode("tablet", true);
+  try {
+    const f = localStorage.getItem("pgt_field");
+    if (f) $("field-size").value = f;
+  } catch (e) { }
   $("btn-mute").textContent = Sfx.isMuted() ? "🔇" : "🔊";
   $("btn-mute").onclick = () => { $("btn-mute").textContent = Sfx.toggle() ? "🔇" : "🔊"; };
 
@@ -490,6 +562,12 @@ window.addEventListener("DOMContentLoaded", () => {
   $("bust-again").onclick = () => { $("bust-modal").classList.add("hidden"); startTournament(); };
   $("bust-home").onclick = () => {
     $("bust-modal").classList.add("hidden");
+    renderHomeStats();
+    showScreen("screen-home");
+  };
+  $("victory-again").onclick = () => { $("victory-modal").classList.add("hidden"); startTournament(); };
+  $("victory-home").onclick = () => {
+    $("victory-modal").classList.add("hidden");
     renderHomeStats();
     showScreen("screen-home");
   };

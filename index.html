@@ -3,29 +3,53 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MTT GTOサバイバル — 5〜30BB中盤戦トレーナー</title>
+<title>トナメ中盤攻略マスター — 5〜30BB GTOトーナメント・トレーナー</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
 <!-- ホーム画面 -->
 <div id="screen-home" class="screen">
+  <div class="home-bg"></div>
+  <div class="suit-float sf1">♠</div>
+  <div class="suit-float sf2">♥</div>
+  <div class="suit-float sf3">♦</div>
+  <div class="suit-float sf4">♣</div>
+  <div class="suit-float sf5">♠</div>
+  <div class="suit-float sf6">♥</div>
   <div class="home-inner">
-    <h1>MTT GTO<span class="accent">サバイバル</span></h1>
-    <p class="sub">5〜30BB 中盤戦トレーナー — 2,000/4,000スタート (BBアンティ) ・ 2周ごとにブラインドアップ</p>
-    <div class="device-toggle">
-      <span class="dev-label">プレイ端末:</span>
-      <button id="dev-phone" class="dev-btn">📱 スマホ</button>
-      <button id="dev-tablet" class="dev-btn">🖥️ タブレット / PC</button>
+    <div class="logo-fan">
+      <div class="fan-card fc1"><span>A</span>♠</div>
+      <div class="fan-card fc2"><span>K</span>♥</div>
+      <div class="fan-card fc3"><span>Q</span>♦</div>
+    </div>
+    <h1 class="logo">トナメ中盤<span class="logo-accent">攻略</span>マスター</h1>
+    <p class="tagline">5〜30BB GTOトーナメント・トレーナー</p>
+    <p class="sub">優勝するか、飛ぶか。すべての判断をGTOが採点する。</p>
+    <div class="setup-row">
+      <div class="device-toggle">
+        <span class="dev-label">端末:</span>
+        <button id="dev-phone" class="dev-btn">📱 スマホ</button>
+        <button id="dev-tablet" class="dev-btn">🖥️ タブレット / PC</button>
+      </div>
+      <label class="field-label">参加人数:
+        <select id="field-size">
+          <option value="18">18人 (短期決戦)</option>
+          <option value="27" selected>27人 (標準)</option>
+          <option value="45">45人 (長丁場)</option>
+        </select>
+      </label>
     </div>
     <div id="home-stats" class="home-stats"></div>
     <div class="menu">
-      <button id="btn-start" class="big primary">▶ トーナメント開始</button>
-      <button id="btn-sim" class="big">⚡ GTOシミュレーション(分散体感)</button>
-      <button id="btn-stats" class="big">📊 成績</button>
-      <button id="btn-help" class="big">❓ 遊び方</button>
+      <button id="btn-start" class="big cta">▶ トーナメント開始</button>
+      <div class="menu-row">
+        <button id="btn-sim" class="big">⚡ シミュレーション</button>
+        <button id="btn-stats" class="big">📊 成績</button>
+        <button id="btn-help" class="big">❓ 遊び方</button>
+      </div>
     </div>
-    <p class="disclaimer">プリフロップ: ナッシュ均衡チャート / ポストフロップ: ソルバー傾向ヒューリスティック+リアルタイムエクイティ計算による近似</p>
+    <p class="disclaimer">ブラインド2,000/4,000開始・2周ごとにアップ・BBアンティ<br>プリフロップ: ナッシュ均衡チャート / ポストフロップ: ソルバー傾向+リアルタイムエクイティ計算による近似</p>
   </div>
 </div>
 
@@ -88,6 +112,21 @@
   </div>
 </div>
 
+<!-- 優勝モーダル -->
+<div id="victory-modal" class="modal hidden">
+  <div id="confetti-layer"></div>
+  <div class="victory-inner">
+    <div class="trophy-rays"></div>
+    <div class="trophy">🏆</div>
+    <h2 class="victory-title">優 勝 !!</h2>
+    <div id="victory-body"></div>
+    <div class="modal-btns">
+      <button id="victory-again" class="primary">もう一度挑戦</button>
+      <button id="victory-home">ホームへ</button>
+    </div>
+  </div>
+</div>
+
 <!-- シミュレーション画面 -->
 <div id="screen-sim" class="screen hidden">
   <div class="panel-inner">
@@ -126,14 +165,21 @@
     <h2>❓ 遊び方</h2>
     <div class="help-body">
       <h3>このアプリの目的</h3>
-      <p>MTT中盤戦(全員5〜30BB)を、チップが尽きるまで実戦形式でプレイします。すべての判断はGTO基準で採点され、ズレた瞬間に「なぜ間違いか」をEV・エクイティの実数で解説します。</p>
-      <p><b>もう一つの大事な目的:</b> GTO通りにプレイしても、トーナメントでは頻繁にバストします。それが「ミス」なのか「分散」なのかを区別する感覚を、回数を重ねて体に入れることです。バスト時には敗因の分解を表示します。</p>
+      <p>MTT中盤戦(全員5〜30BB)からスタートし、<b>優勝するまで</b>実戦形式でプレイします。すべての判断はGTO基準で採点され、ズレた瞬間に「なぜ間違いか」をEV・エクイティの実数で解説します。</p>
+      <p><b>もう一つの大事な目的:</b> GTO通りにプレイしても、トーナメントでは頻繁にバストします。それが「ミス」なのか「分散」なのかを区別する感覚を、回数を重ねて体に入れることです。バスト時には敗因の分解と順位を表示します。</p>
+      <h3>トーナメントの流れ(優勝条件)</h3>
+      <ul>
+        <li>参加人数を選択(18 / 27 / 45人)。あなたの卓は9人、残りは他のテーブルでプレイ中</li>
+        <li>誰かが飛ぶと残り人数が減少。補欠がいる間は卓に新しい選手が移動してくる</li>
+        <li><b>残り9人でファイナルテーブル!</b> 以降は席の補充なし、卓がどんどん短くなる</li>
+        <li><b>最後の1人になったら優勝!🏆</b></li>
+      </ul>
       <h3>ルール設定</h3>
       <ul>
-        <li>9人テーブル / ブラインド 2,000/4,000 スタート(BBアンティ=BB額)</li>
-        <li>ブラインドは2周(18ハンド)ごとにアップ: 2,000/4,000 → 2,500/5,000 → 3,000/6,000 → 4,000/8,000 →…</li>
-        <li>全員5〜30BBのランダムスタックで開始。バストしたボットは新しいボットと入れ替わり</li>
+        <li>ブラインド 2,000/4,000 スタート(BBアンティ=BB額)、2周(18ハンド)ごとにアップ</li>
+        <li>全員5〜30BBのランダムスタックで開始</li>
         <li>ベットサイズはGTOソルバー風に抽象化: プリフロップ=2.2BBレイズ or オールイン、ポストフロップ=ポットの33% / 66% / オールイン</li>
+        <li>スタックゲージの色: <b style="color:#e05252">赤=10BB未満(危険)</b> / <b style="color:#e3c635">黄=10〜20BB</b> / <b style="color:#46c47c">緑=20〜35BB</b> / <b style="color:#4da3ff">青=35BB超</b></li>
       </ul>
       <h3>チップの額面</h3>
       <div class="chip-legend">

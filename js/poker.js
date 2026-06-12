@@ -58,7 +58,7 @@ function makePlayer(seat, name, isHero, chips) {
   };
 }
 
-function newTournament(heroName) {
+function newTournament(heroName, fieldSize) {
   botNameCounter = 0;
   setLevel(0);
   const players = [];
@@ -66,8 +66,13 @@ function newTournament(heroName) {
     if (s === 0) players.push(makePlayer(0, heroName || "あなた", true, randomStack()));
     else players.push(makeBot(s));
   }
+  const field = Math.max(CFG.SEATS, fieldSize || 27);
   return {
     players,
+    fieldSize: field,   // トーナメント参加人数
+    fieldLeft: field,   // 残り人数(自分+卓上ボット+他テーブルの仮想プレイヤー)
+    finalTable: false,
+    won: false,
     btn: (Math.random() * CFG.SEATS) | 0,
     handNo: 0,
     board: [],
@@ -86,17 +91,44 @@ function newTournament(heroName) {
   };
 }
 
-/* ---------- ポジション ---------- */
-const OFFSET_TO_POS = [6, 7, 8, 0, 1, 2, 3, 4, 5]; // btnからのオフセット → POSITIONSインデックス
+/* ---------- 生存席ヘルパー(ショートハンド対応) ---------- */
+function aliveSeats(state) {
+  return state.players.filter(p => !p.out);
+}
+function nextAliveSeat(state, from) {
+  for (let i = 1; i <= CFG.SEATS; i++) {
+    const s = (from + i) % CFG.SEATS;
+    if (!state.players[s].out) return s;
+  }
+  return from;
+}
+function aliveOrderFromBtn(state) {
+  const order = [];
+  for (let i = 0; i < CFG.SEATS; i++) {
+    const seat = (state.btn + i) % CFG.SEATS;
+    if (!state.players[seat].out) order.push(seat);
+  }
+  return order;
+}
+
+/* ---------- ポジション(人数に応じて動的に決定) ---------- */
 function posIdxOf(state, seat) {
-  const off = (seat - state.btn + CFG.SEATS) % CFG.SEATS;
-  return OFFSET_TO_POS[off];
+  if (state.players[seat] && state.players[seat].out) return -1;
+  const order = aliveOrderFromBtn(state);
+  const n = order.length;
+  const k = order.indexOf(seat);
+  if (k < 0) return -1;
+  if (n === 2) return k === 0 ? POS_SB : POS_BB; // ヘッズアップ: BTN=SB
+  if (k === 0) return POS_BTN;
+  if (k === 1) return POS_SB;
+  if (k === 2) return POS_BB;
+  // 残りは後ろから CO, HJ, ... と詰める(9人ならk=3がUTG)
+  return (9 - n) + (k - 3);
 }
-function seatAtPos(state, posIdx) {
-  const off = OFFSET_TO_POS.indexOf(posIdx);
-  return (state.btn + off) % CFG.SEATS;
+function posNameOf(state, seat) {
+  const idx = posIdxOf(state, seat);
+  return idx < 0 ? "" : POSITIONS[idx];
 }
-function posNameOf(state, seat) { return POSITIONS[posIdxOf(state, seat)]; }
 
 /* ---------- ハンド進行 ----------
  * io = {
@@ -132,8 +164,13 @@ async function playHand(state, io) {
   }
   state.deck = deck;
 
-  // プレイヤー初期化
+  // プレイヤー初期化(アウト席はスキップ)
   for (const p of state.players) {
+    if (p.out) {
+      p.folded = true; p.cards = []; p.showCards = false;
+      p.streetBet = 0; p.committed = 0; p.allIn = false;
+      continue;
+    }
     p.cards = [deck.pop(), deck.pop()];
     p.folded = false; p.allIn = false;
     p.streetBet = 0; p.committed = 0; p.hasActed = false; p.hadAggression = false;
@@ -141,8 +178,11 @@ async function playHand(state, io) {
     p.startChips = p.chips;
   }
 
-  const sbSeat = (state.btn + 1) % CFG.SEATS;
-  const bbSeat = (state.btn + 2) % CFG.SEATS;
+  // ブラインド席(ヘッズアップはBTN=SB)
+  const hu = aliveSeats(state).length === 2;
+  const sbSeat = hu ? state.btn : nextAliveSeat(state, state.btn);
+  const bbSeat = nextAliveSeat(state, sbSeat);
+  state.sbSeat = sbSeat; state.bbSeat = bbSeat;
   const sbP = state.players[sbSeat], bbP = state.players[bbSeat];
 
   // BBアンティ(デッドマネー)
@@ -185,18 +225,46 @@ async function playHand(state, io) {
   // ショーダウン / ポット分配
   await resolveHand(state, io);
 
-  // バストしたボットを入れ替え
+  // バスト処理: 補欠(他テーブルの選手)がいる間は席が埋まり、いなければ席が消える
   for (const p of state.players) {
-    if (!p.isHero && p.chips <= 0) {
-      const fresh = makeBot(p.seat);
-      io.log(`${p.name} がバスト。新たに ${fresh.name} が着席 (${fmtBB(fresh.chips)}BB)`, "info");
-      state.players[p.seat] = fresh;
+    if (!p.isHero && !p.out && p.chips <= 0) {
+      state.fieldLeft--;
+      const tableAlive = state.players.filter(q => !q.out && q.chips > 0).length;
+      if (state.fieldLeft > tableAlive) {
+        const fresh = makeBot(p.seat);
+        io.log(`${p.name} がバスト(残り${state.fieldLeft}人)。${fresh.name} が移動してきた (${fmtBB(fresh.chips)}BB)`, "info");
+        state.players[p.seat] = fresh;
+      } else {
+        p.out = true;
+        io.log(`${p.name} がバスト! 残り${state.fieldLeft}人`, "info");
+      }
     }
   }
-  const hero = state.players.find(p => p.isHero);
-  if (hero.chips <= 0) state.over = true;
 
-  state.btn = (state.btn + 1) % CFG.SEATS;
+  // 他テーブルでも脱落が進行する
+  const tableAliveNow = state.players.filter(q => !q.out && q.chips > 0).length;
+  if (state.fieldLeft > tableAliveNow && Math.random() < 0.4) {
+    state.fieldLeft--;
+    io.log(`他のテーブルで1人バスト(残り${state.fieldLeft}人)`, "info");
+  }
+
+  // ファイナルテーブル宣言
+  if (!state.finalTable && state.fieldLeft <= CFG.SEATS) {
+    state.finalTable = true;
+    io.log(`🔥 ファイナルテーブル! 残り${state.fieldLeft}人 — ここからは席の補充なし、最後の1人まで`, "levelup");
+    if (io.sound) io.sound("final");
+  }
+
+  const hero = state.players.find(p => p.isHero);
+  if (hero.chips <= 0) {
+    state.over = true; // バスト(順位 = state.fieldLeft)
+  } else if (state.fieldLeft <= 1) {
+    state.won = true;  // 優勝!!
+    state.over = true;
+    io.log(`🏆 優勝!!! ${state.fieldSize}人のトーナメントを制覇!`, "win");
+  }
+
+  state.btn = nextAliveSeat(state, state.btn);
   state.street = "idle";
   io.render(state);
 }
@@ -227,8 +295,9 @@ async function bettingRound(state, street, initialBet, io) {
   const ps = state.players;
   let currentBet = initialBet;
   let firstSeat;
-  if (street === "preflop") firstSeat = (state.btn + 3) % CFG.SEATS;
-  else firstSeat = (state.btn + 1) % CFG.SEATS;
+  // プリフロップ: BBの次(HUではBTN=SBが先)、ポストフロップ: BTNの次
+  if (street === "preflop") firstSeat = nextAliveSeat(state, state.bbSeat);
+  else firstSeat = nextAliveSeat(state, state.btn);
 
   let guard = 0;
   let cursor = firstSeat;

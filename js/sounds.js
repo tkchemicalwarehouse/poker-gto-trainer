@@ -58,6 +58,17 @@ const Sfx = (() => {
     collect() { tone(1900, 0, 0.03, "square", 0.035); tone(1450, 0.04, 0.03, "square", 0.035); },
     levelup() { tone(440, 0, 0.11, "triangle", 0.1); tone(587, 0.12, 0.11, "triangle", 0.1); tone(740, 0.24, 0.18, "triangle", 0.11); },
     bust()    { tone(392, 0, 0.2, "sawtooth", 0.06, 330); tone(294, 0.2, 0.24, "sawtooth", 0.06, 245); tone(196, 0.44, 0.42, "sawtooth", 0.07, 145); },
+    final()   { tone(440, 0, 0.11, "square", 0.07); tone(554, 0.12, 0.11, "square", 0.07); tone(659, 0.24, 0.3, "square", 0.09); tone(880, 0.42, 0.4, "triangle", 0.1); },
+    victory() {
+      // ファンファーレ: タタタターン! → メロディ → キラキラ → フィナーレ和音
+      const intro = [[523, 0, 0.13], [523, 0.14, 0.13], [523, 0.28, 0.13], [659, 0.42, 0.5]];
+      for (const [f, t, d] of intro) { tone(f, t, d, "triangle", 0.13); tone(f / 2, t, d, "square", 0.05); }
+      const melody = [[784, 1.0, 0.18], [659, 1.2, 0.18], [784, 1.4, 0.18], [1047, 1.6, 0.62]];
+      for (const [f, t, d] of melody) { tone(f, t, d, "triangle", 0.13); tone(f * 1.5, t, d, "sine", 0.04); }
+      for (let i = 0; i < 14; i++) tone(1400 + Math.random() * 1800, 1.7 + i * 0.1, 0.09, "sine", 0.035);
+      [523, 659, 784, 1047].forEach(f => { tone(f, 3.2, 1.4, "triangle", 0.07); tone(f, 3.2, 1.4, "sine", 0.04); });
+      tone(131, 3.2, 1.4, "square", 0.05);
+    },
   };
 
   return {
