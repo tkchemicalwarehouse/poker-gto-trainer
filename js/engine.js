@@ -339,6 +339,49 @@ function getHandPower() {
   return HAND_POWER;
 }
 
+/* ---------- 169×169事前計算テーブルによる正確なプリフロップ・エクイティ ----------
+ * data-equity.js (EQ169: 千分率) が読み込まれている場合に使用。
+ * カードリムーバルはラベルレベルのコンボ数で厳密に加重。
+ */
+let AVAIL169 = null;
+function getAvail169() {
+  if (AVAIL169) return AVAIL169;
+  AVAIL169 = [];
+  const combosBy = ALL_HANDS.map(l => combosOfLabel(l));
+  for (let i = 0; i < 169; i++) {
+    const row = new Float64Array(169);
+    for (let j = 0; j < 169; j++) {
+      let pairs = 0;
+      for (const a of combosBy[i]) {
+        for (const b of combosBy[j]) {
+          if (a[0] !== b[0] && a[0] !== b[1] && a[1] !== b[0] && a[1] !== b[1]) pairs++;
+        }
+      }
+      row[j] = pairs / combosBy[i].length;
+    }
+    AVAIL169.push(row);
+  }
+  return AVAIL169;
+}
+
+// レンジに対するエクイティ(テーブル版・即時・高精度)。テーブル未読込ならnull。
+function eqVsRangeTable(heroLabel, range) {
+  if (typeof EQ169 === "undefined") return null;
+  const h = ALL_HANDS.indexOf(heroLabel);
+  if (h < 0) return null;
+  const av = getAvail169()[h];
+  let num = 0, den = 0;
+  range.forEach((w, label) => {
+    if (w <= 0) return;
+    const j = ALL_HANDS.indexOf(label);
+    if (j < 0) return;
+    const x = w * av[j];
+    num += x * EQ169[h][j];
+    den += x;
+  });
+  return den > 0 ? num / den / 1000 : 0.5;
+}
+
 // ハンドのパーセンタイル(0=最強, 100=最弱に近い)
 function handPercentile(label) {
   const power = getHandPower();

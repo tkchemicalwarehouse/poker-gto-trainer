@@ -187,7 +187,7 @@ function equityVsCombos(heroCards, combos, board, iters) {
 async function preflopAdvice(ctx) {
   const label = ctx.heroLabel;
   const freqs = { fold: 0, call: 0, raise: 0, jam: 0 };
-  const data = { kind: null };
+  const data = { kind: null, hu: ctx.tableN === 2 };
 
   if (ctx.facing === "none") {
     if (ctx.posIdx === POS_BB) { // 全員フォールドでBBに回ることはない(ウォーク)
@@ -195,17 +195,28 @@ async function preflopAdvice(ctx) {
       return { freqs, primary: "check", data };
     }
     if (ctx.stackBB <= 13.5) {
-      const push = Ranges.push(ctx.posIdx, ctx.stackBB);
       data.kind = "openJam";
-      data.range = push;
-      data.bucket = pushBucketFor(ctx.stackBB);
-      data.rangePct = rangePercent(push);
-      if (rangeHas(push, label)) freqs.jam = 1; else freqs.fold = 1;
+      // ナッシュ均衡データがあれば閾値で厳密判定(なければ手書きチャートにフォールバック)
+      const th = nashThreshold(ctx.posIdx, label);
+      if (th !== null) {
+        data.nash = true;
+        data.threshold = th;                 // このハンドはthBB以下ならジャム
+        data.marginBB = th - ctx.stackBB;    // +なら範囲内
+        data.range = nashRangeAt(ctx.posIdx, ctx.stackBB);
+        data.rangePct = rangePercent(data.range);
+        if (Math.abs(data.marginBB) <= 0.5) { freqs.jam = 0.5; freqs.fold = 0.5; } // 境界=混合域
+        else if (data.marginBB > 0) freqs.jam = 1;
+        else freqs.fold = 1;
+      } else {
+        const push = Ranges.push(ctx.posIdx, ctx.stackBB);
+        data.range = push;
+        data.rangePct = rangePercent(push);
+        if (rangeHas(push, label)) freqs.jam = 1; else freqs.fold = 1;
+      }
     } else {
-      const open = Ranges.open(ctx.posIdx, ctx.stackBB);
+      const open = (data.hu && ctx.posIdx === POS_SB) ? Ranges.huOpen() : Ranges.open(ctx.posIdx, ctx.stackBB);
       data.kind = "openRaise";
       data.range = open;
-      data.bucket = openBucketFor(ctx.stackBB);
       data.rangePct = rangePercent(open);
       if (rangeHas(open, label)) freqs.raise = 1; else freqs.fold = 1;
     }
@@ -214,13 +225,17 @@ async function preflopAdvice(ctx) {
 
   if (ctx.facing === "open") {
     const opClass = ctx.openerClass;
-    const rejam = Ranges.rejam(opClass, ctx.effBB);
+    const hu = data.hu && ctx.posIdx === POS_BB;
+    const rejam = hu ? Ranges.huRejam(ctx.effBB) : Ranges.rejam(opClass, ctx.effBB);
     data.kind = "facingOpen";
     data.rejamRange = rejam;
     data.rejamPct = rangePercent(rejam);
     data.openerClass = opClass;
+    // オープンレンジに対する実エクイティ(テーブルがあれば)
+    const openRange = hu ? Ranges.huOpen() : null;
+    if (openRange) data.eqVsOpen = eqVsRangeTable(label, openRange);
     if (ctx.posIdx === POS_BB) {
-      const callR = Ranges.bbCall(opClass, ctx.effBB);
+      const callR = hu ? Ranges.huCall(ctx.effBB) : Ranges.bbCall(opClass, ctx.effBB);
       data.callRange = callR;
       data.callPct = rangePercent(callR);
       if (rangeHas(rejam, label)) freqs.jam = 1;
@@ -234,22 +249,26 @@ async function preflopAdvice(ctx) {
   }
 
   if (ctx.facing === "jam" || ctx.facing === "rejamOverMyOpen") {
-    // エクイティ vs 必要勝率
-    const iters = ctx.fast ? 400 : 3000;
-    const res = equityVsRange(ctx.heroCards, ctx.jamRange, [], iters);
+    // エクイティ vs 必要勝率(事前計算テーブルがあれば厳密、なければMC)
+    let eq = eqVsRangeTable(label, ctx.jamRange);
+    data.eqExact = eq !== null;
+    if (eq === null) {
+      const res = equityVsRange(ctx.heroCards, ctx.jamRange, [], ctx.fast ? 400 : 3000);
+      eq = res.equity;
+    }
     const be = ctx.toCallBB / (ctx.potBB + ctx.toCallBB);
     let margin = 0.005;
     margin += 0.03 * (ctx.playersBehind || 0);       // 後ろに残るプレイヤー
     margin += 0.06 * Math.max(0, (ctx.jamCount || 1) - 1); // 追加のオールイン
     const threshold = be + margin;
     data.kind = "facingJam";
-    data.equity = res.equity;
+    data.equity = eq;
     data.breakeven = be;
     data.margin = margin;
     data.threshold = threshold;
     data.jamRangePct = rangePercent(ctx.jamRange);
-    data.evCallBB = res.equity * (ctx.potBB + ctx.toCallBB) - ctx.toCallBB;
-    const diff = res.equity - threshold;
+    data.evCallBB = eq * (ctx.potBB + ctx.toCallBB) - ctx.toCallBB;
+    const diff = eq - threshold;
     if (diff > 0.015) freqs.call = 1;
     else if (diff > -0.015) { freqs.call = 0.5; freqs.fold = 0.5; }
     else freqs.fold = 1;

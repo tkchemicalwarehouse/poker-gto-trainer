@@ -84,6 +84,21 @@ assert(clsFD.draws.flushDraw, "フラッシュドロー検出");
 const clsOESD = classifyHand([c(7,0), c(6,1)], [c(5,2), c(4,3), c(12,1)]); // 98 on 76A
 assert(clsOESD.draws.oesd, "OESD検出");
 
+/* ナッシュ均衡データとテーブルエクイティ */
+assert(typeof EQ169 !== "undefined" && EQ169.length === 169, "EQ169テーブル読込");
+assert(typeof NASH_PUSH_THRESH !== "undefined" && NASH_PUSH_THRESH.length === 8, "ナッシュ閾値読込");
+const eqT = eqVsRangeTable("AA", parseRange("KK"));
+console.log("  テーブル版 AA vs KK:", (eqT * 100).toFixed(1) + "%");
+assert(Math.abs(eqT - 0.816) < 0.02, "テーブル版 AA vs KK ≈ 82%");
+const eqT2 = eqVsRangeTable("A5s", parseRange("22+,A2s+,A7o+,K9s+"));
+assert(eqT2 > 0.3 && eqT2 < 0.55, "テーブル版レンジエクイティが妥当域 got " + eqT2.toFixed(3));
+assert(nashThreshold(0, "AA") >= 15, "AAのUTG閾値は上限");
+assert(nashThreshold(0, "72o") <= 3, "72oのUTG閾値はほぼゼロ got " + nashThreshold(0, "72o"));
+assert(nashThreshold(7, "K2o") >= 8, "SBのK2oは広くジャム");
+const nr = nashRangeAt(0, 10);
+console.log("  ナッシュUTG10BBレンジ:", rangePercent(nr).toFixed(1) + "%");
+assert(rangePercent(nr) > 8 && rangePercent(nr) < 22, "UTG10BBナッシュ ≈ 10-20%");
+
 /* 採点ロジック */
 (async () => {
   // 5BB UTGのAKs → ジャムが正解

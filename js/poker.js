@@ -496,6 +496,7 @@ function buildCtx(state, p, currentBet, street) {
       phase: "preflop",
       heroCards: p.cards, heroLabel: handLabelOf(p.cards[0], p.cards[1]),
       posIdx, stackBB: toBB(p.startChips), effBB,
+      tableN: aliveSeats(state).length,
       facing, openerClass: openerClassV,
       openerPosIdx: state.preflopOpen ? state.preflopOpen.posIdx : null,
       openSizeBB: state.preflopOpen ? state.preflopOpen.sizeBB : 0,

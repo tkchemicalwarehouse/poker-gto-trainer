@@ -246,8 +246,52 @@ function rangeWeight(range, label) {
   return range.get(label) || 0;
 }
 
+/* =========================================================
+ * 5. ヘッズアップ専用(残り2人: SB=BTN vs BB)
+ *    HUはレンジが大幅に広がるため9maxチャートを流用しない
+ * ========================================================= */
+// SBのオープンレイズ(13.5BB超。それ以下はナッシュジャム表のSB列=対BBそのもの)
+const HU_SB_OPEN = "22+,A2+,K2+,Q2+,J2s+,J5o+,T2s+,T6o+,92s+,96o+,84s+,86o+,73s+,75o+,63s+,64o+,52s+,54o,43s";
+// BBのSBオープン(ミニレイズ)に対するリジャム
+const HU_REJAM = {
+  10: "22+,A2+,K2s+,K5o+,Q2s+,Q8o+,J5s+,J9o+,T7s+,T9o,97s+,87s,76s,65s",
+  15: "22+,A2s+,A3o+,K5s+,K9o+,Q8s+,QJo,J8s+,T8s+,98s,87s,76s",
+  20: "22+,A2s+,A8o+,A5o,K9s+,KJo+,QTs+,JTs,T9s",
+  25: "33+,A7s+,A5s-A2s,ATo+,KTs+,KQo,QJs,JTs",
+};
+// BBのSBオープンに対するコール(HUはポットオッズ最良で非常に広い)
+const HU_DEFEND_TOTAL = "22+,A2+,K2+,Q2+,J2s+,J6o+,T3s+,T7o+,93s+,96o+,84s+,86o+,74s+,75o+,63s+,64o+,53s+,43s,42s";
+
+/* ---------- ナッシュ均衡データ(data-nash.js)ヘルパー ---------- */
+function nashAvailable() {
+  return typeof NASH_PUSH_THRESH !== "undefined";
+}
+// ハンドの「ジャムする最大スタック(BB)」。posIdx 0..7
+function nashThreshold(posIdx, label) {
+  if (!nashAvailable() || posIdx > 7) return null;
+  const h = ALL_HANDS.indexOf(label);
+  return h >= 0 ? NASH_PUSH_THRESH[posIdx][h] / 2 : null;
+}
+// あるスタックでのナッシュ・ジャムレンジ(Map)
+function nashRangeAt(posIdx, stackBB) {
+  const range = new Map();
+  if (!nashAvailable() || posIdx > 7) return range;
+  const s2 = stackBB * 2;
+  for (let h = 0; h < 169; h++) {
+    if (NASH_PUSH_THRESH[posIdx][h] >= s2) range.set(ALL_HANDS[h], 1);
+  }
+  return range;
+}
+
 /* ---------- レンジ取得API(strategy.jsから使用) ---------- */
 const Ranges = {
+  huOpen() { return parseRange(HU_SB_OPEN); },
+  huRejam(effStackBB) { return parseRange(HU_REJAM[rejamBucketFor(effStackBB)]); },
+  huCall(effStackBB) {
+    const total = parseRange(HU_DEFEND_TOTAL);
+    const jam = parseRange(HU_REJAM[rejamBucketFor(effStackBB)]);
+    return rangeSubtract(total, jam);
+  },
   push(posIdx, stackBB) {
     return parseRange(PUSH_RANGES[pushBucketFor(stackBB)][posIdx]);
   },

@@ -34,17 +34,24 @@ function gradeDecision(ctx, advice, chosenId) {
     if (d.kind === "openJam" && chosen === "raise" && rangeHas(d.range, ctx.heroLabel)) {
       verdict = "minor"; // ジャム推奨スタックでの通常レイズ
     }
-    if ((d.kind === "openJam") && chosen === "fold" && rangeHas(d.range, ctx.heroLabel)) {
-      // レンジ最底辺のハンドのフォールドは僅差
+    if (d.kind === "openJam" && !d.nash && chosen === "fold" && rangeHas(d.range, ctx.heroLabel)) {
       const pct = handPercentile(ctx.heroLabel);
       if (Math.abs(pct - d.rangePct) < 5) verdict = "minor";
     }
+  }
+  // ナッシュ閾値からの距離でミスの重さを決める
+  if (d.kind === "openJam" && d.nash && (verdict === "minor" || verdict === "blunder")) {
+    const m = Math.abs(d.marginBB);
+    verdict = m < 2.5 ? "minor" : "blunder";
   }
 
   // EV損失推定(BB)
   let evLoss = 0;
   if (verdict === "minor") evLoss = 0.4;
   if (verdict === "blunder") evLoss = 1.5;
+  if (d.kind === "openJam" && d.nash && (verdict === "minor" || verdict === "blunder")) {
+    evLoss = Math.round(Math.min(2.5, 0.15 * Math.abs(d.marginBB) + 0.1) * 100) / 100;
+  }
   if (d.kind === "facingJam" && d.evCallBB !== undefined) {
     const ev = d.evCallBB;
     if (chosen === "call" && ev < -0.05) evLoss = -ev;
@@ -86,36 +93,90 @@ function buildExplanation(ctx, advice, chosen, verdict) {
   lines.push(`<div class="ex-gto">GTO戦略: <b>${freqsText(advice.freqs)}</b> — あなた: <b>${actionJP(chosen)}</b></div>`);
 
   if (d.kind === "openJam") {
-    const inR = rangeHas(d.range, hand);
-    lines.push(`<p>${ctx.stackBB.toFixed(1)}BBの${ctx.seatName}からのナッシュ・オープンジャムレンジは上位 <b>${d.rangePct.toFixed(1)}%</b>。` +
-      `${hand} はこのレンジに<b>${inR ? "含まれます" : "含まれません"}</b>(ハンド強度 上位${handPercentile(hand).toFixed(0)}%)。</p>`);
-    if (!inR && chosen === "jam") lines.push(`<p>ショートでも全ハンドをジャムして良いわけではありません。コールされた時の勝率が低すぎ、フォールドエクイティを差し引いてもマイナスです。</p>`);
-    if (inR && chosen === "fold") lines.push(`<p>ブラインド+アンティ(2.5BB)を奪う価値はスタックが浅いほど大きく、このハンドはジャムで+EVです。タイトすぎるとブラインドで削られていきます。</p>`);
+    if (d.nash) {
+      const th = d.threshold, m = d.marginBB;
+      const thText = th <= 0 ? "どのスタックでもジャムしません"
+        : th >= 16 ? "16BB以上でもジャムできます"
+        : `<b>${th.toFixed(1)}BB以下ならジャム</b>です`;
+      lines.push(`<p>ナッシュ均衡(計算済み)では、${ctx.seatName}の ${hand} は${thText}。` +
+        `現在 <b>${ctx.stackBB.toFixed(1)}BB</b>。</p>`);
+      if (Math.abs(m) <= 0.5) {
+        lines.push(`<p>ちょうど境界線上の<b>混合域</b>です。ジャムもフォールドもEVはほぼ同じ — どちらを選んでもミスではありません。</p>`);
+      } else if (m > 0) {
+        const comfort = m >= 4 ? "余裕でジャム圏内。迷う必要のないオールインです" :
+          m >= 1.5 ? `ジャム圏内(余裕${m.toFixed(1)}BB)` : `ぎりぎりジャム圏内(余裕${m.toFixed(1)}BB)`;
+        lines.push(`<p>${comfort}。` +
+          (chosen === "fold" ? `これを落とすとブラインド+アンティ<b>2.5BB</b>を奪うチャンスを毎周捨てることになります。` : "") + `</p>`);
+      } else {
+        const sever = -m >= 4 ? "明確に圏外。コールされた時に勝てないハンドです" :
+          -m >= 1.5 ? `圏外(あと${(-m).toFixed(1)}BB浅ければジャムでした)` : `僅かに圏外(あと${(-m).toFixed(1)}BB浅ければジャム)`;
+        lines.push(`<p>${sever}。` +
+          (chosen === "jam" ? `フォールドエクイティを考慮してもEVが足りません。` : "") + `</p>`);
+      }
+      lines.push(`<p>この${ctx.stackBB.toFixed(1)}BBでの${ctx.seatName}のナッシュ・ジャムレンジは上位 <b>${d.rangePct.toFixed(1)}%</b>:</p>`);
+    } else {
+      const inR = rangeHas(d.range, hand);
+      lines.push(`<p>${ctx.stackBB.toFixed(1)}BBの${ctx.seatName}のジャムレンジは上位 <b>${d.rangePct.toFixed(1)}%</b>。` +
+        `${hand} は<b>${inR ? "含まれます" : "含まれません"}</b>。</p>`);
+    }
     lines.push(rangeGridHTML(d.range, null, hand, "ジャム"));
   }
   else if (d.kind === "openRaise") {
     const inR = rangeHas(d.range, hand);
-    lines.push(`<p>${ctx.seatName}(${ctx.stackBB.toFixed(0)}BB)のオープンレンジは上位 <b>${d.rangePct.toFixed(1)}%</b>。` +
-      `${hand} は<b>${inR ? "オープンします" : "フォールドです"}</b>。</p>`);
-    if (chosen === "jam" && inR) lines.push(`<p>このスタックではオールインよりも2.2BBレイズが標準です。強いハンドの価値を最大化し、弱いハンドにフォールドの余地を残せます。</p>`);
+    const pctile = handPercentile(hand);
+    if (d.hu) {
+      lines.push(`<p><b>ヘッズアップ</b>のSBは約${d.rangePct.toFixed(0)}%という超ワイドなオープンが標準です。` +
+        `${hand}(強度 上位${pctile.toFixed(0)}%)は<b>${inR ? "余裕でオープン" : "さすがにフォールド"}</b>。</p>`);
+    } else {
+      const dist = Math.abs(pctile - d.rangePct);
+      const posNote = inR
+        ? (dist > 20 ? "レンジのド真ん中。標準的なオープンです" : "オープンレンジの下限付近ですが、オープンが正解です")
+        : (dist > 20 ? "オープンレンジから大きく外れています" : `惜しくもレンジ外(レンジ上位${d.rangePct.toFixed(0)}%に対し強度${pctile.toFixed(0)}%)`);
+      lines.push(`<p>${ctx.seatName}(${ctx.stackBB.toFixed(0)}BB)のオープンレンジは上位 <b>${d.rangePct.toFixed(1)}%</b>。${hand} は${posNote}。</p>`);
+    }
+    if (chosen === "jam" && inR) lines.push(`<p>このスタック(${ctx.stackBB.toFixed(0)}BB)ではオールインより2.2BBレイズが標準。強いハンドの価値を最大化し、弱いハンドにフォールドの余地を残せます。</p>`);
     lines.push(rangeGridHTML(d.range, null, hand, "レイズ"));
   }
   else if (d.kind === "facingOpen") {
-    lines.push(`<p>${d.openerClass}ポジションからのオープンに対する有効${ctx.effBB.toFixed(0)}BBのリジャムレンジは上位 <b>${d.rejamPct.toFixed(1)}%</b>` +
-      (d.callRange ? `、コールレンジは <b>${d.callPct.toFixed(1)}%</b>` : "") + `。</p>`);
-    if (ctx.posIdx === POS_BB) lines.push(`<p>BBは既に1BB+アンティを投資しているためポットオッズが良く、広めにディフェンスできます。ただし浅いスタックではコールよりリジャムでフォールドエクイティを取る方が優位です。</p>`);
-    else lines.push(`<p>ポジション外・浅スタックではコール(フラット)はほぼ使わず、<b>リジャムかフォールド</b>の二択がGTOです。</p>`);
+    const inJam = rangeHas(d.rejamRange, hand);
+    const inCall = d.callRange ? rangeHas(d.callRange, hand) : false;
+    const openerDesc = d.hu ? "<b>ヘッズアップ</b>のSBオープン(超ワイドレンジ)" : `${d.openerClass}ポジションからのオープン`;
+    lines.push(`<p>${openerDesc}に対する有効${ctx.effBB.toFixed(0)}BBの戦略: リジャム上位 <b>${d.rejamPct.toFixed(1)}%</b>` +
+      (d.callRange ? ` / コール <b>${d.callPct.toFixed(1)}%</b>` : " / コールなし(ジャムかフォールド)") + `。</p>`);
+    if (d.eqVsOpen != null) {
+      lines.push(`<p>相手のオープンレンジに対する ${hand} の生エクイティ: <b>${pct(d.eqVsOpen)}</b>(事前計算テーブルによる厳密値)</p>`);
+    }
+    // 選択と正解の組み合わせに応じた説明(定型文の連発はしない)
+    const correct = advice.primary;
+    if (correct === "jam" && chosen === "fold") {
+      lines.push(`<p>${hand} はリジャムレンジ内です。${d.hu ? "HUの超ワイドオープンに対しては、ここで踏み込まないとブラインドを取られ続けます。" : "相手のオープンレンジの大部分はジャムにフォールドするため、フォールドエクイティ+コールされた時のエクイティの合計で+EVです。"}</p>`);
+    } else if (correct === "jam" && chosen === "call") {
+      lines.push(`<p>コールよりリジャム推奨です。有効${ctx.effBB.toFixed(0)}BBではポストフロップの技術介入余地が小さく、フォールドエクイティを取れるジャムの方がEVが高くなります。</p>`);
+    } else if (correct === "call" && chosen === "fold") {
+      lines.push(`<p>必要勝率は約<b>${pct(ctx.toCallBB / (ctx.potBB + ctx.toCallBB))}</b>と安く、${hand} はコールレンジ内。ここを全部降りるとブラインドの搾取に対して無防備になります。</p>`);
+    } else if (correct === "call" && chosen === "jam") {
+      lines.push(`<p>${hand} はジャムするには弱く、捨てるには強い「コール向き」のハンドです。ジャムだと相手の継続レンジ(上位${d.rejamPct.toFixed(0)}%級)に対して分が悪くなります。</p>`);
+    } else if (correct === "fold" && (chosen === "call" || chosen === "jam")) {
+      lines.push(`<p>${hand} はリジャムにもコールにも届きません。${ctx.posIdx === POS_BB ? "BBのポットオッズをもってしても継続は-EVです。" : "ポジション外から弱いハンドで参加すると、その後の全ストリートで損をし続けます。"}</p>`);
+    }
     lines.push(rangeGridHTML(d.rejamRange, d.callRange, hand, "オールイン", "コール"));
   }
   else if (d.kind === "facingJam") {
+    const ev = d.evCallBB;
+    let headline;
+    if (ev > 1.5) headline = `圧倒的に+EVのコール(<b class="pos">+${ev.toFixed(2)}BB</b>)。スナップコールです。`;
+    else if (ev > 0.3) headline = `+EVのコール(<b class="pos">+${ev.toFixed(2)}BB</b>)。`;
+    else if (ev > -0.3) headline = `境界線上(EV ${ev >= 0 ? "+" : ""}${ev.toFixed(2)}BB)。どちらを選んでも大差ありません。`;
+    else if (ev > -1.5) headline = `-EVのコール(<b class="neg">${ev.toFixed(2)}BB</b>)。フォールドが正解。`;
+    else headline = `明確に-EV(<b class="neg">${ev.toFixed(2)}BB</b>)。これをコールし続けると長期で大損します。`;
+    lines.push(`<p>${headline}</p>`);
     lines.push(
       `<p>相手のジャムレンジ: 上位 <b>${d.jamRangePct.toFixed(1)}%</b><br>` +
-      `${hand} のエクイティ: <b>${pct(d.equity)}</b><br>` +
+      `${hand} のエクイティ: <b>${pct(d.equity)}</b>${d.eqExact ? `<span style="color:var(--dim)">(169×169厳密計算)</span>` : ""}<br>` +
       `必要勝率(ポットオッズ): <b>${pct(d.breakeven)}</b>` +
-      (d.margin > 0.01 ? ` + 後続プレイヤー補正 ${pct(d.margin)}` : "") + `<br>` +
-      `コールのEV: <b class="${d.evCallBB >= 0 ? "pos" : "neg"}">${d.evCallBB >= 0 ? "+" : ""}${d.evCallBB.toFixed(2)} BB</b></p>`);
-    if (chosen === "call" && d.evCallBB < -0.05) lines.push(`<p>エクイティが必要勝率に届いていません。「もう投げ捨てるには惜しい」と感じても、長期では確実に損をするコールです。</p>`);
-    if (chosen === "fold" && d.evCallBB > 0.05) lines.push(`<p>必要勝率を上回っているのでコールが+EVでした。トーナメントで勝つには、この僅かに+EVのコールを積み重ねる必要があります。</p>`);
+      (d.margin > 0.02 ? ` + 後続/マルチ補正 ${pct(d.margin)}` : "") + `</p>`);
+    if (chosen === "call" && ev < -0.3) lines.push(`<p>「ここまで来たら…」の感情コールは分散ではなくミスです。数字はフォールドと言っています。</p>`);
+    if (chosen === "fold" && ev > 0.3) lines.push(`<p>トーナメントの勝者は、この+EVコールを淡々と積み重ねた人です。</p>`);
   }
   else if (d.kind === "postflop") {
     const c = d.cls;
