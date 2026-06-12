@@ -553,12 +553,20 @@ function buildCtx(state, p, currentBet, street) {
     }
     // 残っているディフェンダー数(ショートハンド・前のフォールドを正確に反映)
     const defendersN = state.players.filter(q => !q.out && !q.folded && q !== p).length;
+    // ファーストインジャムの実効スタック: 自分 vs 残存ディフェンダーの最大スタックの小さい方
+    // (例: SB vs 残り1BBのBB → 実効1BB → ほぼ全ハンドジャムが正解になる)
+    let maxBehindBB = 0;
+    for (const q of state.players) {
+      if (q.out || q.folded || q === p) continue;
+      maxBehindBB = Math.max(maxBehindBB, toBB(q.chips + q.streetBet));
+    }
+    const effJamBB = Math.min(toBB(p.chips + p.streetBet), maxBehindBB || toBB(p.startChips));
     return {
       phase: "preflop",
       heroCards: p.cards, heroLabel: handLabelOf(p.cards[0], p.cards[1]),
       posIdx, stackBB: toBB(p.startChips), effBB,
       tableN: aliveSeats(state).length,
-      icm, icmJam, defendersN,
+      icm, icmJam, defendersN, effJamBB,
       facing, openerClass: openerClassV,
       openerPosIdx: state.preflopOpen ? state.preflopOpen.posIdx : null,
       openSizeBB: state.preflopOpen ? state.preflopOpen.sizeBB : 0,

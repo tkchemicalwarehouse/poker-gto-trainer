@@ -265,15 +265,20 @@ async function preflopAdvice(ctx) {
       freqs.check = 1;
       return { freqs, primary: "check", data };
     }
-    if (ctx.stackBB <= 13.5) {
+    // ★実効スタック: 自分 vs 残存ディフェンダー最大スタックの小さい方で判定する★
+    // 相手が1BBしか持っていなければ実効1BB → ほぼ全ハンドジャムが正解
+    const effS = Math.min(ctx.stackBB, ctx.effJamBB != null ? ctx.effJamBB : ctx.stackBB);
+    data.effS = effS;
+    data.effLimited = effS < ctx.stackBB - 0.5; // 相手のスタックで実効が制限されている
+    if (effS <= 13.5) {
       data.kind = "openJam";
       // ナッシュ均衡データがあれば閾値で厳密判定(なければ手書きチャートにフォールバック)
       const th = nashThreshold(ctx.posIdx, label);
       if (th !== null) {
         data.nash = true;
-        data.threshold = th;                 // このハンドはthBB以下ならジャム
-        data.marginBB = th - ctx.stackBB;    // +なら範囲内
-        data.range = nashRangeAt(ctx.posIdx, ctx.stackBB);
+        data.threshold = th;            // このハンドはthBB以下ならジャム
+        data.marginBB = th - effS;      // +なら範囲内(実効スタック基準)
+        data.range = nashRangeAt(ctx.posIdx, Math.max(2, effS));
         data.rangePct = rangePercent(data.range);
         if (Math.abs(data.marginBB) <= 0.5) { freqs.jam = 0.5; freqs.fold = 0.5; } // 境界=混合域
         else if (data.marginBB > 0) freqs.jam = 1;
@@ -282,7 +287,7 @@ async function preflopAdvice(ctx) {
         if (!ctx.fast || ctx.icmJam) {
           const posted = ctx.posIdx === POS_SB ? 0.5 : 0;
           const defenders = ctx.defendersN != null ? ctx.defendersN : 8 - ctx.posIdx;
-          data.calc = teachJamBreakdown(label, data.range, ctx.stackBB, defenders, posted);
+          data.calc = teachJamBreakdown(label, data.range, Math.max(2, effS), defenders, posted);
         }
         // FT: ジャム自体を賞金期待値で再評価(ICMはジャム側も締める)
         if (ctx.icmJam && data.calc && freqs.jam > 0) {
@@ -296,7 +301,7 @@ async function preflopAdvice(ctx) {
           }
         }
       } else {
-        const push = Ranges.push(ctx.posIdx, ctx.stackBB);
+        const push = Ranges.push(ctx.posIdx, Math.max(2, effS));
         data.range = push;
         data.rangePct = rangePercent(push);
         if (rangeHas(push, label)) freqs.jam = 1; else freqs.fold = 1;

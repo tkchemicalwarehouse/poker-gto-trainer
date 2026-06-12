@@ -125,11 +125,17 @@ function buildExplanation(ctx, advice, chosen, verdict) {
   if (d.kind === "openJam") {
     if (d.nash) {
       const th = d.threshold, m = d.marginBB;
+      const effS = d.effS != null ? d.effS : ctx.stackBB;
       const thText = th <= 0 ? "どのスタックでもジャムしません"
         : th >= 16 ? "16BB以上でもジャムできます"
         : `<b>${th.toFixed(1)}BB以下ならジャム</b>です`;
-      lines.push(`<p>ナッシュ均衡(計算済み)では、${ctx.seatName}の ${hand} は${thText}。` +
-        `現在 <b>${ctx.stackBB.toFixed(1)}BB</b>。</p>`);
+      const stackText = d.effLimited
+        ? `現在 実効<b>${effS.toFixed(1)}BB</b>(あなたは${ctx.stackBB.toFixed(1)}BB持ちですが、後ろの最大スタックがそれだけなので、リスクに晒されるのはこの分だけ)`
+        : `現在 <b>${effS.toFixed(1)}BB</b>`;
+      lines.push(`<p>ナッシュ均衡(計算済み)では、${ctx.seatName}の ${hand} は${thText}。${stackText}。</p>`);
+      if (d.effLimited && effS <= 3) {
+        lines.push(`<p>💡 <b>相手のスタックが極端に短い時の鉄則</b>: 実効${effS.toFixed(1)}BBに対してリスクはごく僅か、しかもポットには既に2.5BBのデッドマネー。この状況では<b>ほぼ全ハンドがジャムで+EV</b>です。相手の残りチップを常に確認しましょう。</p>`);
+      }
       if (Math.abs(m) <= 0.5) {
         lines.push(`<p>ちょうど境界線上の<b>混合域</b>です。ジャムもフォールドもEVはほぼ同じ — どちらを選んでもミスではありません。</p>`);
       } else if (m > 0) {
