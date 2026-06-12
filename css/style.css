@@ -368,10 +368,20 @@ button.cta:hover { background: linear-gradient(170deg, #ffe085, #e8b52e 55%, #c7
 #coach-body .neg { color: var(--red); }
 #coach-continue { width: 100%; margin-top: 10px; font-size: 15px; }
 .report-btn {
-  width: 100%; margin-top: 8px; font-size: 12px;
-  background: #3a3326; border-color: #6b5a32;
-  color: #d9c98a;
+  width: 100%; margin-top: 8px; font-size: 11px;
+  background: #2a2d33; border-color: #4a505c;
+  color: #9aa6b3;
 }
+.report-top {
+  width: 100%; margin-bottom: 12px;
+  font-size: 15px; font-weight: 800; padding: 13px;
+  background: linear-gradient(170deg, #8a4a1f, #6e3413);
+  border: 2px solid #ffad47; color: #ffe2c2;
+  border-radius: 10px;
+  box-shadow: 0 0 14px rgba(255,173,71,.35);
+  animation: ctaPulse 2.2s ease-in-out infinite;
+}
+.report-top:hover { background: linear-gradient(170deg, #9d5826, #7e3e18); }
 #report-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 300;
   display: flex; align-items: center; justify-content: center;

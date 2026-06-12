@@ -509,6 +509,30 @@ function buildReport(ctx, advice, act, grade) {
   };
 }
 
+/* ワンタップ自動報告(Googleフォームへ裏側でPOST)。
+ * REPORT_ENDPOINT/FIELDを設定すると有効化。未設定時はコピー動作にフォールバック。 */
+const REPORT_ENDPOINT = ""; // 例: https://docs.google.com/forms/d/e/XXXX/formResponse
+const REPORT_FIELD = "";    // 例: entry.1234567890
+function sendReport() {
+  if (!window.__lastReport) return;
+  if (!REPORT_ENDPOINT || !REPORT_FIELD) { copyReport(); return; }
+  const t = $("toast");
+  try {
+    const fd = new FormData();
+    fd.append(REPORT_FIELD, JSON.stringify(window.__lastReport));
+    fetch(REPORT_ENDPOINT, { method: "POST", mode: "no-cors", body: fd });
+    t.textContent = "📨 報告を送信しました。ありがとう!(開発に活用されます)";
+    t.className = "v-mixed";
+    Sfx.play("good");
+  } catch (e) {
+    t.textContent = "送信できなかったためコピーに切替えます";
+    t.className = "v-minor";
+    copyReport();
+  }
+  t.classList.remove("hidden");
+  setTimeout(() => t.classList.add("hidden"), 2400);
+}
+
 function copyReport() {
   if (!window.__lastReport) return;
   const text = "【判定報告】以下の局面の判定を検証してください:\n```json\n" +
@@ -833,6 +857,7 @@ window.addEventListener("DOMContentLoaded", () => {
   $("btn-mute").textContent = Sfx.isMuted() ? "🔇" : "🔊";
   $("btn-mute").onclick = () => { $("btn-mute").textContent = Sfx.toggle() ? "🔇" : "🔊"; };
   $("coach-report").onclick = copyReport;
+  $("coach-report-top").onclick = sendReport;
 
   $("btn-start").onclick = () => startTournament();
   $("btn-sim").onclick = () => { showScreen("screen-sim"); };

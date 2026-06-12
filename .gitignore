@@ -4,3 +4,4 @@ tools/nash-log.txt
 tools/equity.json
 tools/rejam-log.txt
 tests/_golden_combined.cjs
+tools/_verify_combined.cjs
