@@ -544,24 +544,31 @@ button.cta:hover { background: linear-gradient(170deg, #ffe085, #e8b52e 55%, #c7
   border: 8px solid transparent; border-top-color: #fff; border-bottom: 0;
 }
 
-/* 直近アクションのドット文字バッジ */
+/* アクションのドット文字バッジ(2段重ね対応) */
 .seat-act {
   position: absolute; left: 50%; top: 46%;
   transform: translate(-50%, -50%);
-  font-family: "Press Start 2P", monospace;
-  font-size: 10px; padding: 4px 7px; white-space: nowrap;
-  background: rgba(5, 8, 12, .85); border: 2px solid #fff;
-  z-index: 7; letter-spacing: 1px;
+  display: flex; flex-direction: column; gap: 3px; align-items: center;
+  z-index: 7;
   animation: actPop .16s steps(2) both;
-  box-shadow: 2px 2px 0 rgba(0,0,0,.6);
 }
 @keyframes actPop { from { transform: translate(-50%, -50%) scale(.4); } }
-.sa-fold  { color: #8a97a5; border-color: #8a97a5; }
-.sa-check { color: #ffffff; border-color: #ffffff; }
-.sa-call  { color: #46c47c; border-color: #46c47c; }
-.sa-raise { color: #ff9e3d; border-color: #ff9e3d; }
-.sa-allin { color: #ff3355; border-color: #ff3355; animation: actPop .16s steps(2) both, allinColors .7s steps(1) infinite; }
-body.mode-phone .seat-act { font-size: 8px; padding: 3px 5px; }
+.sa-tag {
+  font-family: "Press Start 2P", monospace;
+  font-size: 10px; padding: 4px 7px; white-space: nowrap;
+  background: rgba(5, 8, 12, .88); border: 2px solid #fff;
+  letter-spacing: 1px;
+  box-shadow: 2px 2px 0 rgba(0,0,0,.6);
+}
+.sa-tag.sa-fold  { color: #8a97a5; border-color: #8a97a5; }
+.sa-tag.sa-check { color: #ffffff; border-color: #ffffff; }
+.sa-tag.sa-call  { color: #46c47c; border-color: #46c47c; }
+.sa-tag.sa-raise { color: #ff9e3d; border-color: #ff9e3d; }
+.sa-tag.sa-3bet  { color: #ffd75e; border-color: #ffd75e; }
+.sa-tag.sa-4bet  { color: #ff7bff; border-color: #ff7bff; }
+.sa-tag.sa-5bet  { color: #4dffff; border-color: #4dffff; }
+.sa-tag.sa-allin { color: #ff3355; border-color: #ff3355; animation: allinColors .7s steps(1) infinite; }
+body.mode-phone .sa-tag { font-size: 8px; padding: 3px 5px; }
 
 /* 右下の大型ブラインド表示 */
 #blind-corner {

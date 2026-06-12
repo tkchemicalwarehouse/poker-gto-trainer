@@ -126,8 +126,10 @@ function buildSeats() {
     const dx = tr.width / 2 - sx, dy = tr.height / 2 - sy;
     const len = Math.hypot(dx, dy) || 1;
     const ux = dx / len, uy = dy / len;
-    // 座席ボックスは横長なので方向に応じたクリアランス(横66px/縦52px)+余白
-    const clear = Math.abs(ux) * (phone ? 52 : 68) + Math.abs(uy) * (phone ? 44 : 56) + 16;
+    // 座席ボックスは横長なので方向に応じたクリアランス+余白
+    // 自席(s=0)はカードが大きく箱が縦長なので、縦クリアランスを大きく取る
+    const clearY = s === 0 ? (phone ? 112 : 124) : (phone ? 44 : 56);
+    const clear = Math.abs(ux) * (phone ? 52 : 68) + Math.abs(uy) * clearY + 16;
     let bx = sx + ux * clear;
     let by = sy + uy * clear;
     // ボード帯域(中央のカード・ポット領域)に入る場合は上下に退避
@@ -137,7 +139,7 @@ function buildSeats() {
     const bandX0 = tr.width / 2 - bandHalfW, bandX1 = tr.width / 2 + bandHalfW;
     // ボードエリアは上端28%固定・コンテンツ約170px(ポット文字+カード+チップ)
     const bandY0 = tr.height * 0.28, bandY1 = tr.height * 0.28 + 175;
-    if (bx > bandX0 && bx < bandX1 && by > bandY0 - 20 && by < bandY1) {
+    if (s !== 0 && bx > bandX0 && bx < bandX1 && by > bandY0 - 20 && by < bandY1) {
       if (Math.abs(sx - tr.width / 2) > tr.width * 0.18) {
         // サイドの席: 横に逃がす(上に逃がすと自席の箱と重なって隠れるため)
         bx = sx > tr.width / 2 ? bandX1 + 18 : bandX0 - 18;
@@ -259,17 +261,27 @@ function render(state) {
     if (state.street === "idle" || p.folded) setCards(cardsEl, "none", "");
     else if (p.isHero || p.showCards) setCards(cardsEl, "f" + p.cards.join(","), p.cards.map(c => cardHTML(c, !p.isHero)).join(""));
     else setCards(cardsEl, "back" + state.handNo, backHTML(true) + backHTML(true));
-    // 直近アクションのドット文字バッジ(CHECK/FOLD/RAISE等)
+    // アクションのドット文字バッジ(RAISE+FOLDの重ね表示、3BET/4BET/5BETは色分け)
     const actEl = el.querySelector(".seat-act");
-    if (p.lastAction && state.street !== "idle") {
-      const typeCls = { "FOLD": "sa-fold", "CHECK": "sa-check", "CALL": "sa-call", "RAISE": "sa-raise", "BET": "sa-raise", "ALL IN": "sa-allin" }[p.lastAction] || "sa-check";
-      if (actEl.textContent !== p.lastAction || !actEl.classList.contains(typeCls)) {
-        actEl.className = "seat-act " + typeCls;
-        actEl.textContent = p.lastAction;
+    const tags = [];
+    if (p.tagAgg) tags.push(p.tagAgg);
+    if (p.tagPass) tags.push(p.tagPass);
+    if (tags.length && state.street !== "idle") {
+      const key = tags.join("|");
+      if (actEl.dataset.k !== key) {
+        actEl.dataset.k = key;
+        actEl.className = "seat-act";
+        actEl.innerHTML = tags.map(t => {
+          const cls = t === "FOLD" ? "sa-fold" : t === "CHECK" ? "sa-check" : t === "CALL" ? "sa-call"
+            : t === "ALL IN" ? "sa-allin" : t === "3BET" ? "sa-3bet" : t === "4BET" ? "sa-4bet"
+            : /BET$/.test(t) && /^[5-9]/.test(t) ? "sa-5bet" : "sa-raise";
+          return `<div class="sa-tag ${cls}">${t}</div>`;
+        }).join("");
       }
-    } else {
+    } else if (actEl.dataset.k !== "") {
+      actEl.dataset.k = "";
       actEl.className = "seat-act hidden";
-      actEl.textContent = "";
+      actEl.innerHTML = "";
     }
     // ベットチップ(座席と中央の中間に表示)。フォールドした人のチップは消す(混乱防止)
     const betEl = $("bet-" + s);

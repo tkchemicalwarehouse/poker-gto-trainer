@@ -54,7 +54,7 @@ function makePlayer(seat, name, isHero, chips) {
     cards: [], folded: true, allIn: false, out: false,
     streetBet: 0, committed: 0, hasActed: false, hadAggression: false,
     assumedRange: null, rangeNote: "",
-    showCards: false, lastAction: null,
+    showCards: false, tagAgg: null, tagPass: null,
   };
 }
 
@@ -154,6 +154,7 @@ async function playHand(state, io) {
   state.preflopOpen = null;
   state.preflopJams = [];
   state.jamCallers = 0;
+  state.preflopBetLevel = 1; // 1=BB, 2=オープン(RAISE), 3=3BET, 4=4BET…
   state.handLog = [];
 
   // デッキ
@@ -169,13 +170,13 @@ async function playHand(state, io) {
   for (const p of state.players) {
     if (p.out) {
       p.folded = true; p.cards = []; p.showCards = false;
-      p.streetBet = 0; p.committed = 0; p.allIn = false; p.lastAction = null;
+      p.streetBet = 0; p.committed = 0; p.allIn = false; p.tagAgg = null; p.tagPass = null;
       continue;
     }
     p.cards = [deck.pop(), deck.pop()];
     p.folded = false; p.allIn = false;
     p.streetBet = 0; p.committed = 0; p.hasActed = false; p.hadAggression = false;
-    p.assumedRange = null; p.rangeNote = ""; p.showCards = false; p.lastAction = null;
+    p.assumedRange = null; p.rangeNote = ""; p.showCards = false; p.tagAgg = null; p.tagPass = null;
     p.startChips = p.chips;
   }
 
@@ -213,7 +214,10 @@ async function playHand(state, io) {
     state.street = street;
     state.curStreetAggressor = null;
     for (let i = 0; i < n; i++) state.board.push(state.deck.pop());
-    for (const p of state.players) { p.streetBet = 0; p.hasActed = false; p.hadAggression = false; if (!p.folded) p.lastAction = null; }
+    for (const p of state.players) {
+      p.streetBet = 0; p.hasActed = false; p.hadAggression = false;
+      if (!p.folded) { p.tagAgg = null; p.tagPass = null; } // フォールド済みはRAISE+FOLD等を表示し続ける
+    }
     io.log(`【${streetJP(street)}】 ${state.board.map(cardText).join(" ")}`, "street");
     if (io.sound) io.sound("deal");
     io.render(state);
@@ -426,13 +430,13 @@ function applyAction(state, p, action, currentBet, street, io) {
   const tag = `${p.name}(${pos})`;
   if (action.id === "fold") {
     p.folded = true;
-    p.lastAction = "FOLD";
+    p.tagPass = "FOLD"; // tagAgg(RAISE/3BET等)は残したまま重ね表示
     io.log(`${tag}: フォールド`, "fold");
     if (io.sound) io.sound("fold");
     return;
   }
   if (action.id === "check") {
-    p.lastAction = "CHECK";
+    p.tagPass = "CHECK";
     io.log(`${tag}: チェック`, "check");
     if (io.sound) io.sound("check");
     return;
@@ -442,7 +446,7 @@ function applyAction(state, p, action, currentBet, street, io) {
     postBet(p, toCall);
     if (p.chips === 0) p.allIn = true;
     if (street === "preflop" && state.preflopJams.length > 0) state.jamCallers++;
-    p.lastAction = p.allIn ? "ALL IN" : "CALL";
+    p.tagPass = p.allIn ? "ALL IN" : "CALL";
     io.log(`${tag}: コール ${fmtChips(toCall)}${p.allIn ? " (オールイン)" : ""}`, "call");
     if (io.sound) io.sound("chip");
     return;
@@ -453,8 +457,16 @@ function applyAction(state, p, action, currentBet, street, io) {
   postBet(p, pay);
   p.hadAggression = true;
   if (p.chips === 0) p.allIn = true;
-  p.lastAction = (action.id === "jam" || p.allIn) ? "ALL IN"
-    : (street === "preflop" ? "RAISE" : (currentBet > 0 ? "RAISE" : "BET"));
+  // アクションタグ: プリフロップはベットレベル(RAISE/3BET/4BET…)、オールインはALL IN
+  if (street === "preflop") state.preflopBetLevel++;
+  if (action.id === "jam" || p.allIn) {
+    p.tagAgg = "ALL IN";
+  } else if (street === "preflop") {
+    p.tagAgg = state.preflopBetLevel <= 2 ? "RAISE" : `${state.preflopBetLevel}BET`;
+  } else {
+    p.tagAgg = currentBet > 0 ? "RAISE" : "BET";
+  }
+  p.tagPass = null;
 
   if (street === "preflop") {
     const posIdx = posIdxOf(state, p.seat);
