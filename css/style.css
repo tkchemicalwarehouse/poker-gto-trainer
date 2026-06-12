@@ -167,9 +167,13 @@ button.cta:hover { background: linear-gradient(170deg, #ffe085, #e8b52e 55%, #c7
   z-index: 4; /* ボードカードは常にベットチップより前面 */
   pointer-events: none;
 }
-#pot-disp { color: var(--gold); font-weight: 700; font-size: 15px; margin-bottom: 8px; text-shadow: 0 1px 3px #000; }
+.pot-row {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  margin-bottom: 8px; min-height: 30px;
+}
+#pot-disp { color: var(--gold); font-weight: 700; font-size: 15px; text-shadow: 0 1px 3px #000; }
 #board-cards { display: flex; gap: 6px; justify-content: center; min-height: 64px; }
-#pot-chips { display: flex; justify-content: center; margin-top: 10px; min-height: 26px; }
+#pot-chips { display: flex; justify-content: center; }
 
 /* 座席 */
 .seat {
