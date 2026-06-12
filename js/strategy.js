@@ -173,6 +173,56 @@ function equityVsCombos(heroCards, combos, board, iters) {
   return { equity: win / total, samples: total };
 }
 
+/* ---------- 教材用: ジャムEVの分解計算(解説で式を見せるため) ----------
+ * 同スタック仮定の近似。ナッシュ表が解いている計算を1ハンド分だけ再現する。
+ */
+function teachJamBreakdown(label, jamRange, S, defenders, posted) {
+  if (typeof EQ169 === "undefined" || defenders <= 0) return null;
+  const risk = S - posted;
+  const finalPot = 2.5 + 2 * S - posted;
+  // ディフェンダー(同スタック仮定)のコールレンジ: eq×最終ポット−リスク > 0
+  const defRisk = S - 0.5;            // ブラインド分を平均的に割引
+  const defBE = defRisk / (2.5 + risk + defRisk);
+  const callRange = new Map();
+  let callW = 0, totW = 0;
+  for (const h of ALL_HANDS) {
+    const w = combosCountOfLabel(h);
+    totW += w;
+    const eq = eqVsRangeTable(h, jamRange);
+    if (eq !== null && eq >= defBE) { callRange.set(h, 1); callW += w; }
+  }
+  const perDef = callW / totW;
+  const pNo = Math.pow(1 - perDef, defenders);
+  const eqVsCall = eqVsRangeTable(label, callRange) || 0.5;
+  const ev = pNo * 2.5 + (1 - pNo) * (eqVsCall * finalPot - risk);
+  return { S, defenders, perDef, pNo, eqVsCall, finalPot, risk, defBE, ev };
+}
+
+/* 教材用: リジャムEVの分解(オープナーのコール/フォールドで分解) */
+function teachRejamBreakdown(label, rejamRange, openRange, effBB, posted) {
+  if (typeof EQ169 === "undefined" || !openRange) return null;
+  const S = effBB;
+  const risk = S - posted;
+  const potNow = 2.5 + 2.2;
+  const finalPot = 2.5 + 2 * S - posted;
+  const openerRisk = S - 2.2;
+  const openerBE = openerRisk / finalPot;
+  // オープナーのコールレンジ = オープンレンジ内でジャムレンジに対しBE以上
+  const callRange = new Map();
+  let callW = 0, totW = 0;
+  openRange.forEach((w, h) => {
+    const c = w * combosCountOfLabel(h);
+    totW += c;
+    const eq = eqVsRangeTable(h, rejamRange);
+    if (eq !== null && eq >= openerBE) { callRange.set(h, w); callW += c; }
+  });
+  if (totW <= 0) return null;
+  const pCall = callW / totW;
+  const eqVsCall = eqVsRangeTable(label, callRange) || 0.5;
+  const ev = (1 - pCall) * potNow + pCall * (eqVsCall * finalPot - risk);
+  return { S, pCall, potNow, eqVsCall, finalPot, risk, openerBE, ev };
+}
+
 /* =========================================================
  * プリフロップ・アドバイス
  * ctx: {
@@ -207,6 +257,11 @@ async function preflopAdvice(ctx) {
         if (Math.abs(data.marginBB) <= 0.5) { freqs.jam = 0.5; freqs.fold = 0.5; } // 境界=混合域
         else if (data.marginBB > 0) freqs.jam = 1;
         else freqs.fold = 1;
+        // 教材用: ジャムEVの分解(UI時のみ)
+        if (!ctx.fast) {
+          const posted = ctx.posIdx === POS_SB ? 0.5 : 0;
+          data.calc = teachJamBreakdown(label, data.range, ctx.stackBB, 8 - ctx.posIdx, posted);
+        }
       } else {
         const push = Ranges.push(ctx.posIdx, ctx.stackBB);
         data.range = push;
@@ -251,6 +306,11 @@ async function preflopAdvice(ctx) {
     const openRange = hu ? Ranges.huOpen() : (typeof OPEN_RANGES !== "undefined"
       ? parseRange(OPEN_RANGES[ctx.effBB <= 20 ? 15 : 25][{ EP: 1, MP: 4, LP: 6, SB: 7 }[opClass]]) : null);
     if (openRange) data.eqVsOpen = eqVsRangeTable(label, openRange);
+    // 教材用: リジャムEVの分解(UI時のみ)
+    if (!ctx.fast && openRange && data.rejamRange) {
+      const posted = ctx.posIdx === POS_BB ? 1 : (ctx.posIdx === POS_SB ? 0.5 : 0);
+      data.calc = teachRejamBreakdown(label, data.rejamRange, openRange, ctx.effBB, posted);
+    }
 
     if (ctx.posIdx === POS_BB) {
       const callR = hu ? Ranges.huCall(ctx.effBB) : Ranges.bbCall(opClass, ctx.effBB);
@@ -291,6 +351,7 @@ async function preflopAdvice(ctx) {
       if (r && isFinite(r.req) && r.req > be) {
         data.icmReq = r.req;
         data.icmPremium = r.req - be;
+        data.icmDetail = { evFold: r.evFold, evWin: r.evWin, evLose: r.evLose };
         margin += r.req - be;
       }
     }
@@ -324,10 +385,22 @@ async function preflopAdvice(ctx) {
  * }
  * アクション: check, bet33, bet66, jam, call, fold, raise(=オールイン)
  * ========================================================= */
+// ドローのアウツ概算(2/4の法則の教材用)
+function estimateOuts(cls) {
+  let outs = 0;
+  if (cls.draws.flushDraw && cls.draws.oesd) outs = 15;
+  else if (cls.draws.flushDraw && cls.draws.gutshot) outs = 12;
+  else if (cls.draws.flushDraw) outs = 9;
+  else if (cls.draws.oesd) outs = 8;
+  else if (cls.draws.gutshot) outs = 4;
+  if (cls.tier <= 1 && cls.label.includes("オーバーカード")) outs += 6;
+  return outs;
+}
+
 async function postflopAdvice(ctx) {
   const cls = classifyHand(ctx.heroCards, ctx.board);
   const freqs = {};
-  const data = { kind: "postflop", cls, street: ctx.street };
+  const data = { kind: "postflop", cls, street: ctx.street, outs: estimateOuts(cls) };
   const iters = ctx.fast ? 250 : 1600;
   const spr = ctx.potBB > 0 ? ctx.effBehindBB / ctx.potBB : 99;
   data.spr = spr;
@@ -414,6 +487,7 @@ async function postflopAdvice(ctx) {
       if (r && isFinite(r.req) && r.req > be) {
         data.icmReq = r.req;
         data.icmPremium = r.req - be;
+        data.icmDetail = { evFold: r.evFold, evWin: r.evWin, evLose: r.evLose };
         data.threshold = r.req + 0.01;
       }
     }

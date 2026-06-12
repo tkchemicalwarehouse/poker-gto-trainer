@@ -89,6 +89,24 @@ function freqsText(freqs) {
 }
 
 function pct(x) { return (x * 100).toFixed(1) + "%"; }
+function pct0(x) { return (x * 100).toFixed(0) + "%"; }
+
+// 計算方法の解説ボックス
+function calcBox(title, html) {
+  return `<div class="calc-box"><h4>${title}</h4>${html}</div>`;
+}
+
+// ポットオッズの暗算早見(教材)
+const POT_ODDS_CHEAT = `<span class="dim">【暗算の近道】相手のベットがポットの 1/3 → 必要20% / 半分 → 25% / 2/3 → 28.5% / ポット → 33% / 2倍 → 40%。オールインの場合は「コール額 ÷ (合計ポット+コール額)」を直接計算。</span>`;
+
+// エクイティの実戦見積もり表(教材)
+const EQUITY_CHEAT =
+  `<b>手札の対決の目安(暗記推奨):</b><br>` +
+  `・ペア vs 2オーバーカード(コインフリップ) ≈ <b>55:45</b>(例: 77 vs AK)<br>` +
+  `・オーバーペア vs 下のペア ≈ <b>80:20</b>(例: QQ vs 88)<br>` +
+  `・ドミネイト(同ハイカード) ≈ <b>73:27</b>(例: AK vs AQ)<br>` +
+  `・2オーバー vs 2アンダー ≈ <b>67:33</b>(例: AQ vs 87)<br>` +
+  `・「レンジ」に対しては中間を取る: 例えばAToはタイトな10%レンジ(99+,AJ+級)に対して約38%、ワイドな40%レンジに対して約57%`;
 
 function buildExplanation(ctx, advice, chosen, verdict) {
   const d = advice.data;
@@ -120,6 +138,24 @@ function buildExplanation(ctx, advice, chosen, verdict) {
           (chosen === "jam" ? `フォールドエクイティを考慮してもEVが足りません。` : "") + `</p>`);
       }
       lines.push(`<p>この${ctx.stackBB.toFixed(1)}BBでの${ctx.seatName}のナッシュ・ジャムレンジは上位 <b>${d.rangePct.toFixed(1)}%</b>:</p>`);
+      // 📐 計算方法
+      if (d.calc) {
+        const c = d.calc;
+        lines.push(calcBox("📐 ジャムEVの計算方法(ナッシュ表の中身)",
+          `<b>基本式:</b><br>` +
+          `EV(ジャム) = P(全員フォールド) × 2.5BB + P(コール) × (勝率 × 最終ポット − リスク)<br>` +
+          `<span class="dim">※2.5BB = SB0.5 + BB1 + BBアンティ1(これを取りに行くのがジャムの動機)</span><br><br>` +
+          `<b>今回の数字を代入(後ろ${c.defenders}人、全員${c.S.toFixed(0)}BB持ちの近似):</b><br>` +
+          `① 相手1人がコールするには勝率${pct0(c.defBE)}が必要 → コールできるのは全ハンドの約<b>${pct0(c.perDef)}</b><br>` +
+          `② P(全員フォールド) = (1−${pct0(c.perDef)})<sup>${c.defenders}</sup> ≈ <b>${pct0(c.pNo)}</b><br>` +
+          `③ コールされた時の ${hand} の勝率 ≈ <b>${pct0(c.eqVsCall)}</b>(相手の強いコールレンジに対して)<br>` +
+          `④ EV ≈ ${pct0(c.pNo)}×2.5 + ${pct0(1 - c.pNo)}×(${pct0(c.eqVsCall)}×${c.finalPot.toFixed(1)} − ${c.risk.toFixed(1)}) ` +
+          `≈ <b class="${c.ev >= 0 ? "pos" : "neg"}">${c.ev >= 0 ? "+" : ""}${c.ev.toFixed(2)}BB</b><br><br>` +
+          `<b>🧮 自分で概算するコツ:</b> ①スタックが浅いほど「2.5BBの奪取」の価値が相対的に大きい ` +
+          `②後ろの人数が多いほどコールされやすい(UTGが一番タイトな理由) ` +
+          `③コールされたら大抵40%前後しか勝てない — だからフォールド率が生命線。` +
+          `ナッシュ表はこの式を全169ハンド×全スタックで解いた答えです。`));
+      }
     } else {
       const inR = rangeHas(d.range, hand);
       lines.push(`<p>${ctx.stackBB.toFixed(1)}BBの${ctx.seatName}のジャムレンジは上位 <b>${d.rangePct.toFixed(1)}%</b>。` +
@@ -176,6 +212,21 @@ function buildExplanation(ctx, advice, chosen, verdict) {
     } else if (correct === "fold" && (chosen === "call" || chosen === "jam")) {
       lines.push(`<p>${hand} はリジャムにもコールにも届きません。${ctx.posIdx === POS_BB ? "BBのポットオッズをもってしても継続は-EVです。" : "ポジション外から弱いハンドで参加すると、その後の全ストリートで損をし続けます。"}</p>`);
     }
+    // 📐 計算方法
+    if (d.calc) {
+      const c = d.calc;
+      lines.push(calcBox("📐 リジャムEVの計算方法",
+        `<b>基本式:</b><br>` +
+        `EV(リジャム) = P(オープナーが降りる) × 今のポット + P(コール) × (勝率 × 最終ポット − リスク)<br><br>` +
+        `<b>今回の数字を代入(有効${c.S.toFixed(0)}BB):</b><br>` +
+        `① 今のポット = 2.5(ブラインド+アンティ) + 2.2(オープン) = <b>${c.potNow.toFixed(1)}BB</b><br>` +
+        `② オープナーがコールするには勝率${pct0(c.openerBE)}が必要 → オープンレンジのうちコールできるのは約<b>${pct0(c.pCall)}</b>(残り${pct0(1 - c.pCall)}は降りる!)<br>` +
+        `③ コールされた時の ${hand} の勝率 ≈ <b>${pct0(c.eqVsCall)}</b><br>` +
+        `④ EV ≈ ${pct0(1 - c.pCall)}×${c.potNow.toFixed(1)} + ${pct0(c.pCall)}×(${pct0(c.eqVsCall)}×${c.finalPot.toFixed(1)} − ${c.risk.toFixed(1)}) ` +
+        `≈ <b class="${c.ev >= 0 ? "pos" : "neg"}">${c.ev >= 0 ? "+" : ""}${c.ev.toFixed(2)}BB</b><br><br>` +
+        `<b>🧮 自分で概算するコツ:</b> リジャムの利益の大半は「相手のオープンレンジの${pct0(1 - c.pCall)}が降りて${c.potNow.toFixed(1)}BBをタダ取りする」部分。` +
+        `相手のオープンが広いほど(レイトポジションほど)降ろせる率が上がるので、リジャムレンジも広がります。`));
+    }
     lines.push(rangeGridHTML(d.rejamRange, d.callRange, hand, "オールイン", "コール"));
   }
   else if (d.kind === "facingJam") {
@@ -199,6 +250,34 @@ function buildExplanation(ctx, advice, chosen, verdict) {
     }
     if (chosen === "call" && ev < -0.3) lines.push(`<p>「ここまで来たら…」の感情コールは分散ではなくミスです。数字はフォールドと言っています。</p>`);
     if (chosen === "fold" && ev > 0.3) lines.push(`<p>トーナメントの勝者は、この+EVコールを淡々と積み重ねた人です。</p>`);
+    // 📐 計算方法
+    const potC = ctx.potBB, callC = ctx.toCallBB;
+    lines.push(calcBox("📐 コール判断の計算方法(3ステップ)",
+      `<b>手順1: 必要勝率(ポットオッズ)を出す</b><br>` +
+      `必要勝率 = コール額 ÷ (ポット + コール額)<br>` +
+      `= ${callC.toFixed(1)} ÷ (${potC.toFixed(1)} + ${callC.toFixed(1)}) = <b>${pct(d.breakeven)}</b><br>` +
+      `${POT_ODDS_CHEAT}<br><br>` +
+      `<b>手順2: 自分の勝率(エクイティ)を見積もる</b><br>` +
+      EQUITY_CHEAT + `<br>` +
+      `今回: 相手のジャムレンジ(上位${d.jamRangePct.toFixed(0)}%)に対する ${hand} の厳密値 = <b>${pct(d.equity)}</b><br><br>` +
+      `<b>手順3: 比較して決める</b><br>` +
+      `勝率${pct(d.equity)} ${d.equity >= d.threshold ? "≥" : "<"} 必要勝率${pct(d.threshold)} → <b>${d.equity >= d.threshold ? "コール" : "フォールド"}</b><br>` +
+      `EVに直すと: EV = ${pct(d.equity)} × ${(potC + callC).toFixed(1)} − ${callC.toFixed(1)} = <b class="${d.evCallBB >= 0 ? "pos" : "neg"}">${d.evCallBB >= 0 ? "+" : ""}${d.evCallBB.toFixed(2)}BB</b>`));
+    if (d.icmDetail) {
+      const i = d.icmDetail;
+      lines.push(calcBox("📐 ICM(賞金圧力)の計算方法",
+        `ICMは「チップ→賞金期待値」の変換です。1位になる確率 = 自分のチップ ÷ 全体チップ。` +
+        `2位以下は、その人を除いた残りで同じ計算を繰り返します(Malmuth-Harville法)。<br><br>` +
+        `<b>今回のあなたの賞金期待値(賞金総額=100%として):</b><br>` +
+        `・フォールドした場合: <b>${pct(i.evFold)}</b><br>` +
+        `・コールして勝った場合: <b>${pct(i.evWin)}</b><br>` +
+        `・コールして負けた場合: <b>${pct(i.evLose)}</b><br><br>` +
+        `<b>ICM必要勝率</b> = (フォールド − 負け) ÷ (勝ち − 負け)<br>` +
+        `= (${pct(i.evFold)} − ${pct(i.evLose)}) ÷ (${pct(i.evWin)} − ${pct(i.evLose)}) = <b>${pct(d.icmReq)}</b><br><br>` +
+        `<b>🧮 直感的な理解:</b> チップを2倍にしても賞金期待値は2倍にならない(逓減する)。` +
+        `だから「勝った時に得る賞金」<「負けた時に失う賞金」となり、チップ上の必要勝率${pct(d.breakeven)}より` +
+        `<b>+${pct(d.icmPremium)}</b>厳しくなります。特にビッグスタック同士の衝突ほどこの差が大きくなります。`));
+    }
   }
   else if (d.kind === "postflop") {
     const c = d.cls;
@@ -208,6 +287,26 @@ function buildExplanation(ctx, advice, chosen, verdict) {
         (d.icmPremium > 0.005 ? ` → ICM補正後 <b>${pct(d.icmReq)}</b>(🏆FT賞金圧力)` : "") + `<br>` : "") +
       `SPR(スタック/ポット比): <b>${d.spr.toFixed(1)}</b></p>`);
     lines.push(`<p>${postflopReason(ctx, advice, chosen)}</p>`);
+    // 📐 計算方法
+    let calcParts = [];
+    if (d.outs > 0 && ctx.street !== "river") {
+      const mult = ctx.street === "flop" ? 4 : 2;
+      calcParts.push(
+        `<b>アウツと2/4の法則:</b><br>` +
+        `自分の役を完成させるカード(アウツ)を数え、フロップなら×4、ターンなら×2で完成率(%)を概算。<br>` +
+        `<span class="dim">フラッシュドロー9枚 / 両面ストレート8枚 / ガットショット4枚 / オーバーカード2枚≈6枚</span><br>` +
+        `今回のアウツ ≈ <b>${d.outs}枚</b> → 完成率 ≈ ${d.outs}×${mult} = <b>約${Math.min(95, d.outs * mult)}%</b>`);
+    }
+    if (d.breakeven !== undefined) {
+      calcParts.push(
+        `<b>ポットオッズ:</b> 必要勝率 = コール額÷(ポット+コール額) = ` +
+        `${ctx.toCallBB.toFixed(1)}÷(${ctx.potBB.toFixed(1)}+${ctx.toCallBB.toFixed(1)}) = <b>${pct(d.breakeven)}</b><br>${POT_ODDS_CHEAT}`);
+    }
+    calcParts.push(
+      `<b>SPRの使い方:</b> SPR = 残りスタック ÷ ポット = <b>${d.spr.toFixed(1)}</b>。` +
+      `目安: SPR3以下ならトップペア以上で全額コミットOK / SPR6以上はワンペアで大きなポットを作らない。` +
+      `浅いトーナメントではSPRが小さいので「ワンペアで突っ込んで良い場面」が多くなります。`);
+    lines.push(calcBox("📐 ポストフロップの基本計算", calcParts.join("<br><br>")));
   }
   return lines.join("\n");
 }
