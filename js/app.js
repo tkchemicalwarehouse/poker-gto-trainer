@@ -353,6 +353,9 @@ async function heroActUI(ctx, legal) {
   if (!tally.perHand[G.handNo]) tally.perHand[G.handNo] = [];
   tally.perHand[G.handNo].push({ verdict: grade.verdict, evLoss: grade.evLoss, action: act.id, phase: ctx.phase });
 
+  // 報告用スナップショット(「この判定おかしい」ボタンでコピーされる)
+  window.__lastReport = buildReport(ctx, advice, act, grade);
+
   const mode = coachMode();
   const isOK = grade.verdict === "best" || grade.verdict === "mixed";
   Sfx.play(isOK ? "good" : "bad");
@@ -465,6 +468,81 @@ function showToast(verdict) {
   t.classList.remove("hidden");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.add("hidden"), 1100);
+}
+
+/* 判定報告用の完全スナップショット(貼り付けるだけで局面を再現できる) */
+function buildReport(ctx, advice, act, grade) {
+  const d = advice.data || {};
+  const r2 = x => (typeof x === "number" ? Math.round(x * 1000) / 1000 : x);
+  return {
+    app: "トナメ中盤戦、、ここでGTO!!",
+    time: new Date().toISOString(),
+    hand: G ? G.handNo : null,
+    blinds: { sb: LIVE.sb, bb: LIVE.bb, ante: LIVE.ante, level: LIVE.level + 1 },
+    fieldLeft: G ? G.fieldLeft : null,
+    finalTable: G ? !!G.finalTable : null,
+    street: ctx.street || "preflop",
+    hero: {
+      pos: ctx.seatName, hand: ctx.heroLabel,
+      cards: (ctx.heroCards || []).map(cardText),
+      stackBB: r2(ctx.stackBB), effBB: r2(ctx.effBB), effJamBB: r2(ctx.effJamBB),
+    },
+    board: (ctx.board || []).map(cardText),
+    potBB: r2(ctx.potBB), toCallBB: r2(ctx.toCallBB),
+    facing: ctx.facing, openerClass: ctx.openerClass || null,
+    tableN: ctx.tableN, defendersN: ctx.defendersN,
+    players: G ? G.players.filter(p => !p.out).map(p => ({
+      name: p.name, pos: posNameOf(G, p.seat), chips: p.chips, bb: +fmtBB(p.chips),
+      folded: p.folded, tags: [p.tagAgg, p.tagPass].filter(Boolean),
+    })) : [],
+    advice: {
+      kind: d.kind, primary: advice.primary, freqs: advice.freqs,
+      threshold: r2(d.threshold), marginBB: r2(d.marginBB), effS: r2(d.effS),
+      rangePct: r2(d.rangePct), rejamPct: r2(d.rejamPct), callPct: r2(d.callPct),
+      equity: r2(d.equity), breakeven: r2(d.breakeven),
+      icmReq: r2(d.icmReq), icmPremium: r2(d.icmPremium),
+      icmJamEval: d.icmJamEval ? { evJam: r2(d.icmJamEval.evJam), evFold: r2(d.icmJamEval.evFold) } : null,
+      icmVeto: !!d.icmVeto, hu: !!d.hu, nash: !!d.nash, nashRejam: !!d.nashRejam,
+    },
+    userAction: { id: act.id, target: act.target || null },
+    verdict: grade.verdict, evLoss: grade.evLoss,
+  };
+}
+
+function copyReport() {
+  if (!window.__lastReport) return;
+  const text = "【判定報告】以下の局面の判定を検証してください:\n```json\n" +
+    JSON.stringify(window.__lastReport, null, 1) + "\n```";
+  const toast = ok => {
+    const t = $("toast");
+    t.textContent = "📋 コピーしました。そのまま貼り付けて送ってください";
+    t.className = "v-mixed";
+    t.classList.remove("hidden");
+    setTimeout(() => t.classList.add("hidden"), 2200);
+  };
+  // 最終手段: 手動コピー用オーバーレイ(全選択済みテキスト)
+  const manual = () => {
+    let ov = $("report-overlay");
+    if (!ov) {
+      ov = document.createElement("div");
+      ov.id = "report-overlay";
+      ov.innerHTML = `<div class="ro-inner"><p>下のテキストを長押し(全選択済み)でコピーして送ってください:</p>
+        <textarea id="ro-text" readonly></textarea>
+        <button id="ro-close" class="primary">閉じる</button></div>`;
+      document.body.appendChild(ov);
+      ov.querySelector("#ro-close").onclick = () => ov.classList.add("hidden");
+    }
+    ov.classList.remove("hidden");
+    const ta = ov.querySelector("#ro-text");
+    ta.value = text;
+    ta.focus();
+    ta.select();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(toast, manual);
+  } else {
+    manual();
+  }
 }
 
 function showCoachPanel(grade, advice, ctx, chosenId) {
@@ -754,6 +832,7 @@ window.addEventListener("DOMContentLoaded", () => {
   if (typeof Scene !== "undefined") Scene.mount($("scene-home"));
   $("btn-mute").textContent = Sfx.isMuted() ? "🔇" : "🔊";
   $("btn-mute").onclick = () => { $("btn-mute").textContent = Sfx.toggle() ? "🔇" : "🔊"; };
+  $("coach-report").onclick = copyReport;
 
   $("btn-start").onclick = () => startTournament();
   $("btn-sim").onclick = () => { showScreen("screen-sim"); };
