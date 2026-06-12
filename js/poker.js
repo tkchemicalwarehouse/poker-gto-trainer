@@ -58,12 +58,13 @@ function makePlayer(seat, name, isHero, chips) {
   };
 }
 
-function newTournament(heroName, fieldSize) {
+function newTournament(heroName, fieldSize, heroBB) {
   botNameCounter = 0;
   setLevel(0);
   const players = [];
+  const heroChips = heroBB ? Math.round(heroBB * LIVE.bb / 1000) * 1000 : randomStack();
   for (let s = 0; s < CFG.SEATS; s++) {
-    if (s === 0) players.push(makePlayer(0, heroName || "あなた", true, randomStack()));
+    if (s === 0) players.push(makePlayer(0, heroName || "あなた", true, heroChips));
     else players.push(makeBot(s));
   }
   const field = Math.max(CFG.SEATS, fieldSize || 27);
@@ -202,10 +203,15 @@ async function playHand(state, io) {
   // プリフロップ
   await bettingRound(state, "preflop", LIVE.bb, io);
 
+  // プリフロップのアグレッサーを記録(チェック・トゥ・ザ・レイザー判定用)
+  state.prevAggressorSeat = state.preflopOpen ? state.preflopOpen.seat
+    : (state.preflopJams.length > 0 ? state.preflopJams[state.preflopJams.length - 1].seat : null);
+
   const streets = [["flop", 3], ["turn", 1], ["river", 1]];
   for (const [street, n] of streets) {
     if (activeCount(state) <= 1) break;
     state.street = street;
+    state.curStreetAggressor = null;
     for (let i = 0; i < n; i++) state.board.push(state.deck.pop());
     for (const p of state.players) { p.streetBet = 0; p.hasActed = false; p.hadAggression = false; }
     io.log(`【${streetJP(street)}】 ${state.board.map(cardText).join(" ")}`, "street");
@@ -220,6 +226,8 @@ async function playHand(state, io) {
       io.render(state);
       await io.delay(700);
     }
+    // このストリートのアグレッサーを次ストリートの判定用に引き継ぐ
+    state.prevAggressorSeat = state.curStreetAggressor; // 誰もベットしなければnull(=スタブOK)
   }
 
   // ショーダウン / ポット分配
@@ -248,10 +256,16 @@ async function playHand(state, io) {
     io.log(`他のテーブルで1人バスト(残り${state.fieldLeft}人)`, "info");
   }
 
-  // ファイナルテーブル宣言
+  // バブル宣言(あと1人でイン・ザ・マネー=FT)
+  if (!state.bubbleAnnounced && !state.finalTable && state.fieldLeft === CFG.SEATS + 1) {
+    state.bubbleAnnounced = true;
+    io.log(`💥 バブル! 残り${state.fieldLeft}人 — あと1人飛べばファイナルテーブル=全員入賞!`, "levelup");
+    if (io.sound) io.sound("final");
+  }
+  // ファイナルテーブル宣言(=イン・ザ・マネー)
   if (!state.finalTable && state.fieldLeft <= CFG.SEATS) {
     state.finalTable = true;
-    io.log(`🔥 ファイナルテーブル! 残り${state.fieldLeft}人 — ここからは席の補充なし、最後の1人まで`, "levelup");
+    io.log(`🔥 ファイナルテーブル! 残り${state.fieldLeft}人 — 🎉全員イン・ザ・マネー(入賞確定)! ここからは席の補充なし`, "levelup");
     if (io.sound) io.sound("final");
   }
 
@@ -334,6 +348,7 @@ async function bettingRound(state, street, initialBet, io) {
       const newBet = actor.streetBet;
       if (newBet - currentBet > 0) lastRaise = Math.max(lastRaise, newBet - currentBet);
       currentBet = newBet;
+      state.curStreetAggressor = actor.seat;
       for (const q of ps) if (q !== actor && !q.folded && !q.allIn) q.hasActed = false;
     }
     actor.hasActed = true;
@@ -538,9 +553,15 @@ function buildCtx(state, p, currentBet, street) {
     icm = icmCtxFor(state, p, mainOpp.seat);
     if (icm) icm.toCallChips = toCall;
   }
+  // 前ストリート(プリフロップ含む)のアグレッサー情報(チェック・トゥ・ザ・レイザー)
+  const prevAgg = state.prevAggressorSeat;
+  const prevAggP = prevAgg != null ? state.players[prevAgg] : null;
   return {
     phase: "postflop",
     icm,
+    prevAggressorSeat: prevAgg,
+    iWasPrevAggressor: prevAgg === p.seat,
+    aggressorActive: !!(prevAggP && !prevAggP.folded && !prevAggP.out),
     heroCards: p.cards, heroLabel: handLabelOf(p.cards[0], p.cards[1]),
     board: state.board.slice(), street,
     potBB: toBB(pot), toCallBB: toBB(toCall),

@@ -29,6 +29,7 @@
     <h1 class="logo">トナメ中盤</h1>
     <div class="allin-logo"><span>A</span><span>L</span><span>L</span><span class="sp">&nbsp;</span><span>I</span><span>N</span></div>
     <h1 class="logo logo-master">MASTER</h1>
+    <div id="mascot-home"></div>
     <p class="tagline">5〜30BB GTOトーナメント・トレーナー</p>
     <p class="sub">優勝するか、飛ぶか。すべての判断をGTOが採点する。</p>
     <div class="setup-row">
@@ -42,6 +43,18 @@
           <option value="18">18人 (短期決戦)</option>
           <option value="27" selected>27人 (標準)</option>
           <option value="45">45人 (長丁場)</option>
+        </select>
+      </label>
+      <label class="field-label">自分の開始スタック:
+        <select id="hero-bb">
+          <option value="random" selected>ランダム (5〜30BB)</option>
+          <option value="5">5BB</option>
+          <option value="8">8BB</option>
+          <option value="10">10BB</option>
+          <option value="15">15BB</option>
+          <option value="20">20BB</option>
+          <option value="25">25BB</option>
+          <option value="30">30BB</option>
         </select>
       </label>
     </div>
@@ -182,8 +195,10 @@
       <ul>
         <li>参加人数を選択(18 / 27 / 45人)。あなたの卓は9人、残りは他のテーブルでプレイ中</li>
         <li>誰かが飛ぶと残り人数が減少。補欠がいる間は卓に新しい選手が移動してくる</li>
-        <li><b>残り9人でファイナルテーブル!</b> 以降は席の補充なし、卓がどんどん短くなる</li>
+        <li>残り10人が<b>バブル</b>(あと1人で入賞)</li>
+        <li><b>残り9人でファイナルテーブル=全員イン・ザ・マネー(入賞)!</b> 以降は席の補充なし、卓がどんどん短くなる。賞金は9位から配分</li>
         <li><b>最後の1人になったら優勝!🏆</b></li>
+        <li>自分の開始スタックはランダム(5〜30BB)か、ホーム画面で固定値を選択可能</li>
       </ul>
       <h3>ルール設定</h3>
       <ul>
@@ -241,6 +256,7 @@
 <script src="js/data-nash.js"></script>
 <script src="js/data-rejam.js"></script>
 <script src="js/icm.js"></script>
+<script src="js/mascot.js"></script>
 <script src="js/ranges.js"></script>
 <script src="js/strategy.js"></script>
 <script src="js/poker.js"></script>

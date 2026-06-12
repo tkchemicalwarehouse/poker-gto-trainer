@@ -194,6 +194,7 @@ function render(state) {
   $("pot-chips").innerHTML = state.street === "idle" ? "" : chipStackHTML(pot, false, 8);
   setCards($("board-cards"), state.board.join(","), state.board.map(c => cardHTML(c)).join(""));
   moveDealerDisc(state);
+  checkAARun(state);
 
   for (let s = 0; s < CFG.SEATS; s++) {
     const p = state.players[s];
@@ -245,6 +246,24 @@ function logMsg(msg, cls) {
   el.textContent = msg;
   $("log-panel").appendChild(el);
   $("log-panel").scrollTop = $("log-panel").scrollHeight;
+  // ブラインドアップ → KIMが旗を持って走る
+  if (cls === "levelup" && msg.includes("ブラインドアップ") && typeof Mascot !== "undefined") {
+    Mascot.run({ flagText: "BLIND UP!" });
+  }
+}
+
+// AAが配られたらKIMが走り抜ける(ハンドごとに1回)
+let lastAARun = 0;
+function checkAARun(state) {
+  if (typeof Mascot === "undefined" || !state || state.street !== "preflop") return;
+  const hero = state.players[0];
+  if (hero.out || hero.folded || !hero.cards || hero.cards.length < 2) return;
+  if (state.handNo === lastAARun) return;
+  if (handLabelOf(hero.cards[0], hero.cards[1]) === "AA") {
+    lastAARun = state.handNo;
+    Mascot.run({ callout: "AA!! 最強のハンド!" });
+    Sfx.play("win");
+  }
 }
 
 /* ---------- IO(通常プレイ) ---------- */
@@ -402,6 +421,11 @@ function fieldSizeSel() {
   try { localStorage.setItem("pgt_field", String(v)); } catch (e) { }
   return v;
 }
+function heroBBSel() {
+  const raw = ($("hero-bb") || {}).value || "random";
+  try { localStorage.setItem("pgt_herobb", raw); } catch (e) { }
+  return raw === "random" ? null : parseInt(raw);
+}
 
 async function startTournament() {
   simCancel = true; // 実行中のシミュレーションがあれば停止
@@ -410,7 +434,7 @@ async function startTournament() {
   $("coach-panel").classList.add("hidden");
   buildSeats();
   aborting = false;
-  G = newTournament("あなた", fieldSizeSel());
+  G = newTournament("あなた", fieldSizeSel(), heroBBSel());
   tally = newTally();
   const hero = G.players[0];
   logMsg(`${G.fieldSize}人トーナメント開始! あなたのスタック: ${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)`, "info");
@@ -461,12 +485,22 @@ function finishTournament(won) {
   const place = Math.max(2, G.fieldLeft);
   const cause = recordTournament("bust", place);
 
-  $("bust-title").textContent = `バスト — ${G.fieldSize}人中 ${place}位 (${G.handNo}ハンド生存)`;
+  // イン・ザ・マネー判定(FT=9位以内が入賞)
+  const itm = place <= 9;
+  const payouts = (typeof Icm !== "undefined") ? Icm.payoutsFor(G.fieldSize, 9) : null;
+  const prize = itm && payouts && payouts[place - 1] ? payouts[place - 1] : 0;
+  $("bust-title").textContent = itm
+    ? `🎉 入賞! ${G.fieldSize}人中 ${place}位 (${G.handNo}ハンド)`
+    : `バスト — ${G.fieldSize}人中 ${place}位 (${G.handNo}ハンド生存)`;
+  const itmHTML = itm
+    ? `<div class="bust-cause variance">💰 イン・ザ・マネー! 賞金シェア <b>${(prize * 100).toFixed(0)}%</b>(プライズプール比)を獲得。</div>`
+    : (place === 10 ? `<div class="bust-cause mistake">💥 バブル落ち… あと1人で入賞でした。この悔しさがバブルプレッシャーの正体です。</div>` : "");
   const causeHTML = cause === "variance"
     ? `<div class="bust-cause variance">⚖ 最終ハンドの判断はGTO通りでした。これは<b>分散</b>です。<br>正しくプレイしても飛ぶときは飛ぶ — それがトーナメント。次も同じ判断をしてください。</div>`
     : `<div class="bust-cause mistake">⚠ 最終ハンドに<b>ミスが含まれて</b>いました。下のコーチ解説を振り返りましょう。</div>`;
   $("bust-body").innerHTML = `
     <div class="big-num">${place}位 / ${G.fieldSize}人</div>
+    ${itmHTML}
     ${causeHTML}
     ${tallySummaryHTML()}
     <p style="color:var(--dim)">GTO通りに打っても5〜30BBの中盤戦は分散が非常に大きい領域です。シミュレーションで「GTOボットの生存分布」も見てみてください。</p>`;
@@ -644,7 +678,11 @@ window.addEventListener("DOMContentLoaded", () => {
   try {
     const f = localStorage.getItem("pgt_field");
     if (f) $("field-size").value = f;
+    const hb = localStorage.getItem("pgt_herobb");
+    if (hb) $("hero-bb").value = hb;
   } catch (e) { }
+  // マスコットKIMをホームに常駐
+  if (typeof Mascot !== "undefined") Mascot.mount($("mascot-home"));
   $("btn-mute").textContent = Sfx.isMuted() ? "🔇" : "🔊";
   $("btn-mute").onclick = () => { $("btn-mute").textContent = Sfx.toggle() ? "🔇" : "🔊"; };
 

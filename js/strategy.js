@@ -418,6 +418,18 @@ async function postflopAdvice(ctx) {
     const t = cls.tier;
     const strongDraw = cls.draws.flushDraw || cls.draws.oesd;
 
+    // ★チェック・トゥ・ザ・レイザー(GTOの大原則)★
+    // 前のストリートのアグレッサーが自分以外でまだ残っている場合、
+    // コーラー側はほぼレンジ全体でチェックして相手に打たせる(ドンクベットは限定的)
+    const checkToRaiser = ctx.prevAggressorSeat != null && !ctx.iWasPrevAggressor && ctx.aggressorActive;
+    if (checkToRaiser) {
+      data.checkToRaiser = true;
+      if (t >= 5) setF(freqs, { check: 0.7, bet33: 0.3 });           // モンスターは少しだけドンク混ぜ
+      else if (strongDraw && !dry) setF(freqs, { check: 0.8, bet33: 0.2 });
+      else setF(freqs, { check: 1 });
+      return { freqs, primary: maxFreqAction(freqs), data };
+    }
+
     if (ctx.street === "flop") {
       if (t >= 5) { setF(freqs, dry || spr > 4 ? { bet33: 0.8, bet66: 0.2 } : { bet66: 0.7, bet33: 0.3 }); }
       else if (t === 4) { setF(freqs, dry ? { bet33: 0.85, check: 0.15 } : { bet66: 0.55, bet33: 0.35, check: 0.1 }); }

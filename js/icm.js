@@ -6,24 +6,16 @@
 "use strict";
 
 const Icm = (() => {
-  // 賞金配分(プライズプール比)。参加人数別。
+  // 賞金配分(プライズプール比)。ルール: イン・ザ・マネーはファイナルテーブル(9位)から。
   const PAYOUTS_BY_FIELD = {
-    18: [0.40, 0.27, 0.18, 0.15],
-    27: [0.37, 0.25, 0.17, 0.12, 0.09],
-    45: [0.34, 0.23, 0.16, 0.11, 0.09, 0.07],
+    18: [0.27, 0.18, 0.13, 0.10, 0.08, 0.07, 0.06, 0.06, 0.05],
+    27: [0.25, 0.17, 0.12, 0.10, 0.08, 0.07, 0.07, 0.07, 0.07],
+    45: [0.24, 0.16, 0.12, 0.10, 0.09, 0.08, 0.07, 0.07, 0.07],
   };
 
   function payoutsFor(fieldSize, aliveCount) {
     let base = PAYOUTS_BY_FIELD[fieldSize];
-    if (!base) {
-      // 任意の人数: 上位約22%が入賞のスケール配分
-      const paid = Math.max(3, Math.round(fieldSize * 0.22));
-      base = [];
-      let v = 0.36;
-      for (let i = 0; i < paid; i++) { base.push(v); v *= 0.66; }
-      const s = base.reduce((a, b) => a + b, 0);
-      base = base.map(x => x / s);
-    }
+    if (!base) base = PAYOUTS_BY_FIELD[27];
     return base.slice(0, Math.max(1, aliveCount));
   }
 
