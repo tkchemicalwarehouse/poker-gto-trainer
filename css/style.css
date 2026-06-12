@@ -496,6 +496,42 @@ button.cta:hover { background: linear-gradient(170deg, #ffe085, #e8b52e 55%, #c7
   0%, 100% { transform: rotate(-2deg); }
   50% { transform: rotate(4deg); }
 }
+/* バニーガールの看板ウォーク(FT入場) */
+.bunny-walk { animation-duration: 7.4s; bottom: 26%; }
+.bunny-body { animation: bunnySway .5s steps(2) infinite; }
+@keyframes bunnySway {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-6px) rotate(2deg); }
+}
+.bunny-sign {
+  position: absolute; left: -30px; top: -96px;
+  background: #fff; border: 4px solid #1a1a1a;
+  padding: 10px 16px; text-align: center;
+  box-shadow: 4px 4px 0 rgba(0,0,0,.6);
+  animation: flagWave .6s steps(2) infinite;
+  transform-origin: bottom center;
+}
+.bunny-sign::after {
+  content: ""; position: absolute; left: 50%; bottom: -26px;
+  width: 6px; height: 26px; background: #8a5a2a; border: 1px solid #1a1a1a;
+}
+.bs-line { font-family: "Press Start 2P", monospace; white-space: nowrap; }
+.bs-0 { font-size: 15px; color: #d4373e; margin-bottom: 6px; }
+.bs-1 { font-size: 11px; color: #1a6e3c; }
+
+/* FTのテーブル(ロイヤルブルー) */
+#table.ft {
+  background:
+    radial-gradient(ellipse at 50% 32%, rgba(255,255,255,.08), transparent 55%),
+    radial-gradient(ellipse at center, #1d3f7a 0%, #122a54 75%);
+  border-color: #6b5226;
+  box-shadow:
+    inset 0 0 60px rgba(0,0,0,.55),
+    inset 0 0 0 4px rgba(232,195,82,.35),
+    0 0 28px rgba(232,195,82,.25),
+    0 8px 30px rgba(0,0,0,.5);
+}
+
 /* 吹き出し */
 .mascot-callout {
   position: absolute; left: 10px; top: -40px;

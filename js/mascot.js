@@ -128,7 +128,58 @@ const Mascot = (() => {
     setTimeout(() => { wrap.remove(); running = false; }, 4300);
   }
 
-  return { mount, run, buildEl, pixelCanvas };
+  /* ---------- バニーガール(FT入場の看板ウォーク) ---------- */
+  const BUNNY_PAL = {
+    K: "#1a1a1a", W: "#ffffff", P: "#ffb0c8", S: "#f0c8a0",
+    R: "#d4373e", B: "#23232c", G: "#ffd75e",
+  };
+  const BUNNY_MAP = [
+    "..KW....WK....",
+
+    "..KWK..KWK....",
+    "..KPK..KPK....",
+    "..KPK..KPK....",
+    "..KWK..KWK....",
+    "...KBBBBK.....",
+    "..KBBBBBBK....",
+    "..KBSSSSBK....",
+    "..KSSSSSSK....",
+    "..KSKSSKSK....",
+    "..KSSSSSSK....",
+    "...KSPPSK.....",
+    "....KSSK......",
+    "...KRRRRK.....",
+    "..KRRRRRRK....",
+    ".KRRRRRRRRK...",
+    ".KRRRRRRRRK...",
+    "..KRRRRRRK....",
+    "...KWWWWK.....",
+    "...KSSSSK.....",
+    "..KSS..SSK....",
+    "..KSS..SSK....",
+    ".KSS....SSK...",
+    ".KKK....KKK...",
+  ];
+
+  function bunnyWalk(lines) {
+    if (running) return;
+    running = true;
+    const wrap = document.createElement("div");
+    wrap.className = "mascot-run bunny-walk";
+    // 看板(2行)
+    const sign = document.createElement("div");
+    sign.className = "bunny-sign";
+    sign.innerHTML = lines.map((t, i) => `<div class="bs-line bs-${i}">${t}</div>`).join("");
+    wrap.appendChild(sign);
+    const body = document.createElement("div");
+    body.className = "bunny-body";
+    body.appendChild(pixelCanvas(BUNNY_MAP, BUNNY_PAL, 4, false));
+    wrap.appendChild(body);
+    document.body.appendChild(wrap);
+    setTimeout(() => { wrap.remove(); running = false; }, 7600);
+  }
+
+  return { mount, run, buildEl, pixelCanvas, bunnyWalk };
 })();
 
 /* =========================================================

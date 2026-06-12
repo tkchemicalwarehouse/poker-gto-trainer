@@ -138,7 +138,13 @@ function buildSeats() {
     // ボードエリアは上端28%固定・コンテンツ約170px(ポット文字+カード+チップ)
     const bandY0 = tr.height * 0.28, bandY1 = tr.height * 0.28 + 175;
     if (bx > bandX0 && bx < bandX1 && by > bandY0 - 20 && by < bandY1) {
-      by = (y < 50) ? bandY0 - 38 : bandY1 + 26;
+      if (Math.abs(sx - tr.width / 2) > tr.width * 0.18) {
+        // サイドの席: 横に逃がす(上に逃がすと自席の箱と重なって隠れるため)
+        bx = sx > tr.width / 2 ? bandX1 + 18 : bandX0 - 18;
+      } else {
+        // 上下中央の席: 縦に逃がす
+        by = (y < 50) ? bandY0 - 38 : bandY1 + 26;
+      }
     }
     bet.style.left = bx + "px";
     bet.style.top = by + "px";
@@ -186,9 +192,11 @@ function render(state) {
   if (!state) return;
   const hero = state.players[0];
   $("game-info").innerHTML =
-    `#${state.handNo}　Lv${LIVE.level + 1}: ${fmtChips(LIVE.sb)}/${fmtChips(LIVE.bb)}(A)　` +
+    `#${state.handNo}　` +
     `<span class="${state.finalTable ? "ft-badge" : "field-badge"}">${state.finalTable ? "🔥FT " : ""}残り${state.fieldLeft}人</span>　` +
     `あなた: ${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)`;
+  // FTはテーブルの色が変わる
+  $("table").classList.toggle("ft", !!state.finalTable);
 
   const pot = potTotal(state);
   $("pot-disp").textContent = state.street === "idle" ? "" : `ポット: ${fmtChips(pot)} (${fmtBB(pot)}BB)`;
@@ -263,10 +271,10 @@ function render(state) {
       actEl.className = "seat-act hidden";
       actEl.textContent = "";
     }
-    // ベットチップ(座席と中央の中間に表示)
+    // ベットチップ(座席と中央の中間に表示)。フォールドした人のチップは消す(混乱防止)
     const betEl = $("bet-" + s);
     if (betEl) {
-      betEl.innerHTML = (p.streetBet > 0 && state.street !== "idle")
+      betEl.innerHTML = (p.streetBet > 0 && !p.folded && state.street !== "idle")
         ? chipRowHTML(p.streetBet, 6) + `<div class="bet-amt">${fmtChips(p.streetBet)}</div>`
         : "";
     }
@@ -282,6 +290,10 @@ function logMsg(msg, cls) {
   // ブラインドアップ → KIMが旗を持って走る
   if (cls === "levelup" && msg.includes("ブラインドアップ") && typeof Mascot !== "undefined") {
     Mascot.run({ flagText: "BLIND UP!" });
+  }
+  // ファイナルテーブル → バニーガールが看板を持って歩く
+  if (cls === "levelup" && msg.includes("ファイナルテーブル") && typeof Mascot !== "undefined") {
+    Mascot.bunnyWalk(["FINAL TABLE", "IN THE MONEY"]);
   }
 }
 
