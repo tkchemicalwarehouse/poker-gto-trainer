@@ -20,13 +20,26 @@ const Icm = (() => {
   }
 
   // Malmuth-Harville: 各プレイヤーの賞金期待値(プライズプール比)
+  // ★重要: スタック0(バスト確定)のプレイヤーは「残り順位の最下位」の賞金を受け取る。
+  //   FTは全員入賞済みなので、バスト=ゼロではなく最低保証額がある。
+  //   これを無視するとリスクが過大評価され、明らかなジャムまでフォールド優位になってしまう。
   function icmEVs(stacks, payouts) {
     const n = stacks.length;
     const ev = new Array(n).fill(0);
     const places = Math.min(payouts.length, n);
+    // バスト確定者(スタック0以下)は下位の賞金を山分け
+    const zeros = [];
+    for (let i = 0; i < n; i++) if (stacks[i] <= 0) zeros.push(i);
+    let activePlaces = places;
+    if (zeros.length > 0) {
+      const bottom = payouts.slice(Math.max(0, places - zeros.length), places);
+      const share = bottom.length ? bottom.reduce((a, b) => a + b, 0) / zeros.length : 0;
+      for (const z of zeros) ev[z] = share;
+      activePlaces = Math.max(0, places - zeros.length);
+    }
     // 再帰: mask=残りプレイヤー, payIdx=今決める順位, prob=ここまでの確率
     function rec(mask, payIdx, prob, sumRemaining) {
-      if (payIdx >= places || prob < 1e-12) return;
+      if (payIdx >= activePlaces || prob < 1e-12 || sumRemaining <= 0) return;
       for (let i = 0; i < n; i++) {
         if (!(mask & (1 << i))) continue;
         const si = stacks[i];

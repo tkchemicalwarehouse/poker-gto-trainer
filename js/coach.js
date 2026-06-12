@@ -56,6 +56,15 @@ function gradeDecision(ctx, advice, chosenId) {
       (verdict === "minor" || verdict === "blunder")) {
     verdict = "mixed";
   }
+  // ICM拒否が理由のジャム/フォールド間違いは、賞金期待値の差でミスの重さを決める
+  // (チップEVでは正しい判断なので、差が小さければ咎めない)
+  if (d.icmJamEval && (verdict === "minor" || verdict === "blunder") &&
+      ((chosen === "jam") !== (advice.primary === "jam"))) {
+    const gap = Math.abs(d.icmJamEval.evJam - d.icmJamEval.evFold); // プライズプール比
+    if (gap < 0.005) verdict = "mixed";
+    else if (gap < 0.015) verdict = "minor";
+    else verdict = "blunder";
+  }
 
   // EV損失推定(BB)
   let evLoss = 0;
@@ -221,7 +230,10 @@ function buildExplanation(ctx, advice, chosen, verdict) {
     }
     // 選択と正解の組み合わせに応じた説明(定型文の連発はしない)
     const correct = advice.primary;
-    if (correct === "jam" && chosen === "fold") {
+    if (d.icmVeto && (chosen === "jam" || chosen === "raise")) {
+      lines.push(`<p><b>チップEVでは ${hand} は明確なリジャム圏内です</b>(あなたの判断はチップ上は正しい)。` +
+        `フォールド推奨の理由は<b>ICM(賞金構造)のみ</b> — 下のICM判定をご覧ください。境界が近い場合はどちらも大きなミスにはなりません。</p>`);
+    } else if (correct === "jam" && chosen === "fold") {
       lines.push(`<p>${hand} はリジャムレンジ内です。${d.hu ? "HUの超ワイドオープンに対しては、ここで踏み込まないとブラインドを取られ続けます。" : "相手のオープンレンジの大部分はジャムにフォールドするため、フォールドエクイティ+コールされた時のエクイティの合計で+EVです。"}</p>`);
     } else if (correct === "jam" && chosen === "call") {
       lines.push(`<p>コールよりリジャム推奨です。有効${ctx.effBB.toFixed(0)}BBではポストフロップの技術介入余地が小さく、フォールドエクイティを取れるジャムの方がEVが高くなります。</p>`);

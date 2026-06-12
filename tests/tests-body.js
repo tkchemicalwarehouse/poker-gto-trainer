@@ -109,6 +109,11 @@ const evs = Icm.icmEVs(icmStacks, [0.4, 0.27, 0.18, 0.15]);
 console.log("  ICM EV(等4人):", evs.map(x => (x * 100).toFixed(1) + "%").join(", "));
 assert(Math.abs(evs.reduce((a, b) => a + b, 0) - 1.0) < 0.001, "ICM EVの合計=賞金総額");
 assert(evs[0] > evs[2] && evs[2] > evs[3], "ICM EVはスタック順");
+// バスト確定者は残り順位の最下位賞金を受け取る(FT全員入賞ルール)
+const evz = Icm.icmEVs([0, 100000, 50000], [0.5, 0.3, 0.2]);
+console.log("  ICM(バスト者含む):", evz.map(x => (x * 100).toFixed(1) + "%").join(", "));
+assert(Math.abs(evz[0] - 0.2) < 0.001, "バスト者=3位賞金20%を保証");
+assert(Math.abs(evz.reduce((a, b) => a + b, 0) - 1.0) < 0.001, "合計=100%維持");
 // ビッグスタック同士の対決はICM必要勝率が上がる
 const req = Icm.requiredEq({ stacks: [100000, 100000, 50000, 30000], heroI: 0, villI: 1, potChips: 105000, toCallChips: 95000, payouts: [0.4, 0.27, 0.18, 0.15] });
 console.log("  ICM必要勝率(ビッグ同士):", (req.req * 100).toFixed(1) + "% (チップEVなら約48%)");
