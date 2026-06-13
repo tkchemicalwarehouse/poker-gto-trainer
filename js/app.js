@@ -30,6 +30,16 @@ function newTally() {
   return { decisions: 0, best: 0, mixed: 0, minor: 0, blunder: 0, evLost: 0, perHand: {} };
 }
 
+/* ---------- 先回りアクション(手番前の予約) ---------- */
+let heroPre = null;       // {id:"fold"|"jam"|"raise"|"raiseTo", target?} 予約中のアクション
+let heroPreBet = 0;       // 予約時点の「場の最大ベット額(チップ)」。変化したら予約取消
+function clearHeroPre() { heroPre = null; if (G) renderPreBar(G); }
+function curMaxStreetBet(state) {
+  let m = 0;
+  for (const p of state.players) if (!p.out && p.streetBet > m) m = p.streetBet;
+  return m;
+}
+
 /* ---------- チップ描画 ----------
  * 額面: 25,000=紫 / 5,000=橙 / 1,000=黄 / 500=赤 / 100=白
  */
@@ -215,6 +225,7 @@ function render(state) {
   setCards($("board-cards"), state.board.join(","), state.board.map(c => cardHTML(c)).join(""));
   moveDealerDisc(state);
   checkAARun(state);
+  renderPreBar(state);
   // 右下の大型ブラインド表示(コーチパネル表示中は隠す)
   const bc = $("blind-corner");
   if (bc) {
@@ -303,8 +314,12 @@ function logMsg(msg, cls) {
   if (cls === "levelup" && msg.includes("ブラインドアップ") && typeof Mascot !== "undefined") {
     Mascot.run({ flagText: "BLIND UP!" });
   }
-  // ファイナルテーブル → バニーガールが看板を持って歩く
-  if (cls === "levelup" && msg.includes("ファイナルテーブル") && typeof Mascot !== "undefined") {
+  // バブル(残り10人) → バニーガールが BUBBLE 看板で歩く
+  if (cls === "levelup" && msg.includes("バブル!") && typeof Mascot !== "undefined") {
+    Mascot.bunnyWalk(["BUBBLE", "あと1人で入賞!"]);
+  }
+  // ファイナルテーブル → バニーガールが FINAL TABLE 看板で歩く
+  else if (cls === "levelup" && msg.includes("ファイナルテーブル!") && typeof Mascot !== "undefined") {
     Mascot.bunnyWalk(["FINAL TABLE", "IN THE MONEY"]);
   }
 }
@@ -339,12 +354,110 @@ function autoAction(legal) {
   return legal.find(a => a.id === "check") || legal.find(a => a.id === "fold") || legal[0];
 }
 
+// 補助トースト(短い通知)
+let toast2Timer = null;
+function showToast2(msg) {
+  const t = $("toast");
+  t.textContent = msg; t.className = "v-minor";
+  t.classList.remove("hidden");
+  clearTimeout(toast2Timer);
+  toast2Timer = setTimeout(() => t.classList.add("hidden"), 1400);
+}
+
+// 先回りアクションの予約バー(自分の手番が来る前に表示)
+function renderPreBar(state) {
+  const bar = $("prebar");
+  if (!bar) return;
+  const hero = state.players[0];
+  const heroTurn = state.actorSeat === 0;
+  const canShow = state && state.street !== "idle" && state.street !== "showdown" &&
+    !hero.out && !hero.folded && !hero.allIn && !heroTurn &&
+    $("action-bar").classList.contains("hidden");
+  if (!canShow) { bar.classList.add("hidden"); return; }
+  bar.classList.remove("hidden");
+  const sel = heroPre ? heroPre.id : null;
+  const heroBB = (hero.chips / LIVE.bb).toFixed(1);
+  bar.innerHTML =
+    `<div class="prebar-label">⏩ 先に予約(手番が来たら自動実行)</div>` +
+    `<div class="prebar-row">` +
+    `<button class="pre-fold${sel === 'fold' ? ' on' : ''}" data-pre="fold">フォールド</button>` +
+    `<button class="pre-raise${sel === 'raise' ? ' on' : ''}" data-pre="raise">レイズ</button>` +
+    `<button class="pre-jam${sel === 'jam' ? ' on' : ''}" data-pre="jam">オールイン (${heroBB}BB)</button>` +
+    `<button class="pre-sizer${sel === 'raiseTo' ? ' on' : ''}" data-pre="raiseTo">🎚 レイズ額指定</button>` +
+    `</div>` +
+    (sel === "raiseTo" ? `<div class="prebar-sizer">
+        <input type="range" id="pre-range" min="${2 * LIVE.bb}" max="${hero.chips}" step="1000" value="${heroPre.target || 3 * LIVE.bb}">
+        <span id="pre-val"></span></div>` : "") +
+    (sel ? `<div class="prebar-status">予約中: <b>${preLabel(sel)}</b>(取り消すにはもう一度押す)</div>` : "");
+
+  bar.querySelectorAll("button[data-pre]").forEach(b => {
+    b.onclick = () => {
+      const id = b.dataset.pre;
+      if (heroPre && heroPre.id === id) { heroPre = null; }   // 同じボタン=取消
+      else {
+        heroPre = { id };
+        if (id === "raiseTo") heroPre.target = 3 * LIVE.bb;
+        heroPreBet = curMaxStreetBet(state);
+      }
+      Sfx.play("chip");
+      renderPreBar(state);
+    };
+  });
+  const range = bar.querySelector("#pre-range");
+  if (range) {
+    const upd = () => { bar.querySelector("#pre-val").textContent = `${fmtChips(+range.value)} (${(range.value / LIVE.bb).toFixed(1)}BB)`; heroPre.target = +range.value; };
+    upd(); range.oninput = upd;
+  }
+}
+function preLabel(id) {
+  return { fold: "フォールド", raise: "レイズ", jam: "オールイン", raiseTo: "レイズ額指定" }[id] || id;
+}
+
+// 予約アクションを現在の合法手にマッピング
+function mapPre(pre, legal) {
+  const has = id => legal.find(a => a.id === id);
+  if (pre.id === "fold") return has("fold") || has("check") || autoAction(legal);
+  if (pre.id === "jam") return has("jam") || has("call") || has("check") || autoAction(legal);
+  if (pre.id === "raise") {
+    if (has("raise")) return has("raise");
+    const rt = has("raiseTo");
+    if (rt) { const t = rt.minTarget; return { id: "raiseTo", target: t, minTarget: rt.minTarget, maxTarget: rt.maxTarget, label: `レイズ ${fmtChips(t)}` }; }
+    return has("jam") || autoAction(legal);
+  }
+  if (pre.id === "raiseTo") {
+    const rt = has("raiseTo");
+    if (rt) { const t = Math.max(rt.minTarget, Math.min(rt.maxTarget, pre.target)); return { id: "raiseTo", target: t, minTarget: rt.minTarget, maxTarget: rt.maxTarget, label: `レイズ ${fmtChips(t)}` }; }
+    return has("jam") || autoAction(legal);
+  }
+  return null;
+}
+
 async function heroActUI(ctx, legal) {
   if (aborting) return autoAction(legal);
-  // 先にGTOアドバイスを計算(MC含む)
-  const advice = ctx.phase === "preflop" ? await preflopAdvice(ctx) : await postflopAdvice(ctx);
+
+  // ① 予約アクションの消化
+  if (heroPre) {
+    const pre = heroPre;
+    const changed = curMaxStreetBet(G) !== heroPreBet; // 予約後に誰かがレイズ/3ベットしたか
+    heroPre = null; renderPreBar(G);
+    // フォールドは常に有効。それ以外は状況が変わっていなければ実行
+    if (pre.id === "fold" || !changed) {
+      const act = mapPre(pre, legal);
+      if (act) return await finalizeHeroAct(ctx, act, true);
+    }
+    // 状況が変わった → 予約取消、通常の手番で再提示(額は自動で最新に)
+    showToast2("状況が変わったため予約を解除しました");
+  }
+
+  // ② 通常の手番
   Sfx.play("turn");
   const act = await showActionButtons(legal);
+  return await finalizeHeroAct(ctx, act, false);
+}
+
+// アクション確定後の共通処理(採点・記録・コーチ表示)。fast=予約消化による即時実行
+async function finalizeHeroAct(ctx, act, fast) {
+  const advice = ctx.phase === "preflop" ? await preflopAdvice(ctx) : await postflopAdvice(ctx);
   const grade = gradeDecision(ctx, advice, gradeIdFor(act, ctx), act);
 
   tally.decisions++;
@@ -352,15 +465,14 @@ async function heroActUI(ctx, legal) {
   tally.evLost += grade.evLoss;
   if (!tally.perHand[G.handNo]) tally.perHand[G.handNo] = [];
   tally.perHand[G.handNo].push({ verdict: grade.verdict, evLoss: grade.evLoss, action: act.id, phase: ctx.phase });
-
-  // 報告用スナップショット(「この判定おかしい」ボタンでコピーされる)
   window.__lastReport = buildReport(ctx, advice, act, grade);
 
   const mode = coachMode();
-  const isOK = grade.verdict === "best" || grade.verdict === "mixed";
+  const isOK = grade.verdict === "best" || grade.verdict === "mixed" || grade.verdict === "caution";
   Sfx.play(isOK ? "good" : "bad");
   if (mode !== "off") {
-    if (isOK && mode !== "always") showToast(grade.verdict);
+    // 予約実行(fast)かつOK判定なら、止めずにトーストのみで最速進行。ミスは予約でも必ず止めて教える
+    if (isOK && (mode !== "always" || fast)) showToast(grade.verdict);
     else await showCoachPanel(grade, advice, ctx, act.id);
   }
   return act;
@@ -652,6 +764,7 @@ async function startTournament() {
   render(G);
 
   while (!G.over && !aborting) {
+    heroPre = null;           // ハンド開始時に予約をクリア
     await playHand(G, gameIO);
   }
   if (!aborting) {
