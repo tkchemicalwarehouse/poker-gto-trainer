@@ -280,8 +280,12 @@ async function preflopAdvice(ctx) {
         data.marginBB = th - effS;      // +なら範囲内(実効スタック基準)
         data.range = nashRangeAt(ctx.posIdx, Math.max(2, effS));
         data.rangePct = rangePercent(data.range);
-        if (Math.abs(data.marginBB) <= 0.5) { freqs.jam = 0.5; freqs.fold = 0.5; } // 境界=混合域
-        else if (data.marginBB > 0) freqs.jam = 1;
+        // 混合域は閾値が計算グリッドの内側にある時のみ(端=2BB/上限16BBは無差別点ではない)
+        const nashCap = (typeof NASH_MAX_BB !== "undefined") ? NASH_MAX_BB : 16;
+        const interior = th > 2.01 && th < nashCap - 0.01;
+        // margin>=0(effS<=閾値)はジャム圏内。無差別の混合は閾値ちょうど付近(±0.25)のみ
+        if (interior && Math.abs(data.marginBB) < 0.25) { freqs.jam = 0.5; freqs.fold = 0.5; }
+        else if (data.marginBB >= 0) freqs.jam = 1;
         else freqs.fold = 1;
         // 教材用: ジャムEVの分解(UI時 or FTのICM評価に必要な時)
         if (!ctx.fast || ctx.icmJam) {
@@ -290,7 +294,8 @@ async function preflopAdvice(ctx) {
           data.calc = teachJamBreakdown(label, data.range, Math.max(2, effS), defenders, posted);
         }
         // FT: ジャム自体を賞金期待値で再評価(ICMはジャム側も締める)
-        if (ctx.icmJam && data.calc && freqs.jam > 0) {
+        // ただし実効4BB以下は事実上コミット済み(ソルバーもほぼ100%ジャム)なのでICM補正しない
+        if (ctx.icmJam && data.calc && freqs.jam > 0 && effS > 4) {
           const r = icmJamEval(ctx.icmJam, data.calc.pNo, data.calc.eqVsCall);
           if (r) {
             data.icmJamEval = r;
@@ -333,8 +338,11 @@ async function preflopAdvice(ctx) {
       data.marginBB = th - ctx.effBB;
       data.rejamRange = rejamRangeAtEff(cls, heroType, ctx.effBB);
       if (th >= 25 && ctx.effBB > 25) data.marginBB = 1; // 上限到達ハンドは深くてもジャム可
-      if (Math.abs(data.marginBB) <= 0.5) jamDecided = "mix";
-      else jamDecided = data.marginBB > 0;
+      // 混合域は閾値が計算グリッドの内側にある時のみ(端=4BB/上限25BBは無差別点ではない)
+      const rejamCap = (typeof REJAM_MAX_BB !== "undefined") ? REJAM_MAX_BB : 25;
+      const interiorR = th > 4.01 && th < rejamCap - 0.01;
+      if (interiorR && Math.abs(data.marginBB) < 0.25) jamDecided = "mix";
+      else jamDecided = data.marginBB >= 0;
     } else {
       data.rejamRange = hu ? Ranges.huRejam(ctx.effBB) : Ranges.rejam(opClass, ctx.effBB);
       jamDecided = rangeHas(data.rejamRange, label);
@@ -349,8 +357,8 @@ async function preflopAdvice(ctx) {
       const posted = ctx.posIdx === POS_BB ? 1 : (ctx.posIdx === POS_SB ? 0.5 : 0);
       data.calc = teachRejamBreakdown(label, data.rejamRange, openRange, ctx.effBB, posted);
     }
-    // FT: リジャム自体を賞金期待値で再評価
-    if (ctx.icmJam && data.calc && jamDecided !== false) {
+    // FT: リジャム自体を賞金期待値で再評価(実効4BB以下はコミット済みのため補正しない)
+    if (ctx.icmJam && data.calc && jamDecided !== false && ctx.effBB > 4) {
       const r = icmJamEval(ctx.icmJam, 1 - data.calc.pCall, data.calc.eqVsCall);
       if (r) {
         data.icmJamEval = r;

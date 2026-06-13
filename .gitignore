@@ -5,3 +5,5 @@ tools/equity.json
 tools/rejam-log.txt
 tests/_golden_combined.cjs
 tools/_verify_combined.cjs
+tools/_audit_combined.cjs
+tools/_probe*.cjs

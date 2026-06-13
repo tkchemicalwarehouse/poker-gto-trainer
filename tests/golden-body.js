@@ -84,6 +84,19 @@ const SPOTS = [
       return Math.abs(ev[0] - 0.2) < 0.001 && Math.abs(ev[0] + ev[1] + ev[2] - 1.0) < 0.001;
     } },
 
+  /* ===== セルフプレイ監査由来の回帰(計算グリッド端の混合バグ) ===== */
+  { name: "KK 24.8BB vs EPオープン(IP)は混合でなく100%ジャム", ctx: fo("KK", "EP", 24.8, 5),
+    want: a => a.primary === "jam" && a.freqs.jam >= 0.99 },
+  { name: "32o UTG 実効2.0BBは100%ジャム(グリッド下限)", ctx: fi("32o", 0, 25, { effJamBB: 2, defendersN: 8 }),
+    want: a => a.primary === "jam" && a.freqs.jam >= 0.99 },
+  { name: "62o SB 実効2.0BBはジャム(margin+0.5は混合でない)", ctx: fi("62o", 7, 25, { effJamBB: 2, defendersN: 1 }),
+    want: a => a.primary === "jam" },
+  { name: "FT 74o BTN 実効1.8BBはジャム(超浅はICM補正しない)", ctx: (() => {
+      const stacks = [7000, 30000, 40000, 25000, 50000, 35000, 28000, 33000, 45000];
+      return fi("74o", 6, 1.8, { effJamBB: 1.8, defendersN: 2,
+        icmJam: { stacks, heroI: 0, villI: 4, potChips: 10000, toCallChips: 0, payouts: Icm.payoutsFor(18, 9), bbChips: 4000 } });
+    })(), want: a => a.primary === "jam" },
+
   /* ===== 採点の特例 ===== */
   { name: "有効20BBでジャム推奨ハンドの3ベットは混合OK", ctx: fo("AQs", "LP", 20, 8), grade: ["raise", g => g.verdict === "mixed"] },
   { name: "SB vs BB1BBのJ5oジャムはGTO通り", ctx: fi("J5o", 7, 25, { effJamBB: 1, defendersN: 1 }), grade: ["jam", g => g.verdict === "best"] },
