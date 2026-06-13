@@ -15,3 +15,5 @@ tools/_chk.cjs
 tools/_apa_combined.cjs
 tools/autoplay-log.txt
 tools/autoplay-result.json
+tools/_valref_combined.cjs
+tools/_dev_combined.cjs

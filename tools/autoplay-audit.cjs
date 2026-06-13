@@ -33,16 +33,20 @@ const S = {
   // 統計カウンタ
   pfOpps: 0, vpip: 0, pfr: 0,        // プリフロップ参加機会/自発参加/レイズ
   open3betOpps: 0, threeBet: 0,      // オープンに直面した機会/3ベット(jam含む)
+  open: 0, openFaced3bet: 0, openFold3bet: 0, // オープンした回数/3ベットされた/それに降りた
   cbetOpps: 0, cbet: 0,              // フロップPFRでC-bet機会/実行
   turnOpps: 0, turnBet: 0,           // ターンPFR継続機会/実行
   faceCbetOpps: 0, faceCbetFold: 0,  // C-betに直面/フォールド
+  faceJamOpps: 0, faceJamCall: 0,    // プリフロップのジャムに直面/コール
   pfAllin: 0,                        // プリフロップでオールイン
   decisions: 0,
   byPosOpen: {},                     // ポジション別オープン率
   // 採点(ヒーローのみ)
   verdicts: {}, mistakes: [],
   // トーナメント
-  tourneys: 0, hu: 0, hands: 0,
+  tourneys: 0, hu: 0, hands: 0, wins: 0,
+  finishes: {},                      // seat0の順位分布(1位=優勝〜9位)
+  finishSum: 0, finishN: 0,          // 平均順位
 };
 
 function gradeId(act, ctx) {
@@ -71,15 +75,19 @@ function recordStats(ctx, act) {
   if (ctx.phase === "preflop") {
     if (ctx.facing === "none") {           // オープン機会(誰も入ってない)
       S.pfOpps++;
-      if (agg) { S.vpip++; S.pfr++; S.byPosOpen[ctx.seatName] = S.byPosOpen[ctx.seatName] || { o: 0, n: 0 }; }
+      if (agg) { S.vpip++; S.pfr++; S.open++; }
       const b = (S.byPosOpen[ctx.seatName] = S.byPosOpen[ctx.seatName] || { o: 0, n: 0 });
       b.n++; if (agg) b.o++;
     } else if (ctx.facing === "open") {     // オープンに直面
       S.open3betOpps++; S.pfOpps++;
       if (agg) { S.threeBet++; S.vpip++; }
       else if (act.id === "call") S.vpip++;
-    } else if (ctx.facing === "jam" || ctx.facing === "rejamOverMyOpen") {
-      S.pfOpps++;
+    } else if (ctx.facing === "jam") {      // ジャム(3ベットジャム含む)に直面
+      S.pfOpps++; S.faceJamOpps++;
+      if (act.id === "call" || act.id === "jam") { S.vpip++; S.faceJamCall++; }
+    } else if (ctx.facing === "rejamOverMyOpen") { // 自分のオープンに3ベット(リジャム)された
+      S.pfOpps++; S.openFaced3bet++;
+      if (act.id === "fold") S.openFold3bet++;
       if (act.id === "call" || act.id === "jam") S.vpip++;
     }
     if (act.id === "jam") S.pfAllin++;
@@ -131,15 +139,26 @@ global.__onBotAct = (ctx, act) => recordStats(ctx, act);
     }
     S.tourneys++; S.hands += st.handNo;
     if (minAlive <= 2) S.hu++;
+    // seat0(自分)の最終順位を記録
+    const place = st.won ? 1 : Math.min(9, (st.fieldLeft || 0) + 1);
+    S.finishes[place] = (S.finishes[place] || 0) + 1;
+    S.finishSum += place; S.finishN++;
+    if (st.won) S.wins++;
     if (S.tourneys % 50 === 0) process.stderr.write(`  ${S.hands}/${TARGET_HANDS}ハンド (${((Date.now()-t0)/1000).toFixed(0)}秒)\n`);
   }
   const secs = ((Date.now() - t0) / 1000).toFixed(0);
   const pct = (a, b) => b > 0 ? (a / b * 100).toFixed(1) + "%" : "-";
 
   const stats = {
-    総ハンド: S.hands, トーナメント: S.tourneys, ヘッズアップ到達: S.hu, ヒーロー決断: S.decisions, 秒: +secs,
+    総ハンド: S.hands, トーナメント: S.tourneys, 優勝: S.wins,
+    優勝率: pct(S.wins, S.tourneys), ヘッズアップ到達率: pct(S.hu, S.tourneys),
+    平均順位: S.finishN ? (S.finishSum / S.finishN).toFixed(2) + "位/9人" : "-",
+    ヒーロー決断: S.decisions, 秒: +secs,
     VPIP: pct(S.vpip, S.pfOpps), PFR: pct(S.pfr, S.pfOpps),
     "3ベット率(対オープン)": pct(S.threeBet, S.open3betOpps),
+    "自分のオープンが3ベットされた率": pct(S.openFaced3bet, S.open),
+    "★相手の3ベット(リジャム)へのフォールド率": pct(S.openFold3bet, S.openFaced3bet),
+    "プリフロップ・ジャムへのコール率": pct(S.faceJamCall, S.faceJamOpps),
     "Cベット率(フロップPFR)": pct(S.cbet, S.cbetOpps),
     "ターンバレル率": pct(S.turnBet, S.turnOpps),
     "Cベットへのフォールド率": pct(S.faceCbetFold, S.faceCbetOpps),
@@ -151,6 +170,13 @@ global.__onBotAct = (ctx, act) => recordStats(ctx, act);
     if (typeof v === "object") console.log(`  ${k}: ${JSON.stringify(v)}`);
     else console.log(`  ${k}: ${v}`);
   }
+  console.log("\n--- seat0(自分)の順位分布 / 9人スタート ---");
+  for (let p = 1; p <= 9; p++) {
+    const n = S.finishes[p] || 0;
+    console.log(`  ${p}位${p === 1 ? "(優勝)" : ""}: ${n}回 (${pct(n, S.finishN)})`);
+  }
+  console.log(`  期待値(完全五分なら): 優勝 ${pct(1, 9)} / 平均 5.00位`);
+
   console.log("\n--- 生カウント(サンプル確認) ---");
   console.log(`  フロップC-bet機会(role=pfr,facing=none): ${S.cbetOpps} / 実行 ${S.cbet}`);
   console.log(`  ターン継続機会: ${S.turnOpps} / 実行 ${S.turnBet}`);
