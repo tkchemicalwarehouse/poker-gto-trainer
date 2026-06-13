@@ -399,18 +399,25 @@ async function preflopAdvice(ctx) {
       eq = res.equity;
     }
     const be = ctx.toCallBB / (ctx.potBB + ctx.toCallBB);
-    let margin = 0.005;
-    margin += 0.03 * (ctx.playersBehind || 0);       // 後ろに残るプレイヤー
-    margin += 0.06 * Math.max(0, (ctx.jamCount || 1) - 1); // 追加のオールイン
-    // FTのICM補正(賞金圧力で必要勝率が上がる)
+    // FTのICM補正があれば、それが必要勝率の精密な物差し。雑な後続補正は二重計上になるので足さない。
+    let icmActive = false;
     if (ctx.icm && typeof Icm !== "undefined") {
       const r = Icm.requiredEq(ctx.icm);
       if (r && isFinite(r.req) && r.req > be) {
         data.icmReq = r.req;
         data.icmPremium = r.req - be;
         data.icmDetail = { evFold: r.evFold, evWin: r.evWin, evLose: r.evLose };
-        margin += r.req - be;
+        icmActive = true;
       }
+    }
+    let margin;
+    if (icmActive) {
+      // ICMが必要勝率を精密に算出済み。後続/マルチの雑な上乗せはしない(微小マージンのみ)
+      margin = (data.icmReq - be) + 0.01;
+    } else {
+      // ChipEV: ポットオッズ + 控えめな後続/マルチ補正(上限を抑え過剰フォールドを防ぐ)
+      margin = 0.005 + Math.min(0.05, 0.02 * (ctx.playersBehind || 0))
+        + 0.04 * Math.max(0, (ctx.jamCount || 1) - 1);
     }
     const threshold = be + margin;
     data.kind = "facingJam";

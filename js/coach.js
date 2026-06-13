@@ -125,24 +125,19 @@ function gradeDecision(ctx, advice, chosenId, act) {
     };
   }
   if (ftSplit) {
-    // 表示される推奨ライン(advice.primary はICM補正後)に沿ったか
+    // 採点は必ず「表示された推奨ライン(advice.primary)」を基準にする。
+    // (戦略freqsと採点が食い違って『推奨どおり打ったのに叱られる』のを防ぐ)
     const aggId = (d.kind === "facingJam") ? "call" : "jam";
     const recommendAgg = (advice.primary === aggId);
-    if (ftSplit.chipDo !== ftSplit.icmDo) {
-      // EVとICMで割れる場面
-      if (ftSplit.userDid === recommendAgg) {
-        verdict = "best";          // 推奨ライン通りにプレイ → 正解(叱らない)
-        d._ftFollowed = true;      // ただし「もう一方の視点」も補足説明する
-      } else {
-        verdict = "caution";       // 推奨と逆=もう一方の枠組みに沿った逸脱 → 注意(ミスではない)
-      }
+    const userTookRecommended = (ftSplit.userDid === recommendAgg);
+    if (userTookRecommended) {
+      // 推奨どおり → 決して「ミス」にしない。割れる場面なら二視点を前向きに補足
+      if (verdict === "minor" || verdict === "blunder") verdict = "best";
+      if (ftSplit.chipDo !== ftSplit.icmDo) d._ftFollowed = true;
     } else {
-      const correct = ftSplit.chipDo;      // EVもICMも同じ結論
-      if (ftSplit.userDid === correct) {
-        if (verdict === "minor" || verdict === "blunder") verdict = "best";
-      } else {
-        verdict = "blunder";               // 両方が「違う」と言う → 本物のミス
-      }
+      // 推奨と逆に打った
+      if (ftSplit.chipDo !== ftSplit.icmDo) verdict = "caution"; // もう一方の枠組みが支持 → 注意
+      else verdict = "blunder";                                  // EVもICMも推奨を支持 → ミス
     }
     d._ftSplit = ftSplit;
   }
