@@ -55,6 +55,23 @@ chk("22 は UTG 7BBでジャム(浅いと最小ペアも)", inR(0, 7, "22"), "")
 chk("J8o は UTG 10BBでフォールド", !inR(0, 10, "J8o"), "");
 chk("ATs は BTN 12BBでジャム", inR(6, 12, "ATs"), "");
 
+console.log("\n=== Part2c: オープンレンジ% が既知の目標域に収まるか ===");
+const POSN = ["UTG", "UTG+1", "UTG+2", "LJ", "HJ", "CO", "BTN", "SB"];
+const openPct = (bk, p) => V.rangePercent(V.Ranges.open(p, bk <= 20 ? 15 : 25));
+// 25BB(深め)の目標域(公知の標準オープンレンジ)
+range("25BB UTG オープン%", openPct(25, 0), 11, 18);
+range("25BB CO オープン%", openPct(25, 5), 24, 32);
+range("25BB BTN オープン%", openPct(25, 6), 40, 50);
+range("25BB SB オープン%", openPct(25, 7), 42, 56);
+// 15BB(浅め)
+range("15BB BTN オープン%", openPct(15, 6), 34, 44);
+range("15BB SB オープン%", openPct(15, 7), 40, 50);
+
+console.log("\n=== Part2d: BBディフェンス総%(対オープン) ===");
+range("BB総ディフェンス vs EP", V.rangePercent(V.Ranges.bbDefendTotal("EP")), 16, 32);
+range("BB総ディフェンス vs LP", V.rangePercent(V.Ranges.bbDefendTotal("LP")), 34, 52);
+range("BB総ディフェンス vs SB", V.rangePercent(V.Ranges.bbDefendTotal("SB")), 50, 70);
+
 console.log("\n=== Part3: コール側の整合(ポットオッズ厳密) ===");
 // AAはどのジャムにもコール、72oはタイトジャムにフォールド(数学的に自明)
 const eqAAvsBTN = V.eqVsRangeTable("AA", V.nashRangeAt(6, 10));

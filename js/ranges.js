@@ -158,8 +158,8 @@ const OPEN_RANGES = {
     /*LJ   */ "33+,A5s+,ATo+,K9s+,KJo+,QTs+,QJo,JTs,T9s,98s",
     /*HJ   */ "22+,A2s+,ATo+,K9s+,KJo+,Q9s+,QJo,J9s+,T9s,98s,87s",
     /*CO   */ "22+,A2s+,A9o+,K7s+,KTo+,Q9s+,QTo+,J9s+,JTo,T8s+,98s,87s,76s",
-    /*BTN  */ "22+,A2s+,A7o+,A5o,K4s+,K9o+,Q6s+,QTo+,J7s+,J9o+,T7s+,T9o,97s+,86s+,76s,65s,54s",
-    /*SB   */ "22+,A2+,K2s+,K9o+,Q4s+,QTo+,J6s+,JTo,T7s+,T9o,96s+,86s+,75s+,65s,54s",
+    /*BTN  */ "22+,A2s+,A5o+,K2s+,K9o+,Q5s+,Q9o+,J7s+,J9o+,T6s+,T9o,96s+,86s+,75s+,65s,54s,43s",
+    /*SB   */ "22+,A2+,K2s+,K7o+,Q3s+,Q9o+,J5s+,J9o+,T6s+,T8o+,95s+,86s+,75s+,64s+,54s,43s",
   ],
   25: [
     /*UTG  */ "55+,A9s+,A5s,A4s,ATo+,KTs+,KQo,QTs+,JTs,T9s,98s",
