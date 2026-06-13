@@ -513,15 +513,55 @@ function buildReport(ctx, advice, act, grade) {
  * REPORT_ENDPOINT/FIELDを設定すると有効化。未設定時はコピー動作にフォールバック。 */
 const REPORT_ENDPOINT = "https://docs.google.com/forms/d/e/1FAIpQLSeWjiqVDUZJ6gSwopAbjweCfJX6bK4zlNMyQ75I3c4uAP7IrQ/formResponse";
 const REPORT_FIELD = "entry.1854722243";
-function sendReport() {
+// 報告ボタン → 「①このまま送信 / ②コメントを書いて送る」を選ぶ
+function openReportChoice() {
   if (!window.__lastReport) return;
+  let ov = $("report-choice");
+  if (!ov) {
+    ov = document.createElement("div");
+    ov.id = "report-choice";
+    ov.innerHTML = `<div class="rc-inner">
+      <p class="rc-title">⚠ この判定を開発に報告</p>
+      <p class="rc-sub">局面データ(全員のスタック・判定根拠)は自動で添付されます。</p>
+      <button id="rc-send" class="primary">① このまま送信</button>
+      <button id="rc-comment">② コメントを書いて送る</button>
+      <div id="rc-comment-area" class="hidden">
+        <textarea id="rc-text" placeholder="例: フォールドが100%と出たが、相手のスタックを考えるとコールが正解では? / 解説の数字が食い違っている 等。詳しく書くほど助かります。"></textarea>
+        <button id="rc-comment-send" class="primary">この内容で送信</button>
+      </div>
+      <button id="rc-cancel" class="rc-cancel">キャンセル</button>
+    </div>`;
+    document.body.appendChild(ov);
+    ov.querySelector("#rc-send").onclick = () => { ov.classList.add("hidden"); sendReport(""); };
+    ov.querySelector("#rc-comment").onclick = () => {
+      ov.querySelector("#rc-comment-area").classList.remove("hidden");
+      ov.querySelector("#rc-comment").classList.add("hidden");
+      ov.querySelector("#rc-text").focus();
+    };
+    ov.querySelector("#rc-comment-send").onclick = () => {
+      const txt = ov.querySelector("#rc-text").value.trim();
+      ov.classList.add("hidden");
+      sendReport(txt);
+    };
+    ov.querySelector("#rc-cancel").onclick = () => ov.classList.add("hidden");
+  }
+  // 毎回リセットして開く
+  ov.querySelector("#rc-comment-area").classList.add("hidden");
+  ov.querySelector("#rc-comment").classList.remove("hidden");
+  ov.querySelector("#rc-text").value = "";
+  ov.classList.remove("hidden");
+}
+
+function sendReport(comment) {
+  if (!window.__lastReport) return;
+  const payload = Object.assign({}, window.__lastReport, { comment: comment || "" });
   if (!REPORT_ENDPOINT || !REPORT_FIELD) { copyReport(); return; }
   const t = $("toast");
   try {
     const fd = new FormData();
-    fd.append(REPORT_FIELD, JSON.stringify(window.__lastReport));
+    fd.append(REPORT_FIELD, JSON.stringify(payload));
     fetch(REPORT_ENDPOINT, { method: "POST", mode: "no-cors", body: fd });
-    t.textContent = "📨 報告を送信しました。ありがとう!(開発に活用されます)";
+    t.textContent = comment ? "📨 コメント付きで報告しました。ありがとう!" : "📨 報告を送信しました。ありがとう!";
     t.className = "v-mixed";
     Sfx.play("good");
   } catch (e) {
@@ -857,7 +897,7 @@ window.addEventListener("DOMContentLoaded", () => {
   $("btn-mute").textContent = Sfx.isMuted() ? "🔇" : "🔊";
   $("btn-mute").onclick = () => { $("btn-mute").textContent = Sfx.toggle() ? "🔇" : "🔊"; };
   $("coach-report").onclick = copyReport;
-  $("coach-report-top").onclick = sendReport;
+  $("coach-report-top").onclick = openReportChoice;
 
   $("btn-start").onclick = () => startTournament();
   $("btn-sim").onclick = () => { showScreen("screen-sim"); };

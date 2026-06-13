@@ -78,6 +78,7 @@ function rebuildCtx(rep) {
       (rep.openerClass ? `(${rep.openerClass})` : "") +
       ` / 残り${rep.fieldLeft}人${rep.finalTable ? "(FT)" : ""}`);
     console.log(`ユーザー: ${rep.userAction.id}${rep.userAction.target ? " " + rep.userAction.target : ""} → 当時の判定: ${rep.verdict}`);
+    if (rep.comment) console.log(`💬 報告者コメント: ${rep.comment}`);
     console.log(`当時のアドバイス: ${JSON.stringify(rep.advice)}`);
     try {
       const ctx = rebuildCtx(rep);

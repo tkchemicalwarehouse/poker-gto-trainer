@@ -388,6 +388,27 @@ button.cta:hover { background: linear-gradient(170deg, #ffe085, #e8b52e 55%, #c7
   animation: ctaPulse 2.2s ease-in-out infinite;
 }
 .report-top:hover { background: linear-gradient(170deg, #9d5826, #7e3e18); }
+/* 報告の選択ダイアログ(①送信 / ②コメントを書く) */
+#report-choice {
+  position: fixed; inset: 0; background: rgba(0,0,0,.78); z-index: 320;
+  display: flex; align-items: center; justify-content: center;
+}
+#report-choice.hidden { display: none !important; }
+#report-choice .rc-inner {
+  background: var(--panel); border: 2px solid #6b5a32; border-radius: 12px;
+  padding: 18px; width: min(440px, 92vw); text-align: center;
+}
+#report-choice .rc-title { font-size: 17px; font-weight: 800; color: #ffad47; margin-bottom: 6px; }
+#report-choice .rc-sub { font-size: 12px; color: var(--dim); margin-bottom: 14px; line-height: 1.6; }
+#report-choice button { width: 100%; font-size: 15px; padding: 13px; margin-top: 8px; }
+#report-choice .rc-cancel { background: transparent; border-color: transparent; color: var(--dim); font-size: 13px; }
+#rc-comment-area { margin-top: 10px; }
+#rc-text {
+  width: 100%; height: 130px; background: #0d1218; color: #e8edf2;
+  border: 1px solid #3a4a5d; border-radius: 8px; padding: 10px;
+  font-size: 14px; line-height: 1.6; resize: vertical;
+}
+
 #report-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 300;
   display: flex; align-items: center; justify-content: center;
