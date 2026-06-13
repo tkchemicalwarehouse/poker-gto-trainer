@@ -10,7 +10,7 @@ const VERDICT_INFO = {
   blunder: { label: "✗ ブランダー",   cls: "v-blunder", score: 0 },
 };
 
-function gradeDecision(ctx, advice, chosenId) {
+function gradeDecision(ctx, advice, chosenId, act) {
   // ベット系のIDゆらぎを吸収
   let chosen = chosenId;
   const freqs = advice.freqs;
@@ -83,7 +83,52 @@ function gradeDecision(ctx, advice, chosenId) {
   }
   if (verdict === "best" || verdict === "mixed") evLoss = 0;
 
-  return { verdict, evLoss, explanation: buildExplanation(ctx, advice, chosen, verdict) };
+  // ---- ベットサイズの採点(アクションが正しくてもサイズがGTO標準から外れたら指摘) ----
+  let sizing = null;
+  if (act && act.target && (verdict === "best" || verdict === "mixed")) {
+    sizing = evalSizing(ctx, advice, chosen, act);
+    if (sizing && sizing.severity) {
+      verdict = sizing.severity; // minor 等に格下げ
+      evLoss = sizing.evLoss;
+    }
+  }
+
+  return { verdict, evLoss, sizing, explanation: buildExplanation(ctx, advice, chosen, verdict, sizing) };
+}
+
+/* ベットサイズの妥当性を評価。戻り: {severity, evLoss, note} | null */
+function evalSizing(ctx, advice, chosen, act) {
+  const bb = (typeof LIVE !== "undefined") ? LIVE.bb : 4000;
+  const sizeBB = act.target / bb;
+  const d = advice.data;
+
+  // プリフロップ・オープンレイズ(ファーストイン、非オールイン)
+  if (ctx.phase === "preflop" && (d.kind === "openRaise") && chosen === "raise") {
+    const std = (typeof CFG !== "undefined" ? CFG.OPEN_SIZE : 2.2);
+    if (sizeBB >= 2.0 && sizeBB <= 2.7) return null;           // 標準帯
+    if (sizeBB < 2.0) {
+      return { severity: "minor", evLoss: 0.3,
+        note: `オープンが<b>${sizeBB.toFixed(1)}BB</b>と小さすぎます(ミニレイズ)。標準は約<b>2.2BB</b>。` +
+          `小さく開くと後ろの全員に良いオッズを与え、特にBBがほぼ何でもコールしてくるため、ポジション不利のポストフロップを多く戦わされ損をします。` };
+    }
+    // 過大
+    const sev = sizeBB >= 4 ? "minor" : "minor";
+    const evl = Math.min(1.2, (sizeBB - 2.7) * 0.25);
+    return { severity: sev, evLoss: Math.round(evl * 100) / 100,
+      note: `オープンが<b>${sizeBB.toFixed(1)}BB</b>と大きすぎます。標準は約<b>2.2BB</b>。` +
+        `開きが大きいほど、降りた時の損が増え、強いハンドの時だけ大きく賭ける形になって相手に読まれます。` +
+        `また自分のスタックを不必要に薄くし、4ベットオールインに対して脆くなります。同じ「オープンする」でもサイズで期待値は変わります。` };
+  }
+  // ポストフロップのベット/レイズが極端(ポット比)
+  if (ctx.phase === "postflop" && (chosen === "bet33" || chosen === "bet66")) {
+    const potBB = ctx.potBB || 0;
+    if (potBB > 0) {
+      const ratio = sizeBB / potBB;
+      if (ratio > 1.5) return { severity: "minor", evLoss: 0.3,
+        note: `ベットが<b>ポットの${Math.round(ratio*100)}%</b>と大きすぎます。中盤戦の標準は33〜75%程度。オーバーベットは特定の場面以外ではバランスを崩します。` };
+    }
+  }
+  return null;
 }
 
 /* ---------- 解説文の生成 ---------- */
@@ -123,13 +168,19 @@ const EQUITY_CHEAT =
   `・2オーバー vs 2アンダー ≈ <b>67:33</b>(例: AQ vs 87)<br>` +
   `・「レンジ」に対しては中間を取る: 例えばAToはタイトな10%レンジ(99+,AJ+級)に対して約38%、ワイドな40%レンジに対して約57%`;
 
-function buildExplanation(ctx, advice, chosen, verdict) {
+function buildExplanation(ctx, advice, chosen, verdict, sizing) {
   const d = advice.data;
   const lines = [];
   const hand = ctx.heroLabel;
   lines.push(`<div class="ex-head"><b>${hand}</b> @ ${ctx.seatName} ` +
     (ctx.phase === "preflop" ? `(${ctx.stackBB.toFixed(1)}BB)` : `【${streetJP(ctx.street)}】`) + `</div>`);
   lines.push(`<div class="ex-gto">GTO戦略: <b>${freqsText(advice.freqs)}</b> — あなた: <b>${actionJP(chosen)}</b></div>`);
+
+  // サイズの指摘(ハンド選択は正しいがサイズが外れている場合)
+  if (sizing && sizing.note) {
+    lines.push(`<p>📏 <b>ハンドの選択(${actionJP(chosen)})は正解</b>。ただし<b>サイズ</b>に改善点があります:</p>`);
+    lines.push(`<p>${sizing.note}</p>`);
+  }
 
   if (d.kind === "openJam") {
     if (d.nash) {

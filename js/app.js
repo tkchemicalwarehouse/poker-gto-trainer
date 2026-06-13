@@ -345,7 +345,7 @@ async function heroActUI(ctx, legal) {
   const advice = ctx.phase === "preflop" ? await preflopAdvice(ctx) : await postflopAdvice(ctx);
   Sfx.play("turn");
   const act = await showActionButtons(legal);
-  const grade = gradeDecision(ctx, advice, gradeIdFor(act, ctx));
+  const grade = gradeDecision(ctx, advice, gradeIdFor(act, ctx), act);
 
   tally.decisions++;
   tally[grade.verdict]++;

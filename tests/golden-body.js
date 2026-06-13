@@ -99,6 +99,13 @@ const SPOTS = [
 
   /* ===== 採点の特例 ===== */
   { name: "有効20BBでジャム推奨ハンドの3ベットは混合OK", ctx: fo("AQs", "LP", 20, 8), grade: ["raise", g => g.verdict === "mixed"] },
+  // ベットサイズ採点(ユーザー指摘: 4BBオープンでもOKと出ていた)
+  { name: "KQs UTG+2 を4BBオープンはサイズ指摘で格下げ", ctx: fi("KQs", 2, 25),
+    gradeAct: ["raise", { id: "raiseTo", target: 16000 }, g => g.verdict === "minor" && g.sizing] },
+  { name: "KQs UTG+2 を2.2BB標準オープンはbest", ctx: fi("KQs", 2, 25),
+    gradeAct: ["raise", { id: "raise", target: 8800 }, g => g.verdict === "best" && !g.sizing] },
+  { name: "AA BTN を10BB過大オープンはサイズ指摘", ctx: fi("AA", 6, 25),
+    gradeAct: ["raise", { id: "raiseTo", target: 40000 }, g => g.verdict === "minor" && g.sizing] },
   { name: "SB vs BB1BBのJ5oジャムはGTO通り", ctx: fi("J5o", 7, 25, { effJamBB: 1, defendersN: 1 }), grade: ["jam", g => g.verdict === "best"] },
 ];
 
@@ -154,7 +161,11 @@ const POST_SPOTS = [
       if (!s.ctx) { ok = s.want(); }
       else {
         const a = await preflopAdvice(s.ctx);
-        if (s.grade) {
+        if (s.gradeAct) {
+          const g = gradeDecision(s.ctx, a, s.gradeAct[0], s.gradeAct[1]);
+          ok = s.gradeAct[2](g);
+          detail = `verdict=${g.verdict} sizing=${!!g.sizing}`;
+        } else if (s.grade) {
           const g = gradeDecision(s.ctx, a, s.grade[0]);
           ok = s.grade[1](g);
           detail = `verdict=${g.verdict} primary=${a.primary}`;
