@@ -63,6 +63,9 @@ const COACH_VOICE = {
 function gradeDecision(ctx, advice, chosenId, act, opts) {
   // ベット系のIDゆらぎを吸収
   let chosen = chosenId;
+  // 単独オールインに「オールイン」で被せた = 実質コール(同じチップを入れる)。
+  // facingJamでは採点・推奨比較・説明をすべて「コール」に統一する(「オールイン押したのにコールと書かれる/叱られる」防止)
+  if (advice.data && advice.data.kind === "facingJam" && chosen === "jam") chosen = "call";
   const freqs = advice.freqs;
   const f = freqs[chosen] || 0;
 
@@ -170,6 +173,13 @@ function gradeDecision(ctx, advice, chosenId, act, opts) {
         const want = (freqs.bet66 || 0) > (freqs.bet33 || 0) ? "大きめ(66%)" : "小さめ(33%)";
         postNote = `ベットする判断は正解。ただしサイズはGTO的には${want}が主体です。中盤戦の小さいスタックでは、強い役は早くスタックを入れ切り、弱い手は安く諦める設計が効きます。`;
       }
+    }
+    // (1b) GTOは少頻度ながらベットも取る局面(主体はチェック) → ベットは少数派ラインで「ミス」ではない
+    else if ((chosen === "bet33" || chosen === "bet66") && betFreq >= 0.15 && betFreq < 0.5 &&
+        verdict === "blunder") {
+      verdict = "minor";
+      const want = (freqs.bet66 || 0) > (freqs.bet33 || 0) ? "大きめ(66%)" : "小さめ(33%)";
+      postNote = `この局面のGTOは主に<b>チェック(${Math.round((freqs.check || 0) * 100)}%)</b>で、ベットは少数派(${Math.round(betFreq * 100)}%)の選択です。ベット自体は間違いではありませんが頻度は低め — 中途半端な強さの手はチェックで様子を見るのが基本。打つならサイズは${want}が主体です。`;
     }
     // (2) 強い役(ティア4+)のチェック=スロープレイ。バリュー逃しだが致命傷ではない
     if (chosen === "check" && verdict === "blunder" && d.cls && d.cls.tier >= 4) {

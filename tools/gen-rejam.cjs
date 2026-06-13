@@ -126,6 +126,15 @@ for (const cls of CLASSES) {
       }
       th[h] = t;
     }
+    // ポケットペアの単調性を強制: 上位ペアは下位ペアを支配する(あらゆるレンジに対し勝率が上)ので、
+    // 「ジャムする最大スタック」は下位ペア以上でなければ理屈に合わない。解のノイズで生じた逆転を補正。
+    const PAIRS = ["22", "33", "44", "55", "66", "77", "88", "99", "TT", "JJ", "QQ", "KK", "AA"];
+    let pmax = 0;
+    for (const pl of PAIRS) {
+      const pi = ALL_HANDS.indexOf(pl);
+      if (th[pi] < pmax) th[pi] = pmax;   // 下位ペアより浅いジャム閾値はありえない → 引き上げ
+      else pmax = th[pi];
+    }
     RESULT[cls][ht] = th;
     console.log(`  ${cls} vs ${ht}: 完了 (${((Date.now() - t0) / 1000).toFixed(0)}秒)`);
   }
