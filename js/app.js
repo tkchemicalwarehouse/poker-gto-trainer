@@ -6,7 +6,7 @@
 const $ = id => document.getElementById(id);
 
 /* ---------- 画面遷移 ---------- */
-const SCREENS = ["screen-home", "screen-game", "screen-sim", "screen-stats", "screen-help"];
+const SCREENS = ["screen-home", "screen-game", "screen-sim", "screen-stats", "screen-help", "screen-drill", "screen-learn"];
 function showScreen(id) {
   for (const s of SCREENS) $(s).classList.toggle("hidden", s !== id);
 }
@@ -36,9 +36,16 @@ function recordLeak(ctx, advice, chosen, grade) {
   const c = L.cats[leak.key] || (L.cats[leak.key] = { key: leak.key, label: leak.label, count: 0, evLost: 0, examples: [] });
   c.label = leak.label; // ラベル更新(文言改善に追随)
   c.count++; c.evLost += grade.evLoss || 0;
-  // 復習ドリル用に直近の実例を最大5件保持
-  c.examples.unshift({ hand: ctx.heroLabel, pos: ctx.seatName, eff: Math.round((ctx.effBB || ctx.stackBB || 0) * 10) / 10,
-    chosen, primary: advice.primary, verdict: grade.verdict, date: new Date().toISOString().slice(0, 10) });
+  // 復習ドリル用に「再出題できるスナップショット」を最大5件保持(間隔反復の sr フィールド付き)
+  c.examples.unshift({
+    hand: ctx.heroLabel, pos: ctx.seatName,
+    eff: Math.round((ctx.effBB || ctx.stackBB || 0) * 10) / 10,
+    phase: ctx.phase, facing: ctx.facing || "none", openerClass: ctx.openerClass || null,
+    board: (ctx.board || []).map(cardText),
+    freqs: advice.freqs, primary: advice.primary,
+    chosen, verdict: grade.verdict, date: new Date().toISOString().slice(0, 10),
+    sr: 0, srLast: null,   // sr=連続正解数(3で習得), srLast=最終復習日
+  });
   if (c.examples.length > 5) c.examples.length = 5;
   L.total++; saveLeaks(L);
 }
@@ -1060,6 +1067,157 @@ function renderStats() {
     GTO一致率を上げつつ、この比率が高い状態を維持するのが理想です。</p>`;
 }
 
+/* ---------- 弱点復習ドリル(間隔反復) ---------- */
+const ACT_JP = { fold: "フォールド", call: "コール", jam: "オールイン", raise: "レイズ", raiseTo: "レイズ", bet33: "小ベット(33%)", bet66: "大ベット(66%)", bet: "ベット", check: "チェック" };
+let drillState = null;
+
+function collectDrillSpots() {
+  const L = loadLeaks();
+  const spots = [];
+  for (const c of Object.values(L.cats || {})) {
+    for (const ex of (c.examples || [])) {
+      if (!ex.freqs) continue;          // 旧形式(再出題不可)はスキップ
+      if ((ex.sr || 0) >= 3) continue;  // 3連続正解=習得済みは除外
+      spots.push(Object.assign({}, ex, { leakKey: c.key, leakLabel: c.label, catEv: c.evLost || 0 }));
+    }
+  }
+  spots.sort((a, b) => (b.catEv - a.catEv) || ((a.sr || 0) - (b.sr || 0)));
+  return spots.slice(0, 10);
+}
+function drillActionButtons(spot) {
+  if (spot.phase === "preflop") {
+    if (spot.facing === "jam") return [["fold", "フォールド"], ["call", "コール(=相手のオールインを受ける)"]];
+    if (spot.facing === "open") return [["fold", "フォールド"], ["call", "コール"], ["jam", "オールイン(3ベット)"]];
+    return [["fold", "フォールド"], ["raise", "レイズ(2.2BB)"], ["jam", "オールイン"]];
+  }
+  if (spot.facing === "bet") return [["fold", "フォールド"], ["call", "コール"], ["bet66", "レイズ"]];
+  return [["check", "チェック"], ["bet33", "小ベット(33%)"], ["bet66", "大ベット(66%)"]];
+}
+function gradeQuiz(spot, chosen) {
+  let ch = chosen;
+  if (spot.facing === "jam" && ch === "jam") ch = "call"; // 単独オールインへの被せ=コール
+  const f = (spot.freqs && spot.freqs[ch]) || 0;
+  const verdict = f >= 0.6 ? "best" : f >= 0.25 ? "mixed" : f >= 0.05 ? "minor" : "blunder";
+  return { verdict, correct: verdict === "best" || verdict === "mixed", f };
+}
+function spotSituation(spot) {
+  if (spot.phase === "preflop") {
+    if (spot.facing === "jam") return `${spot.pos}・<b>${spot.hand}</b>・${spot.eff}BB。<br>相手が<b>オールイン</b>してきた。受ける?降りる?`;
+    if (spot.facing === "open") return `${spot.pos}・<b>${spot.hand}</b>・有効${spot.eff}BB。<br><b>${spot.openerClass || "前"}</b>ポジションがオープン(レイズ)。どうする?`;
+    return `${spot.pos}・<b>${spot.hand}</b>・${spot.eff}BB。<br>あなたまで全員降り。最初のアクション。`;
+  }
+  return `${spot.pos}・<b>${spot.hand}</b>。<br>ボード: <b>${(spot.board || []).join("  ")}</b>${spot.facing === "bet" ? "。相手がベットしてきた" : "。あなたの番"}`;
+}
+function freqLabel(freqs) {
+  const m = { fold: "降", call: "コ", jam: "全", raise: "レ", bet33: "小", bet66: "大", check: "チェ" };
+  return Object.entries(freqs || {}).filter(([, v]) => v > 0.01).map(([k, v]) => `${m[k] || k}${Math.round(v * 100)}%`).join(" / ");
+}
+function renderDrill() {
+  drillState = { spots: collectDrillSpots(), i: 0, correct: 0 };
+  showQuiz();
+}
+function showQuiz() {
+  const s = drillState, body = $("drill-body");
+  if (!s.spots.length) {
+    body.innerHTML = `<p>復習する弱点がまだありません 🎉<br>実戦でミス(△僅差・✗ブランダー)が出ると、その局面がここに溜まり、間隔反復で復習できます。<br>成績画面の「🎯 あなたの弱点TOP3」と連動しています。</p>`;
+    return;
+  }
+  if (s.i >= s.spots.length) {
+    body.innerHTML = `<div class="drill-done"><div class="drill-score">${s.correct} / ${s.spots.length} 正解</div>
+      <p>${s.correct === s.spots.length ? "全問正解!この調子で実戦でも同じ判断を。" : "間違えた局面はまた出題されます。同じ局面を3回連続で正解すると『習得』となり卒業します。"}</p>
+      <button id="drill-again" class="big cta">もう一周</button></div>`;
+    $("drill-again").onclick = renderDrill;
+    return;
+  }
+  const spot = s.spots[s.i];
+  const btns = drillActionButtons(spot).map(([id, label]) => `<button class="drill-opt" data-id="${id}">${label}</button>`).join("");
+  body.innerHTML = `
+    <div class="drill-progress">問題 ${s.i + 1} / ${s.spots.length}　弱点「${spot.leakLabel}」</div>
+    <div class="drill-spot">${spotSituation(spot)}</div>
+    <div class="drill-opts">${btns}</div>
+    <div id="drill-feedback"></div>`;
+  body.querySelectorAll(".drill-opt").forEach(b => b.onclick = () => answerQuiz(spot, b.dataset.id));
+}
+function answerQuiz(spot, chosen) {
+  const g = gradeQuiz(spot, chosen);
+  const L = loadLeaks(), cat = L.cats[spot.leakKey];
+  if (cat) {
+    const ex = (cat.examples || []).find(e => e.hand === spot.hand && e.pos === spot.pos && e.eff === spot.eff && e.date === spot.date);
+    if (ex) { ex.sr = g.correct ? (ex.sr || 0) + 1 : 0; ex.srLast = new Date().toISOString().slice(0, 10); saveLeaks(L); }
+  }
+  if (g.correct) drillState.correct++;
+  const info = (typeof VERDICT_INFO !== "undefined") ? VERDICT_INFO[g.verdict] : null;
+  document.querySelectorAll(".drill-opt").forEach(b => {
+    b.disabled = true;
+    if (b.dataset.id === spot.primary) b.classList.add("opt-correct");
+    if (b.dataset.id === chosen && !g.correct) b.classList.add("opt-wrong");
+  });
+  const last = drillState.i + 1 >= drillState.spots.length;
+  $("drill-feedback").innerHTML = `
+    <div class="drill-result ${g.correct ? 'ok' : 'ng'}">${g.correct ? '⭕ 正解' : '❌ 不正解'}${info ? ' — ' + info.label : ''}</div>
+    <p>GTO推奨: <b>${ACT_JP[spot.primary] || spot.primary}</b>　<span class="dim">(頻度 ${freqLabel(spot.freqs)})</span></p>
+    <p class="drill-tip">この局面はあなたの弱点「<b>${spot.leakLabel}</b>」。意識して直すと一番伸びます。</p>
+    <button id="drill-next" class="big cta">${last ? "結果を見る" : "次の問題 →"}</button>`;
+  $("drill-next").onclick = () => { drillState.i++; showQuiz(); };
+}
+
+/* ---------- GTO講座(カリキュラム) ---------- */
+const LEARN_KEY = "pgt_learn_v1";
+const LESSONS = [
+  { id: "pushfold", title: "① プッシュ/フォールドの基礎", body:
+    `<p>持ちスタックが浅い(目安<b>10〜15BB以下</b>)とき、中盤戦の基本は<b>「オールイン(ジャム)か、降りるか」</b>の二択です。なぜか:</p>
+    <ul><li>小さくレイズしても、相手に3ベットされたら降りられない(スタックが浅すぎる)。だったら最初から全部入れて<b>フォールドエクイティ(相手を降ろす力)</b>を最大化する。</li>
+    <li>毎周、ポットには<b>SB+BB+アンティ=約2.5BB</b>の"置きチップ"がある。これを取りに行くのがジャムの最大の動機。降り続けるとブラインドで削られて死ぬ。</li>
+    <li>ジャムが通れば(全員降りれば)ノーリスクで2.5BBを獲得。コールされても、浅いのでエクイティの差が出にくい。</li></ul>
+    <p><b>位置が後ろ(BTN/SB)ほどジャムは広く</b>、前(UTG)ほど狭くなります。後ろは降ろせる人数が少ない=通りやすいからです。当アプリの「ナッシュ・ジャムレンジ」は、この計算を全ハンド×全スタックで解いた答えです。</p>
+    <p><b>覚えること:</b> 浅いほどジャム、後ろほど広く、降り続けは死。</p>` },
+  { id: "rejam", title: "② リジャム(3ベットオールイン)", body:
+    `<p>誰かがオープン(レイズ)した後、あなたが<b>オールインで被せる</b>のがリジャム(3ベットジャム)です。利益の正体:</p>
+    <ul><li>利益の大半は<b>「相手のオープンレンジの多くが降りて、ポットをタダ取りする」</b>部分。コールされて勝つ部分ではありません。</li>
+    <li>だから<b>相手のオープンが広いほど(レイトポジションのオープンほど)リジャムは広げられる</b>。降ろせる率が高いからです。</li>
+    <li>コールされたときに最低限戦えるエクイティ(Aハイやポケットペアが優秀)も必要。AKやAQ、中ポケットが好適。</li></ul>
+    <p>有効スタックが深いほどリスクが増えるので、リジャムできる上限スタックは手の強さで決まります(当アプリの閾値表)。<b>有効18BB超</b>になると、実戦GTOはオールインでなく<b>小さい3ベット</b>も混ぜ始めます。</p>
+    <p><b>覚えること:</b> リジャムは"降ろして勝つ"。相手のオープンが広い席ほど広く。</p>` },
+  { id: "bbdefense", title: "③ BBディフェンス(ビッグブラインドの守り)", body:
+    `<p>あなたがBBのとき、誰かのオープンに対して<b>普通より広く守れます</b>。理由:</p>
+    <ul><li>BBは既に1BBを払っている。だから追加で払う額に対して<b>ポットオッズが良い</b>(必要勝率が低い)。</li>
+    <li>全員の最後に行動できるので、情報も多い。</li></ul>
+    <p>守り方は2種類を使い分けます: <b>コール</b>(深い・ポストフロップで戦える手)と<b>リジャム</b>(中途半端な強さで、降ろしつつコールにも備える手)。相手のオープン位置で守る幅が変わり、<b>SBやBTNの広いオープンには非常に広く</b>、UTGの堅いオープンには絞って守ります。</p>
+    <p><b>覚えること:</b> BBはオッズが良いので広く守る。相手が後ろの席ほどさらに広く。</p>` },
+  { id: "icm", title: "④ ICMとファイナルテーブル", body:
+    `<p>トーナメントのチップは、そのまま現金ではありません。順位ごとに賞金が決まるため、<b>「チップのEV」と「賞金のEV」がズレます</b>。これを計算するのがICM(Malmuth-Harville法)です。</p>
+    <ul><li>1位になる確率 ≈ 自分のチップ ÷ 全体チップ。2位以下はその人を除いて同じ計算を繰り返して賞金期待値を出す。</li>
+    <li><b>バブル(入賞直前)やファイナルテーブルでは、飛んだときに失う賞金が大きい</b>。だから<b>必要勝率が上がる(ICMプレミアム)</b>。チップ上は微益のコールでも、賞金的には降りが正解、という場面が増える。</li>
+    <li>チップリーダーは"飛んでも痛くない"ので圧をかけ、ショートやミドルは"飛べないので耐える"。</li></ul>
+    <p>当アプリはFTで「チップEV」と「賞金EV(ICM)」が割れる場面を<b>「注意(caution)」</b>として両視点で見せます。どちらか一方の正解に潰しません。</p>
+    <p><b>覚えること:</b> 入賞が近いほど、飛ぶ手はより強くないとコールできない。</p>` },
+  { id: "postflop", title: "⑤ ポストフロップの基礎", body:
+    `<p>中盤戦はスタックが浅いので、フロップ以降は<b>SPR(スタック÷ポット)</b>が小さくなりがちです。</p>
+    <ul><li><b>SPR3以下</b>: トップペア級でも全額入れてOK(コミット)。</li>
+    <li><b>SPR6以上</b>: ワンペアで大きなポットを作らない。</li>
+    <li><b>チェック・トゥ・ザ・レイザー</b>: 前のストリートで攻めた人(レイザー)が有利なので、コーラー側はほぼ全部チェックして相手に打たせるのが基本。自分から打つ(ドンク)のはモンスターや強ドローを少頻度だけ。</li>
+    <li><b>Cベット</b>: 自分がレイザーなら、ボードが自分のレンジに有利なとき(Aハイのドライボード等)に高頻度でベット。中途半端な手は無理に打たずチェックで様子見。</li></ul>
+    <p><b>覚えること:</b> 浅いとワンペアでも入れ切る。攻めてない側はまずチェック。</p>` },
+];
+function loadLearn() { try { return JSON.parse(localStorage.getItem(LEARN_KEY)) || { done: {} }; } catch (e) { return { done: {} }; } }
+function saveLearn(l) { try { localStorage.setItem(LEARN_KEY, JSON.stringify(l)); } catch (e) { } }
+function renderLearn() {
+  const st = loadLearn();
+  const doneN = LESSONS.filter(l => st.done[l.id]).length;
+  $("learn-body").innerHTML =
+    `<p class="learn-prog">進捗: <b>${doneN}/${LESSONS.length}</b> 完了　<span class="dim">5〜30BB中盤戦の核となる考え方。実戦の判定と用語が揃っています。</span></p>` +
+    LESSONS.map(l => `<div class="lesson ${st.done[l.id] ? 'done' : ''}">
+      <div class="lesson-head" data-id="${l.id}"><span class="lesson-title">${st.done[l.id] ? '✅ ' : ''}${l.title}</span><span class="lesson-toggle">▼</span></div>
+      <div class="lesson-body hidden" id="lb-${l.id}">${l.body}
+        <button class="lesson-done" data-id="${l.id}">${st.done[l.id] ? '✓ 学習済み(もう一度読む場合はそのまま)' : 'この講座を学習した！'}</button></div>
+    </div>`).join("");
+  $("learn-body").querySelectorAll(".lesson-head").forEach(h => h.onclick = () => $("lb-" + h.dataset.id).classList.toggle("hidden"));
+  $("learn-body").querySelectorAll(".lesson-done").forEach(btn => btn.onclick = () => {
+    const st2 = loadLearn(); st2.done[btn.dataset.id] = true; saveLearn(st2); renderLearn();
+    $("lb-" + btn.dataset.id).classList.remove("hidden");
+  });
+}
+
 /* ---------- イベント登録 ---------- */
 window.addEventListener("DOMContentLoaded", () => {
   renderHomeStats();
@@ -1086,6 +1244,10 @@ window.addEventListener("DOMContentLoaded", () => {
   $("btn-sim").onclick = () => { showScreen("screen-sim"); };
   $("btn-stats").onclick = () => { renderStats(); showScreen("screen-stats"); };
   $("btn-help").onclick = () => showScreen("screen-help");
+  $("btn-drill").onclick = () => { renderDrill(); showScreen("screen-drill"); };
+  $("drill-back").onclick = () => showScreen("screen-home");
+  $("btn-learn").onclick = () => { renderLearn(); showScreen("screen-learn"); };
+  $("learn-back").onclick = () => showScreen("screen-home");
   $("btn-quit").onclick = () => { aborting = true; };
 
   $("bust-again").onclick = () => { $("bust-modal").classList.add("hidden"); startTournament(); };
