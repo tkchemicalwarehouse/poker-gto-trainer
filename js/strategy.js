@@ -494,22 +494,46 @@ async function postflopAdvice(ctx) {
       return { freqs, primary: maxFreqAction(freqs), data };
     }
 
+    // C-betできる側か(プリフロップアグレッサー、または先制権のある先手)
+    const aggressor = ctx.role === "pfr" || ctx.prevAggressorSeat == null;
+    const gutshot = cls.draws.gutshot;
     if (ctx.street === "flop") {
-      if (t >= 5) { setF(freqs, dry || spr > 4 ? { bet33: 0.8, bet66: 0.2 } : { bet66: 0.7, bet33: 0.3 }); }
-      else if (t === 4) { setF(freqs, dry ? { bet33: 0.85, check: 0.15 } : { bet66: 0.55, bet33: 0.35, check: 0.1 }); }
-      else if (t === 3) { setF(freqs, { bet33: 0.55, check: 0.45 }); }
-      else if (strongDraw) { setF(freqs, { bet33: 0.45, bet66: 0.2, check: 0.35 }); }
-      else if (t === 2) { setF(freqs, { check: 0.75, bet33: 0.25 }); }
-      else if (t === 1 && cls.draws.gutshot) { setF(freqs, { bet33: 0.4, check: 0.6 }); }
-      else if (ctx.role === "pfr" && dry && t <= 1) { setF(freqs, { bet33: 0.55, check: 0.45 }); } // レンジベット
-      else { setF(freqs, { check: 0.8, bet33: 0.2 }); }
-      if (multiway) shiftToward(freqs, "check", t >= 4 ? 0 : 0.3); // マルチウェイはブラフ減
+      // ソルバー傾向: ドライ=レンジの大半を小さくC-bet / ウェット=ポラライズ
+      if (aggressor && dry) {
+        // ドライ・静的ボード: 高頻度レンジベット(小サイズ)。全体で約70〜80%
+        if (t >= 5) setF(freqs, { bet33: 0.7, bet66: 0.3 });
+        else if (t === 4) setF(freqs, { bet33: 0.82, check: 0.18 });
+        else if (t === 3) setF(freqs, { bet33: 0.72, check: 0.28 });
+        else if (strongDraw) setF(freqs, { bet33: 0.55, bet66: 0.2, check: 0.25 });
+        else if (t === 2) setF(freqs, { bet33: 0.5, check: 0.5 });
+        else if (gutshot) setF(freqs, { bet33: 0.6, check: 0.4 });
+        else setF(freqs, { bet33: 0.55, check: 0.45 }); // エアもレンジベットで混ぜる
+      } else if (aggressor) {
+        // ウェット・動的ボード: ポラライズ(強い手・強ドローは大きく、中間はチェック多め)。全体約50〜55%
+        if (t >= 5) setF(freqs, { bet66: 0.75, bet33: 0.25 });
+        else if (t === 4) setF(freqs, { bet66: 0.6, bet33: 0.2, check: 0.2 });
+        else if (strongDraw) setF(freqs, { bet66: 0.5, bet33: 0.2, check: 0.3 });
+        else if (t === 3) setF(freqs, { bet33: 0.45, check: 0.55 });
+        else if (t === 2) setF(freqs, { bet33: 0.35, check: 0.65 });
+        else if (gutshot) setF(freqs, { bet66: 0.35, check: 0.65 });
+        else setF(freqs, { bet66: 0.22, bet33: 0.18, check: 0.6 }); // エアのセミブラフ/バランス ~40%
+      } else {
+        // 先制権のない側(リードベット=ドンクは限定的)
+        if (t >= 5) setF(freqs, { bet33: 0.5, check: 0.5 });
+        else if (strongDraw) setF(freqs, { bet33: 0.3, check: 0.7 });
+        else setF(freqs, { check: 0.85, bet33: 0.15 });
+      }
+      if (multiway) shiftToward(freqs, "check", t >= 4 ? 0.1 : 0.3); // マルチウェイはブラフ減
     } else if (ctx.street === "turn") {
-      if (t >= 5) { setF(freqs, spr <= 1.6 ? { jam: 0.5, bet66: 0.5 } : { bet66: 0.8, bet33: 0.2 }); }
-      else if (t === 4) { setF(freqs, spr <= 1.2 ? { jam: 0.4, bet66: 0.4, check: 0.2 } : { bet66: 0.6, check: 0.4 }); }
-      else if (strongDraw) { setF(freqs, spr <= 1.6 ? { jam: 0.35, bet66: 0.25, check: 0.4 } : { bet66: 0.4, check: 0.6 }); }
-      else if (t === 3) { setF(freqs, { check: 0.6, bet33: 0.4 }); }
+      // 2ndバレル: フロップでC-betした手が継続する。ソルバー傾向で約45〜55%継続
+      if (t >= 5) { setF(freqs, spr <= 1.6 ? { jam: 0.5, bet66: 0.5 } : { bet66: 0.85, bet33: 0.15 }); }
+      else if (t === 4) { setF(freqs, spr <= 1.2 ? { jam: 0.45, bet66: 0.4, check: 0.15 } : { bet66: 0.7, check: 0.3 }); }
+      else if (strongDraw) { setF(freqs, spr <= 1.6 ? { jam: 0.4, bet66: 0.3, check: 0.3 } : { bet66: 0.55, check: 0.45 }); }
+      else if (t === 3) { setF(freqs, { bet33: 0.45, check: 0.55 }); }
+      else if (aggressor && gutshot) { setF(freqs, { bet66: 0.4, check: 0.6 }); } // ガットでバレル継続
+      else if (aggressor) { setF(freqs, { bet66: 0.28, check: 0.72 }); } // エアの2ndバレル ~28%
       else { setF(freqs, { check: 0.85, bet33: 0.15 }); }
+      if (multiway) shiftToward(freqs, "check", t >= 4 ? 0.1 : 0.35);
     } else { // river
       const bluffCandidate = wasDrawHand(ctx.heroCards, ctx.board) && t <= 1;
       if (t >= 5) { setF(freqs, spr <= 1.8 ? { jam: 0.6, bet66: 0.4 } : { bet66: 0.85, bet33: 0.15 }); }

@@ -124,6 +124,21 @@ const SPOTS = [
 
 /* ポストフロップの黄金スポット */
 const POST_SPOTS = [
+  // C-bet頻度の回帰ガード(消極的すぎないこと)
+  { name: "PFRエアでもドライA94rで一定頻度C-bet(レンジベット)",
+    ctx: { heroCards: [mkCard(9, 0), mkCard(8, 1)], heroLabel: "T9o",
+      board: [mkCard(12, 1), mkCard(7, 2), mkCard(2, 3)], street: "flop",
+      potBB: 5, toCallBB: 0, heroBehindBB: 20, effBehindBB: 20, role: "pfr",
+      oppRange: parseRange("22+,A2s+,A2o+,K5s+,K9o+,Q9s+"), facing: "none", playersIn: 2, canRaise: false, fast: true,
+      posIdx: 5, seatName: "CO", phase: "postflop", prevAggressorSeat: 0, iWasPrevAggressor: true, aggressorActive: true },
+    want: a => ((a.freqs.bet33 || 0) + (a.freqs.bet66 || 0)) >= 0.45 },
+  { name: "PFRエアのウェット876でもセミブラフC-betを混ぜる",
+    ctx: { heroCards: [mkCard(12, 0), mkCard(11, 1)], heroLabel: "AKo",
+      board: [mkCard(6, 2), mkCard(5, 2), mkCard(4, 3)], street: "flop",
+      potBB: 5, toCallBB: 0, heroBehindBB: 20, effBehindBB: 20, role: "pfr",
+      oppRange: parseRange("22+,A2s+,A2o+,K5s+,K9o+,Q9s+,JTs"), facing: "none", playersIn: 2, canRaise: false, fast: true,
+      posIdx: 5, seatName: "CO", phase: "postflop", prevAggressorSeat: 0, iWasPrevAggressor: true, aggressorActive: true },
+    want: a => ((a.freqs.bet33 || 0) + (a.freqs.bet66 || 0)) >= 0.3 },
   { name: "コーラーはフロップでTPGKでもチェックが正解(チェック・トゥ・ザ・レイザー)",
     ctx: {
       heroCards: [mkCard(12, 0), mkCard(11, 2)], heroLabel: "AKo",
