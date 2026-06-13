@@ -362,6 +362,11 @@ button.cta:hover { background: linear-gradient(170deg, #ffe085, #e8b52e 55%, #c7
 #coach-verdict { font-size: 19px; font-weight: 800; padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; }
 #coach-body { font-size: 13px; line-height: 1.7; }
 #coach-body p { margin: 8px 0; }
+#coach-body .ex-voice {
+  font-size: 15px; font-weight: 700; color: var(--gold);
+  margin-bottom: 8px; padding-left: 10px; border-left: 3px solid var(--gold);
+  line-height: 1.5;
+}
 #coach-body .ex-head { font-size: 15px; margin-bottom: 4px; }
 #coach-body .ex-gto { background: var(--panel2); padding: 6px 10px; border-radius: 6px; margin-bottom: 6px; }
 #coach-body .pos { color: var(--green); }

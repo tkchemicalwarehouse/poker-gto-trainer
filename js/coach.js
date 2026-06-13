@@ -10,6 +10,49 @@ const VERDICT_INFO = {
   blunder: { label: "✗ ブランダー",   cls: "v-blunder", score: 0 },
 };
 
+/* ---------- 語彙の多様化(同じ表現を連続で出さない) ---------- */
+const _pickMemo = {};
+function pickVar(key, arr) {
+  if (!arr || arr.length === 0) return "";
+  if (arr.length === 1) return arr[0];
+  let i = (Math.random() * arr.length) | 0;
+  if (_pickMemo[key] === i) i = (i + 1) % arr.length; // 直前と同じを回避
+  _pickMemo[key] = i;
+  return arr[i];
+}
+
+// 判定ごとのメンター風一言(冒頭に出す。毎回違う表情を出して飽きさせない)
+const COACH_VOICE = {
+  best: [
+    "ナイス。これが基準だ。",
+    "完璧。何も足すことはない。",
+    "教科書通り。この感覚を体に染み込ませよう。",
+    "迷いなく取れたなら本物だ。",
+    "そう、それでいい。淡々と続けよう。",
+    "正解。強い選択は地味なことが多い。",
+  ],
+  mixed: [
+    "アリだ。ここはGTOも答えを混ぜる場面。",
+    "OK。どちらを選んでも責められない。",
+    "問題なし。これは「揺らぎ」が正しいスポット。",
+    "良い。相手に読まれないために、こういう手も混ぜる。",
+  ],
+  minor: [
+    "惜しい。方向は合っているが、詰めが甘い。",
+    "悪くないが、ベストではない。理由を見ておこう。",
+    "小さな漏れだ。塵も積もれば、になる前に直そう。",
+    "大事故ではない。だが上手い人はここを取りこぼさない。",
+    "方針は正解。あと一歩の精度だ。",
+  ],
+  blunder: [
+    "ここは見過ごせない。なぜダメか、しっかり残そう。",
+    "止まれ。これは長期で確実に削られる選択だ。",
+    "痛い一手。でも、ここで気づけば財産になる。",
+    "明確なミス。感情ではなく数字で決めよう。",
+    "これは高くつく。理由を理解すれば二度と踏まない。",
+  ],
+};
+
 function gradeDecision(ctx, advice, chosenId, act) {
   // ベット系のIDゆらぎを吸収
   let chosen = chosenId;
@@ -196,6 +239,9 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
   const d = advice.data;
   const lines = [];
   const hand = ctx.heroLabel;
+  if (verdict && COACH_VOICE[verdict]) {
+    lines.push(`<div class="ex-voice">${pickVar("voice", COACH_VOICE[verdict])}</div>`);
+  }
   lines.push(`<div class="ex-head"><b>${hand}</b> @ ${ctx.seatName} ` +
     (ctx.phase === "preflop" ? `(${ctx.stackBB.toFixed(1)}BB)` : `【${streetJP(ctx.street)}】`) + `</div>`);
   lines.push(`<div class="ex-gto">GTO戦略: <b>${freqsText(advice.freqs)}</b> — あなた: <b>${actionJP(chosen)}</b></div>`);
@@ -224,15 +270,31 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
       if (Math.abs(m) <= 0.5) {
         lines.push(`<p>ちょうど境界線上の<b>混合域</b>です。ジャムもフォールドもEVはほぼ同じ — どちらを選んでもミスではありません。</p>`);
       } else if (m > 0) {
-        const comfort = m >= 4 ? "余裕でジャム圏内。迷う必要のないオールインです" :
+        const comfort = m >= 4 ? pickVar("jamComfort", [
+            "余裕でジャム圏内。迷う必要のないオールインだ",
+            "どっしりジャム圏内。考え込む場面じゃない",
+            "ジャムの中心ど真ん中。自動的に押していい",
+          ]) :
           m >= 1.5 ? `ジャム圏内(余裕${m.toFixed(1)}BB)` : `ぎりぎりジャム圏内(余裕${m.toFixed(1)}BB)`;
         lines.push(`<p>${comfort}。` +
-          (chosen === "fold" ? `これを落とすとブラインド+アンティ<b>2.5BB</b>を奪うチャンスを毎周捨てることになります。` : "") + `</p>`);
+          (chosen === "fold" ? pickVar("foldMiss", [
+            "ここで降りると、ブラインド+アンティの<b>2.5BB</b>を毎周みすみす献上することになる。",
+            "降りるたびに<b>2.5BB</b>の置きチップを相手にプレゼントしている計算だ。",
+            "フォールドは「確実に取れる2.5BB」を捨てる行為。浅い卓では命取りになる。",
+          ]) : "") + `</p>`);
       } else {
-        const sever = -m >= 4 ? "明確に圏外。コールされた時に勝てないハンドです" :
+        const sever = -m >= 4 ? pickVar("jamOut", [
+            "明確に圏外。コールされたら勝ち目の薄いハンドだ",
+            "これはレンジの外。受けられた瞬間に後手に回る",
+            "押すには力不足。コールされると分が悪い",
+          ]) :
           -m >= 1.5 ? `圏外(あと${(-m).toFixed(1)}BB浅ければジャムでした)` : `僅かに圏外(あと${(-m).toFixed(1)}BB浅ければジャム)`;
         lines.push(`<p>${sever}。` +
-          (chosen === "jam" ? `フォールドエクイティを考慮してもEVが足りません。` : "") + `</p>`);
+          (chosen === "jam" ? pickVar("jamOverEV", [
+            "フォールドエクイティを足してもEVが届かない。",
+            "降ろせる見込みを計算に入れても、まだ赤字だ。",
+            "「相手が降りるかも」を勘定しても収支はマイナス。",
+          ]) : "") + `</p>`);
       }
       // FTのICM判定
       if (d.icmJamEval) {
@@ -351,11 +413,31 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
   else if (d.kind === "facingJam") {
     const ev = d.evCallBB;
     let headline;
-    if (ev > 1.5) headline = `圧倒的に+EVのコール(<b class="pos">+${ev.toFixed(2)}BB</b>)。スナップコールです。`;
-    else if (ev > 0.3) headline = `+EVのコール(<b class="pos">+${ev.toFixed(2)}BB</b>)。`;
-    else if (ev > -0.3) headline = `境界線上(EV ${ev >= 0 ? "+" : ""}${ev.toFixed(2)}BB)。どちらを選んでも大差ありません。`;
-    else if (ev > -1.5) headline = `-EVのコール(<b class="neg">${ev.toFixed(2)}BB</b>)。フォールドが正解。`;
-    else headline = `明確に-EV(<b class="neg">${ev.toFixed(2)}BB</b>)。これをコールし続けると長期で大損します。`;
+    if (ev > 1.5) headline = pickVar("callBig", [
+        `文句なしの+EVコール(<b class="pos">+${ev.toFixed(2)}BB</b>)。考える間もなくスナップ。`,
+        `これは即コール(<b class="pos">+${ev.toFixed(2)}BB</b>)。降りる理由が一つもない。`,
+        `おいしすぎるコール(<b class="pos">+${ev.toFixed(2)}BB</b>)。一瞬で手が出ていい。`,
+      ]);
+    else if (ev > 0.3) headline = pickVar("callPos", [
+        `+EVのコール(<b class="pos">+${ev.toFixed(2)}BB</b>)。`,
+        `収支はプラス(<b class="pos">+${ev.toFixed(2)}BB</b>)。受けて問題ない。`,
+        `数字は「コール」と言っている(<b class="pos">+${ev.toFixed(2)}BB</b>)。`,
+      ]);
+    else if (ev > -0.3) headline = pickVar("callEdge", [
+        `ほぼ五分(EV ${ev >= 0 ? "+" : ""}${ev.toFixed(2)}BB)。どちらでも大差ない。`,
+        `境界線上(EV ${ev >= 0 ? "+" : ""}${ev.toFixed(2)}BB)。コインの裏表に近い。`,
+        `紙一重(EV ${ev >= 0 ? "+" : ""}${ev.toFixed(2)}BB)。好みで選んでいい範囲。`,
+      ]);
+    else if (ev > -1.5) headline = pickVar("callNeg", [
+        `-EVのコール(<b class="neg">${ev.toFixed(2)}BB</b>)。ここは降りるが正解。`,
+        `赤字のコール(<b class="neg">${ev.toFixed(2)}BB</b>)。フォールドが勝る。`,
+        `わずかに損(<b class="neg">${ev.toFixed(2)}BB</b>)。手を出さないのが上手い。`,
+      ]);
+    else headline = pickVar("callBad", [
+        `はっきり-EV(<b class="neg">${ev.toFixed(2)}BB</b>)。続ければ長期で確実に削られる。`,
+        `大きく赤字(<b class="neg">${ev.toFixed(2)}BB</b>)。この手のコールが資金を溶かす。`,
+        `これは禁物(<b class="neg">${ev.toFixed(2)}BB</b>)。胸の高鳴りは無視して数字を見よう。`,
+      ]);
     lines.push(`<p>${headline}</p>`);
     lines.push(
       `<p>相手のジャムレンジ: 上位 <b>${d.jamRangePct.toFixed(1)}%</b><br>` +

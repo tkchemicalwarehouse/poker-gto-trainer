@@ -105,6 +105,46 @@ const TESTS = [
   { n:20, desc:"エア(72o)でフロップのベットにオールイン(ブラフレイズ)",
     ctx:pf([C(5,0),C(0,1)], [C(12,1),C(9,2),C(4,3)], {role:"caller", iWasPrevAggressor:false, prevAggressorSeat:3, posIdx:8, seatName:"BB", facing:"bet", toCallBB:3, potBB:8, canRaise:true}),
     act:{id:"jam",target:80000}, expect:(v)=>true, why:"ブラフレイズ頻度(参考)" },
+
+  // ── 攻めた追加(マルチウェイ/特殊ボード/3ベットポット/バレル) ──
+  // 21. マルチウェイでエアをC-bet(3人ポット)
+  { n:21, desc:"3人ポットでエア(QJ)をフロップC-bet",
+    ctx:pf([C(10,0),C(9,1)], [C(12,1),C(7,2),C(2,3)], {role:"pfr", playersIn:3, potBB:9}),
+    act:{id:"bet66",target:6000}, expect:(v)=>v!=="best", why:"マルチウェイのエアCBはブラフ頻度低" },
+  // 22. モノトーンボードでトップペア(フラッシュなし)をオールイン
+  { n:22, desc:"モノトーン♠ボードでトップペア(A♥K♦)をオーバーベット",
+    ctx:pf([C(12,1),C(11,2)], [C(12,0),C(7,0),C(2,0)], {role:"pfr", potBB:6, effBehindBB:18}),
+    act:{id:"jam",target:80000}, expect:(v)=>true, why:"モノトーンでのコミット(参考)" },
+  // 23. ペアボードでエアをブラフ(セットの可能性)
+  { n:23, desc:"ペアボード(K K 4)でエア(76o)をC-bet",
+    ctx:pf([C(5,0),C(4,1)], [C(11,0),C(11,1),C(2,2)], {role:"pfr", potBB:6}),
+    act:{id:"bet33",target:2000}, expect:(v)=>true, why:"ペアボードのレンジベット(参考)" },
+  // 24. オーバーペアをウェットボードのレイズにフォールド(過弱)
+  { n:24, desc:"オーバーペア(QQ)をJT9のレイズにフォールド",
+    ctx:pf([C(10,0),C(10,3)], [C(9,1),C(8,2),C(7,0)], {role:"pfr", facing:"raiseAllin", toCallBB:10, potBB:12, effBehindBB:10, oppRange:T.parseRange("JT,T9,98,QQ,99,88,77,J9s,KQs")}),
+    act:{id:"fold"}, expect:(v)=>true, why:"ウェットボードのオーバーペア対オールイン(参考)" },
+  // 25. ナッツ(ストレート)をスロープレイ(チェック)
+  { n:25, desc:"ナッツストレート(QT)をJ98ボードでチェック",
+    ctx:pf([C(10,0),C(8,1)], [C(9,1),C(7,2),C(6,0)], {role:"pfr", potBB:8, effBehindBB:16}),
+    act:{id:"check"}, expect:(v)=>v!=="blunder", why:"ナッツのスロープレイは致命傷でない" },
+  // 26. BvB: SB完全フォールド網からのBBチェック(option)
+  { n:26, desc:"BBでウォーク(全員フォールド)時のチェック",
+    ctx:fi("72o",8,20,{facing:"none"}), act:{id:"check"}, expect:(v)=>v==="best", why:"ウォークのチェックは当然" },
+  // 27. ターンバレル: フロップC-bet後ターンもエアでバレル
+  { n:27, desc:"ターンでエア(76o)を2バレル(リバー一歩手前)",
+    ctx:pf([C(5,0),C(4,1)], [C(12,1),C(9,2),C(2,3),C(5,2)], {street:"turn", role:"pfr", potBB:12, effBehindBB:20}),
+    act:{id:"bet66",target:8000}, expect:(v)=>true, why:"ターンバレル頻度(参考)" },
+  // 28. リバーで完成しなかったドローをブラフ(本来のセミブラフの続き)
+  { n:28, desc:"フラッシュ逃し(9♠8♠)をリバーでブラフオールイン",
+    ctx:pf([C(7,0),C(6,0)], [C(12,1),C(11,0),C(2,0),C(4,2),C(3,3)], {street:"river", role:"pfr", potBB:14, effBehindBB:18}),
+    act:{id:"jam",target:72000}, expect:(v)=>true, why:"ブラフ完遂頻度(参考)" },
+  // 29. セットをモノトーンボードで遅延(危険)
+  { n:29, desc:"セット(99)をモノトーン♦ボードでチェック",
+    ctx:pf([C(7,0),C(7,1)], [C(12,2),C(7,2),C(2,2)], {role:"pfr", potBB:6, effBehindBB:18}),
+    act:{id:"check"}, expect:(v)=>v!=="best", why:"危険ボードでのセット遅延は推奨されにくい" },
+  // 30. 深い30BBでのリンプ的ミニ3ベット
+  { n:30, desc:"AKs BB vs LP25BBオープンを最小3ベット(raiseTo小)",
+    ctx:fo("AKs","LP",25,8), act:{id:"raiseTo",target:24000}, expect:(v)=>true, why:"25BB 3ベットサイズ(参考)" },
 ];
 
 function gradeId(ctx, act) {
