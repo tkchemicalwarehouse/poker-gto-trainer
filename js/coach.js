@@ -60,7 +60,7 @@ const COACH_VOICE = {
   ],
 };
 
-function gradeDecision(ctx, advice, chosenId, act) {
+function gradeDecision(ctx, advice, chosenId, act, opts) {
   // ベット系のIDゆらぎを吸収
   let chosen = chosenId;
   const freqs = advice.freqs;
@@ -194,7 +194,17 @@ function gradeDecision(ctx, advice, chosenId, act) {
   // ポストフロップの注記をサイズ注記枠で表示(未設定時のみ)
   if (postNote && !sizing) sizing = { note: postNote };
 
-  return { verdict, evLoss, sizing, explanation: buildExplanation(ctx, advice, chosen, verdict, sizing) };
+  // ★頻度クランプ★ GTO自身が一定頻度で取る手は決して「ブランダー」にしない。
+  // (頻度こそGTOの正解度の証拠。混合戦略の片方を大失敗と呼ぶ矛盾を防ぐ)
+  // ただしサイズ指摘によるminor(アクションは正解・サイズが悪い)は意図的なので対象外。
+  const sizingPenalty = sizing && sizing.severity;
+  if (!sizingPenalty) {
+    if (verdict === "blunder" && f >= 0.25) { verdict = "mixed"; evLoss = 0; }
+    else if (verdict === "blunder" && f >= 0.10) { verdict = "minor"; evLoss = Math.min(evLoss, 0.4); }
+    else if (verdict === "minor" && f >= 0.30) { verdict = "mixed"; evLoss = 0; }
+  }
+
+  return { verdict, evLoss, sizing, explanation: (opts && opts.noExplain) ? "" : buildExplanation(ctx, advice, chosen, verdict, sizing) };
 }
 
 /* ベットサイズの妥当性を評価。戻り: {severity, evLoss, note} | null */

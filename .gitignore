@@ -12,3 +12,6 @@ tools/_ft_combined.cjs
 tools/runprobe.cjs
 tools/_probe2.cjs
 tools/_chk.cjs
+tools/_apa_combined.cjs
+tools/autoplay-log.txt
+tools/autoplay-result.json
