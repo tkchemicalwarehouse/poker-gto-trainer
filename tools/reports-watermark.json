@@ -1,0 +1,9 @@
+{
+  "lastProcessed": "2026-06-13T08:01:25.536Z",
+  "note": "GTO判定報告フォームの処理済み基準時刻。これより新しい time の報告だけを次回処理する(非破壊・履歴保持)。",
+  "sourceSheetUrl": "(未設定: フォーム→スプレッドシートにリンクし kimotsuki@tkchemical.info へ共有後、ここにURLを記載)",
+  "ownerAccount": "siriusfx819@gmail.com",
+  "history": [
+    { "at": "2026-06-14", "count": 14, "result": "バグ3件修正(facingJamコール正規化・少数派ベット緩和・リジャムペア単調化)。commit 6221832" }
+  ]
+}

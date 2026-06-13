@@ -19,6 +19,18 @@ let raw = fs.readFileSync(arg, "utf8");
 let reps = JSON.parse(raw);
 if (!Array.isArray(reps)) reps = [reps];
 
+// ウォーターマーク: 処理済み基準時刻より新しい報告だけに絞る(--all で全件)
+const wmPath = path.join(__dirname, "reports-watermark.json");
+let wm = null;
+if (!process.argv.includes("--all") && fs.existsSync(wmPath)) {
+  wm = JSON.parse(fs.readFileSync(wmPath, "utf8"));
+  const before = reps.length;
+  reps = reps.filter(r => r && r.time && r.time > wm.lastProcessed);
+  console.log(`ウォーターマーク ${wm.lastProcessed} より新しい報告: ${reps.length}/${before} 件(--allで全件)`);
+}
+let newestTime = wm ? wm.lastProcessed : null;
+for (const r of reps) if (r && r.time && (!newestTime || r.time > newestTime)) newestTime = r.time;
+
 let flagged = 0;
 for (let i = 0; i < reps.length; i++) {
   const rep = reps[i];
@@ -52,3 +64,4 @@ for (let i = 0; i < reps.length; i++) {
   if (rep.comment) console.log(`   💬 ${rep.comment}`);
 }
 console.log(`\n=== 矛盾(推奨追従なのにミス判定)の残存: ${flagged} 件 ===`);
+if (newestTime) console.log(`→ 全件対応し終えたら reports-watermark.json の lastProcessed を "${newestTime}" に更新`);
