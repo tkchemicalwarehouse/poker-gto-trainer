@@ -17,3 +17,4 @@ tools/autoplay-log.txt
 tools/autoplay-result.json
 tools/_valref_combined.cjs
 tools/_dev_combined.cjs
+.claude/

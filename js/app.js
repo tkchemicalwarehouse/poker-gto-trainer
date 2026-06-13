@@ -138,7 +138,11 @@ function buildSeats() {
     const ux = dx / len, uy = dy / len;
     // 座席ボックスは横長なので方向に応じたクリアランス+余白
     // 自席(s=0)はカードが大きく箱が縦長なので、縦クリアランスを大きく取る
-    const clearY = s === 0 ? (phone ? 112 : 124) : (phone ? 44 : 56);
+    // 下半分の席は中央へ向かう=上方向なので、自分の箱(名前行)に被らないよう多めに取る
+    const lower = y > 52;
+    const clearY = s === 0 ? (phone ? 112 : 124)
+      : lower ? (phone ? 92 : 108)
+      : (phone ? 44 : 56);
     const clear = Math.abs(ux) * (phone ? 52 : 68) + Math.abs(uy) * clearY + 16;
     let bx = sx + ux * clear;
     let by = sy + uy * clear;
@@ -288,8 +292,10 @@ function render(state) {
     const tags = [];
     if (p.tagAgg) tags.push(p.tagAgg);
     if (p.tagPass) tags.push(p.tagPass);
+    // 攻撃アクションには投入額を併記(RAISE/3BET/BET/ALL IN等。いくら入れたか一目で)
+    const aggAmt = (p.tagAgg && p.streetBet > 0) ? p.streetBet : 0;
     if (tags.length && state.street !== "idle") {
-      const key = tags.join("|");
+      const key = tags.join("|") + "|" + aggAmt;
       if (actEl.dataset.k !== key) {
         actEl.dataset.k = key;
         actEl.className = "seat-act";
@@ -297,7 +303,8 @@ function render(state) {
           const cls = t === "FOLD" ? "sa-fold" : t === "CHECK" ? "sa-check" : t === "CALL" ? "sa-call"
             : t === "ALL IN" ? "sa-allin" : t === "3BET" ? "sa-3bet" : t === "4BET" ? "sa-4bet"
             : /BET$/.test(t) && /^[5-9]/.test(t) ? "sa-5bet" : "sa-raise";
-          return `<div class="sa-tag ${cls}">${t}</div>`;
+          const amt = (t === p.tagAgg && aggAmt) ? `<span class="sa-amt">${fmtChips(aggAmt)}</span>` : "";
+          return `<div class="sa-tag ${cls}">${t}${amt}</div>`;
         }).join("");
       }
     } else if (actEl.dataset.k !== "") {
@@ -308,9 +315,15 @@ function render(state) {
     // ベットチップ(座席と中央の中間に表示)。フォールドした人のチップは消す(混乱防止)
     const betEl = $("bet-" + s);
     if (betEl) {
-      betEl.innerHTML = (p.streetBet > 0 && !p.folded && state.street !== "idle")
-        ? chipRowHTML(p.streetBet, 6) + `<div class="bet-amt">${fmtChips(p.streetBet)}</div>`
-        : "";
+      if (p.streetBet > 0 && !p.folded && state.street !== "idle") {
+        // 攻撃バッジ側に金額を出している席は、チップ脇の数字を消して重複を防ぐ(CO等)
+        const dupOnBadge = p.tagAgg && aggAmt;
+        // ブラインド投稿は「SB/BB+額」のドット字で何の額か分かるように(BB4,000等)
+        const lbl = (pos === "BB" || pos === "SB") ? pos + fmtChips(p.streetBet) : fmtChips(p.streetBet);
+        betEl.innerHTML = chipRowHTML(p.streetBet, 6) + (dupOnBadge ? "" : `<div class="bet-amt">${lbl}</div>`);
+      } else {
+        betEl.innerHTML = "";
+      }
     }
   }
 }

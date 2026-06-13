@@ -269,8 +269,9 @@ button.cta:hover { background: linear-gradient(170deg, #ffe085, #e8b52e 55%, #c7
   text-align: center; z-index: 3; pointer-events: none;
 }
 .bet-amt {
-  font-size: 11px; color: #ffd97a; font-weight: 800;
-  text-shadow: 0 1px 3px #000; margin-top: 3px; white-space: nowrap;
+  font-family: "Press Start 2P", monospace;
+  font-size: 9px; color: #ffd97a; letter-spacing: 0;
+  text-shadow: 1px 1px 0 #000; margin-top: 4px; white-space: nowrap;
 }
 
 /* ディーラーボタン */
@@ -645,6 +646,9 @@ body.mode-phone .prebar-row button { font-size: 12px; padding: 8px 3px; min-widt
   animation: actPop .16s steps(2) both;
 }
 @keyframes actPop { from { transform: translate(-50%, -50%) scale(.4); } }
+/* 自分の席はバッジがカードに被るので枠の上側に出す */
+.seat.hero .seat-act { top: -8px; transform: translate(-50%, -100%); animation-name: actPopHero; }
+@keyframes actPopHero { from { transform: translate(-50%, -100%) scale(.4); } }
 .sa-tag {
   font-family: "Press Start 2P", monospace;
   font-size: 10px; padding: 4px 7px; white-space: nowrap;
@@ -660,7 +664,9 @@ body.mode-phone .prebar-row button { font-size: 12px; padding: 8px 3px; min-widt
 .sa-tag.sa-4bet  { color: #ff7bff; border-color: #ff7bff; }
 .sa-tag.sa-5bet  { color: #4dffff; border-color: #4dffff; }
 .sa-tag.sa-allin { color: #ff3355; border-color: #ff3355; animation: allinColors .7s steps(1) infinite; }
+.sa-tag .sa-amt { display: block; margin-top: 2px; font-size: 8px; color: #ffe2a0; letter-spacing: 0; }
 body.mode-phone .sa-tag { font-size: 8px; padding: 3px 5px; }
+body.mode-phone .sa-tag .sa-amt { font-size: 7px; }
 
 /* 右下の大型ブラインド表示 */
 #blind-corner {
@@ -904,7 +910,7 @@ body.mode-phone #coach-panel {
 }
 body.mode-phone .rg-cell { font-size: 7px; }
 body.mode-phone #toast { top: 12%; font-size: 14px; padding: 8px 18px; }
-body.mode-phone .bet-amt { font-size: 10px; }
+body.mode-phone .bet-amt { font-size: 7px; }
 body.mode-phone #pot-disp { font-size: 13px; }
 
 /* 画面幅による微調整(モード未選択時の保険) */
