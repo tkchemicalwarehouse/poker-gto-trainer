@@ -9,3 +9,5 @@ tools/_audit_combined.cjs
 tools/_probe*.cjs
 tools/_adv_combined.cjs
 tools/_ft_combined.cjs
+tools/runprobe.cjs
+tools/_probe2.cjs

@@ -495,26 +495,36 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
     // 見出しは「エクイティ vs (ICM補正後の)必要勝率」で決める=結論と必ず一致させる
     const icmOn = d.icmPremium > 0.005 && d.icmReq != null;
     const thr = d.threshold != null ? d.threshold : d.breakeven;
-    const eqMargin = d.equity - thr;            // +なら継続、−ならフォールド
+    const eqMargin = d.equity - thr;            // +なら継続、−なら降り
+    const callRight = eqMargin >= 0;             // コールが推奨か
+    const userCalled = chosen === "call";
+    const matched = userCalled === callRight;    // 自分の選択が推奨と一致したか
+    const eqs = `勝率<b>${pct(d.equity)}</b> ${callRight ? "≥" : "<"} 必要<b>${pct(thr)}</b>`;
     let headline;
-    if (eqMargin > 0.06) headline = pickVar("callBig", [
-        `文句なしのコール。エクイティ<b>${pct(d.equity)}</b>が必要勝率<b>${pct(thr)}</b>を大きく上回る。`,
-        `迷わず受ける場面。勝率<b>${pct(d.equity)}</b> ≫ 必要<b>${pct(thr)}</b>。`,
-        `しっかり優位。<b>${pct(d.equity)}</b>対<b>${pct(thr)}</b>でコールが正解。`,
-      ]);
-    else if (eqMargin > 0.015) headline = pickVar("callPos", [
-        `コールが上回る(勝率<b>${pct(d.equity)}</b> > 必要<b>${pct(thr)}</b>)。${icmOn ? "ICM込みでも継続でいい。" : ""}`,
-        `受けて良い。エクイティが必要勝率をきちんと超えている。${icmOn ? "賞金換算でもコール優位。" : ""}`,
-      ]);
-    else if (eqMargin > -0.015) headline = pickVar("callEdge", [
-        `ほぼ五分(勝率<b>${pct(d.equity)}</b> ≈ 必要<b>${pct(thr)}</b>)。どちらでも大差ない。`,
-        `境界線上。コールとフォールドのEVは紙一重で、好みの範囲。`,
-      ]);
-    else headline = pickVar("callNeg", [
-        `フォールドが正解。勝率<b>${pct(d.equity)}</b>が必要勝率<b>${pct(thr)}</b>に届かない。`,
-        `ここは降りる。エクイティが必要勝率に足りていない。`,
-        `手を出さないのが上手い。${pct(d.equity)} < ${pct(thr)} で継続は損。`,
-      ]);
+    if (callRight) {
+      // コールが正解
+      if (matched) headline = pickVar("callRightYes", [
+          `ナイスコール。${eqs}で、受けて正解。`,
+          `その通り、ここはコール。${eqs}。`,
+          `よく受けた。エクイティが必要勝率を上回っている(${eqs})。`,
+        ]);
+      else headline = pickVar("callRightNo", [
+          `もったいない。本当は<b>コール</b>が正解だった(${eqs})。降りると取れる利益を逃す。`,
+          `ここはコールすべきだった。${eqs}で、フォールドは損。`,
+        ]);
+    } else {
+      // フォールドが正解
+      if (matched) headline = pickVar("foldRightYes", [
+          `ナイスフォールド。${eqs}だから、降りて正解。`,
+          `正しく降りた。${eqs}で、コールは損だった。`,
+          `その判断でいい。エクイティが必要勝率に届かない(${eqs})。`,
+        ]);
+      else headline = pickVar("foldRightNo", [
+          `ここは<b>フォールド</b>が正解。${eqs}で、コールは長期で損になる。`,
+          `降りるべきだった。${eqs} — 受けるとEVを失う。`,
+          `この手は捨て場。${eqs}でコールは割に合わない。`,
+        ]);
+    }
     lines.push(`<p>${headline}</p>`);
     lines.push(
       `<p>相手のジャムレンジ: 上位 <b>${d.jamRangePct.toFixed(1)}%</b><br>` +
