@@ -217,6 +217,40 @@ function gradeDecision(ctx, advice, chosenId, act, opts) {
   return { verdict, evLoss, sizing, explanation: (opts && opts.noExplain) ? "" : buildExplanation(ctx, advice, chosen, verdict, sizing) };
 }
 
+/* ミスを「漏れ(リーク)カテゴリ」に分類する。学習者個人の弱点傾向を集計するため。
+ * chosen は gradeDecision に渡すのと同じ正規化済みID。戻り: {key,label} | null(ミスでなければnull) */
+function classifyLeak(ctx, advice, chosen, verdict) {
+  if (verdict !== "blunder" && verdict !== "minor") return null;
+  const d = advice.data || {};
+  const k = d.kind;
+  const prim = advice.primary;
+  const aggr = chosen === "jam" || chosen === "raise" || chosen === "raiseTo" || chosen === "bet33" || chosen === "bet66" || chosen === "bet";
+  if (ctx.phase === "preflop") {
+    if (k === "facingJam") {
+      if (chosen === "fold" && prim === "call") return { key: "pf_jam_tight", label: "オールインに対し、コールできる手を降りすぎ(タイト)" };
+      if ((chosen === "call" || chosen === "jam") && prim === "fold") return { key: "pf_jam_loose", label: "降りるべきオールインにコールしすぎ(ルース)" };
+    }
+    if (k === "facingOpen") {
+      if (chosen === "fold" && prim === "jam") return { key: "pf_open_missjam", label: "リジャム(3ベットオールイン)すべき手を降りている" };
+      if (chosen === "call" && prim === "jam") return { key: "pf_open_flat", label: "ジャム推奨の手を、コールで受けてしまう" };
+      if (aggr && prim === "fold") return { key: "pf_open_overplay", label: "降りるべき手で3ベット/参加しすぎ" };
+    }
+    if (k === "openJam" || k === "openRaise") {
+      if (chosen === "fold" && (prim === "jam" || prim === "raise")) return { key: "pf_open_tight", label: "オープン(参加)すべき手を降りすぎ(タイト)" };
+      if (chosen === "jam" && prim === "raise") return { key: "pf_overjam", label: "レイズで十分な手をオールイン(オーバージャム)" };
+      if (chosen === "raise" && prim === "jam") return { key: "pf_underjam", label: "ジャムすべき浅さでミニレイズしている" };
+    }
+  } else {
+    const fr = advice.freqs || {};
+    const betFreq = (fr.bet33 || 0) + (fr.bet66 || 0) + (fr.jam || 0);
+    if (aggr && (fr.check || 0) > betFreq) return { key: "post_overbet", label: "ポストフロップ: チェック主体の局面で打ちすぎ" };
+    if (chosen === "check" && betFreq > (fr.check || 0)) return { key: "post_missvalue", label: "ポストフロップ: ベット主体の局面でチェック(バリュー逃し)" };
+    if (chosen === "fold") return { key: "post_overfold", label: "ポストフロップ: 降りすぎ" };
+    return { key: "post_other", label: "ポストフロップの判断ミス" };
+  }
+  return { key: k ? "other_" + k : "other", label: "その他の判断ミス" };
+}
+
 /* ベットサイズの妥当性を評価。戻り: {severity, evLoss, note} | null */
 function evalSizing(ctx, advice, chosen, act) {
   const bb = (typeof LIVE !== "undefined") ? LIVE.bb : 4000;

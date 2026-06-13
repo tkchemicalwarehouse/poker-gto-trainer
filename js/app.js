@@ -21,6 +21,28 @@ function saveRecord(rec) {
   try { localStorage.setItem(REC_KEY, JSON.stringify(rec)); } catch (e) { }
 }
 
+/* ---------- 漏れ(リーク)集計: あなた個人の弱点傾向 ---------- */
+const LEAK_KEY = "pgt_leaks_v1";
+function loadLeaks() {
+  try { return JSON.parse(localStorage.getItem(LEAK_KEY)) || { cats: {}, total: 0 }; }
+  catch (e) { return { cats: {}, total: 0 }; }
+}
+function saveLeaks(l) { try { localStorage.setItem(LEAK_KEY, JSON.stringify(l)); } catch (e) { } }
+function recordLeak(ctx, advice, chosen, grade) {
+  if (typeof classifyLeak !== "function") return;
+  const leak = classifyLeak(ctx, advice, chosen, grade.verdict);
+  if (!leak) return;
+  const L = loadLeaks();
+  const c = L.cats[leak.key] || (L.cats[leak.key] = { key: leak.key, label: leak.label, count: 0, evLost: 0, examples: [] });
+  c.label = leak.label; // ラベル更新(文言改善に追随)
+  c.count++; c.evLost += grade.evLoss || 0;
+  // 復習ドリル用に直近の実例を最大5件保持
+  c.examples.unshift({ hand: ctx.heroLabel, pos: ctx.seatName, eff: Math.round((ctx.effBB || ctx.stackBB || 0) * 10) / 10,
+    chosen, primary: advice.primary, verdict: grade.verdict, date: new Date().toISOString().slice(0, 10) });
+  if (c.examples.length > 5) c.examples.length = 5;
+  L.total++; saveLeaks(L);
+}
+
 /* ---------- ゲーム状態 ---------- */
 let G = null;            // 現在のトーナメント state
 let aborting = false;
@@ -489,6 +511,7 @@ async function finalizeHeroAct(ctx, act, fast) {
   tally.evLost += grade.evLoss;
   if (!tally.perHand[G.handNo]) tally.perHand[G.handNo] = [];
   tally.perHand[G.handNo].push({ verdict: grade.verdict, evLoss: grade.evLoss, action: act.id, phase: ctx.phase });
+  recordLeak(ctx, advice, gradeIdFor(act, ctx), grade);  // 個人の弱点傾向を永続集計
   window.__lastReport = buildReport(ctx, advice, act, grade);
 
   const mode = coachMode();
@@ -998,6 +1021,28 @@ function renderStats() {
   for (let i = 0; i < nb; i++) bars += `<span>${i * width}〜</span>`;
   bars += `</div>`;
 
+  // あなたの弱点(漏れ)TOP3: EV損失合計の大きい順
+  const L = loadLeaks();
+  const leakArr = Object.values(L.cats || {}).sort((a, b) => (b.evLost - a.evLost) || (b.count - a.count));
+  let leakHtml = "";
+  if (leakArr.length) {
+    const top = leakArr.slice(0, 3);
+    const items = top.map((c, i) => {
+      const ex = c.examples && c.examples[0];
+      const exTxt = ex ? `直近: ${ex.pos} ${ex.hand} ${ex.eff}BB(${({ fold: "降り", call: "コール", jam: "オールイン", raise: "レイズ", raiseTo: "レイズ", bet33: "ベット小", bet66: "ベット大", bet: "ベット", check: "チェック" })[ex.chosen] || ex.chosen})` : "";
+      return `<div class="leak-item">
+        <div class="leak-rank">${i + 1}</div>
+        <div class="leak-main">
+          <div class="leak-label">${c.label}</div>
+          <div class="leak-sub">${c.count}回 ・ 推定損失 ${c.evLost.toFixed(1)}BB${exTxt ? " ・ " + exTxt : ""}</div>
+        </div>
+      </div>`;
+    }).join("");
+    leakHtml = `<h3>🎯 あなたの弱点 TOP3(直すと一番伸びる順)</h3>
+      <div class="leak-list">${items}</div>
+      <p style="color:var(--dim);font-size:12px;margin:6px 0 4px">ミスをEV損失の大きい順に集計。ここを意識して打つだけで一致率が上がります。${L.total ? `(総ミス記録 ${L.total}件)` : ""}</p>`;
+  }
+
   $("stats-body").innerHTML = `
     <div class="stat-grid">
       <div class="stat-card"><div class="num">${ts.length}</div><div class="lbl">挑戦回数</div></div>
@@ -1008,6 +1053,7 @@ function renderStats() {
       <div class="stat-card"><div class="num">${evLost.toFixed(1)}BB</div><div class="lbl">累計EV損失(推定)</div></div>
       <div class="stat-card"><div class="num">${busts.length ? (varBusts / busts.length * 100).toFixed(0) : "—"}%</div><div class="lbl">分散によるバスト率</div></div>
     </div>
+    ${leakHtml}
     <h3>生存ハンド数の分布</h3>
     ${bars}
     <p style="margin-top:14px;color:var(--dim)">「分散によるバスト率」が高いほど、あなたは正しくプレイして運に負けただけです。
@@ -1059,7 +1105,7 @@ window.addEventListener("DOMContentLoaded", () => {
   $("sim-back").onclick = () => { simCancel = true; showScreen("screen-home"); };
   $("stats-back").onclick = () => showScreen("screen-home");
   $("stats-reset").onclick = () => {
-    if (confirm("成績をすべて削除しますか?")) { localStorage.removeItem(REC_KEY); renderStats(); renderHomeStats(); }
+    if (confirm("成績をすべて削除しますか?")) { localStorage.removeItem(REC_KEY); localStorage.removeItem(LEAK_KEY); renderStats(); renderHomeStats(); }
   };
   $("help-back").onclick = () => showScreen("screen-home");
 });
