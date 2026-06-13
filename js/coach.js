@@ -125,14 +125,23 @@ function gradeDecision(ctx, advice, chosenId, act) {
     };
   }
   if (ftSplit) {
+    // 表示される推奨ライン(advice.primary はICM補正後)に沿ったか
+    const aggId = (d.kind === "facingJam") ? "call" : "jam";
+    const recommendAgg = (advice.primary === aggId);
     if (ftSplit.chipDo !== ftSplit.icmDo) {
-      verdict = "caution";                 // EVとICMで割れる → 注意(ミスではない)
+      // EVとICMで割れる場面
+      if (ftSplit.userDid === recommendAgg) {
+        verdict = "best";          // 推奨ライン通りにプレイ → 正解(叱らない)
+        d._ftFollowed = true;      // ただし「もう一方の視点」も補足説明する
+      } else {
+        verdict = "caution";       // 推奨と逆=もう一方の枠組みに沿った逸脱 → 注意(ミスではない)
+      }
     } else {
-      const correct = ftSplit.chipDo;      // 両者一致
+      const correct = ftSplit.chipDo;      // EVもICMも同じ結論
       if (ftSplit.userDid === correct) {
         if (verdict === "minor" || verdict === "blunder") verdict = "best";
       } else {
-        verdict = "blunder";               // EVもICMも「違う」と言う → 本物のミス
+        verdict = "blunder";               // 両方が「違う」と言う → 本物のミス
       }
     }
     d._ftSplit = ftSplit;
@@ -270,12 +279,19 @@ function splitBox(ft, d, ctx) {
     icmDetail = `賞金で見ると、ジャムの賞金期待値<b>${(i.evJam*100).toFixed(2)}%</b> vs フォールド<b>${(i.evFold*100).toFixed(2)}%</b>。` +
       `飛んだ時の順位下落の代償を含めると、賞金重視なら<b>${icmSide}</b>。`;
   }
+  const followed = d._ftFollowed;
+  const intro = followed
+    ? `<b>このスポットはEVとICMで答えが割れます。あなたは推奨ライン(賞金を守る側)に沿った正しい選択をしました。</b>もう一方の見方も知っておきましょう。`
+    : `<b>このスポットはEVとICMで答えが割れます。だから「ミス」ではなく「注意」です。</b>`;
+  const concl = followed
+    ? `③ <b>結論: 正解</b> — あなたの<b>${ft.userDid?ft.agg:ft.pass}</b>は推奨どおり。チップだけ見ると別の選択も+ですが、後半戦で順位(賞金)を守るこの判断が基本的に勝ります。`
+    : `③ <b>結論: 注意</b> — あなたの<b>${ft.userDid?ft.agg:ft.pass}</b>は${ft.userDid===ft.chipDo?"チップEV":"ICM"}側に沿った判断で、一理あります。` +
+      `どちらを採るかは「次のペイジャンプの近さ」「自分のスキル優位」「相手の傾向」で決めます。一般に、入賞直後やビッグスタック相手はICM寄り(慎重)、賞金がフラットな局面や格下相手はチップEV寄り(積極)が目安です。`;
   return `<div class="split-box">` +
-    `<p><b>このスポットはEVとICMで答えが割れます。だから「ミス」ではなく「注意」です。</b></p>` +
+    `<p>${intro}</p>` +
     `<p>① <b class="sb-ev">チップEVの考え方</b><br>${evDetail}</p>` +
     `<p>② <b class="sb-icm">ICM(賞金)の考え方</b><br>${icmDetail}</p>` +
-    `<p>③ <b>結論: 注意</b> — あなたの<b>${ft.userDid?ft.agg:ft.pass}</b>は${ft.userDid===ft.chipDo?"チップEV":"ICM"}側に沿った判断で、一理あります。` +
-    `どちらを採るかは「次のペイジャンプの近さ」「自分のスキル優位」「相手の傾向」で決めます。一般に、入賞直後やビッグスタック相手はICM寄り(慎重)、賞金がフラットな局面や格下相手はチップEV寄り(積極)が目安です。</p>` +
+    `<p>${concl}</p>` +
     `</div>`;
 }
 function hl(x){ return `<b>${pct(x)}</b>`; }
@@ -354,7 +370,7 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
           ]) : "") + `</p>`);
       }
       // FTのICM判定
-      if (d._ftSplit && verdict === "caution") {
+      if (d._ftSplit && (verdict === "caution" || d._ftFollowed)) {
         lines.push(splitBox(d._ftSplit, d, ctx));   // EVとICMで割れる → 二視点で説明
       } else if (d.icmJamEval) {
         const i = d.icmJamEval;
@@ -423,8 +439,8 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
     if (d.eqVsOpen != null) {
       lines.push(`<p>相手のオープンレンジに対する ${hand} の生エクイティ: <b>${pct(d.eqVsOpen)}</b>(事前計算テーブルによる厳密値)</p>`);
     }
-    // EVとICMが割れる場合は二視点の「注意」解説に切り替え(矛盾回避)
-    if (d._ftSplit && verdict === "caution") {
+    // EVとICMが割れる場合は二視点解説に切り替え(注意でも、推奨に従った正解でも)
+    if (d._ftSplit && (verdict === "caution" || d._ftFollowed)) {
       lines.push(splitBox(d._ftSplit, d, ctx));
       lines.push(rangeGridHTML(d.rejamRange, d.callRange, hand, "オールイン", "コール"));
       return lines.join("\n");
@@ -470,8 +486,8 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
   }
   else if (d.kind === "facingJam") {
     const ev = d.evCallBB;
-    // EVとICMが割れる場合は二視点の「注意」解説に切り替え(矛盾回避)
-    if (d._ftSplit && verdict === "caution") {
+    // EVとICMが割れる場合は二視点解説に切り替え(注意でも、推奨に従った正解でも)
+    if (d._ftSplit && (verdict === "caution" || d._ftFollowed)) {
       lines.push(splitBox(d._ftSplit, d, ctx));
       lines.push(`<p><span class="dim">相手のジャムレンジ上位${d.jamRangePct.toFixed(0)}% / ${hand}のエクイティ${pct(d.equity)}(169×169厳密)</span></p>`);
       return lines.join("\n");

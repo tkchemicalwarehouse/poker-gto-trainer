@@ -86,6 +86,12 @@ const SPOTS = [
       potBB: 17.5, toCallBB: 14, fast: true, seatName: "BB", phase: "preflop",
       icm: { stacks: [120000, 140000, 60000, 90000, 40000], heroI: 0, villI: 1, potChips: 70000, toCallChips: 56000, payouts: Icm.payoutsFor(18, 5) },
     }, gradeAct: ["call", { id: "call" }, g => g.verdict === "caution"] },
+  { name: "割れる場面で推奨どおりフォールドは正解(叱らない)", ctx: {
+      heroCards: combosOfLabel("KQo")[0], heroLabel: "KQo", posIdx: 8, stackBB: 30, effBB: 15, tableN: 5,
+      facing: "jam", jamRange: nashRangeAt(5, 15), jamCount: 1, playersBehind: 0,
+      potBB: 17.5, toCallBB: 14, fast: true, seatName: "BB", phase: "preflop",
+      icm: { stacks: [120000, 140000, 60000, 90000, 40000], heroI: 0, villI: 1, potChips: 70000, toCallChips: 56000, payouts: Icm.payoutsFor(18, 5) },
+    }, gradeAct: ["fold", { id: "fold" }, g => g.verdict === "best"] },
   { name: "ICM: バスト者は最下位賞金を保証", ctx: null, want: () => {
       const ev = Icm.icmEVs([0, 100000, 50000], [0.5, 0.3, 0.2]);
       return Math.abs(ev[0] - 0.2) < 0.001 && Math.abs(ev[0] + ev[1] + ev[2] - 1.0) < 0.001;
