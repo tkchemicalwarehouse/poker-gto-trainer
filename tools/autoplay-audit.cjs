@@ -139,8 +139,8 @@ global.__onBotAct = (ctx, act) => recordStats(ctx, act);
     }
     S.tourneys++; S.hands += st.handNo;
     if (minAlive <= 2) S.hu++;
-    // seat0(自分)の最終順位を記録
-    const place = st.won ? 1 : Math.min(9, (st.fieldLeft || 0) + 1);
+    // seat0(自分)の最終順位を記録(実ゲーム app.js と同じ式: 順位=fieldLeft、バスト下限2位)
+    const place = st.won ? 1 : Math.max(2, Math.min(9, st.fieldLeft || 9));
     S.finishes[place] = (S.finishes[place] || 0) + 1;
     S.finishSum += place; S.finishN++;
     if (st.won) S.wins++;
