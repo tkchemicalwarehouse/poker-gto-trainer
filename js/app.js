@@ -254,7 +254,8 @@ function render(state) {
     }
     el.classList.remove("out");
     const pos = posNameOf(state, s);
-    el.classList.toggle("folded", p.folded && state.street !== "idle");
+    // 自分の席はフォールド後も読めるように重い減光をかけない(カードのみ薄くする)
+    el.classList.toggle("folded", p.folded && state.street !== "idle" && !p.isHero);
     el.classList.toggle("hero", p.isHero);
     el.classList.toggle("actor", state.actorSeat === s && state.street !== "idle");
     const badgeCls = pos === "BTN" ? "pb-btn" : pos === "SB" ? "pb-sb" : pos === "BB" ? "pb-bb" : "";
@@ -269,9 +270,19 @@ function render(state) {
     fill.className = "sg-fill " + sgCls;
     fill.style.width = Math.min(100, bb / 40 * 100) + "%";
     const cardsEl = el.querySelector(".seat-cards");
-    if (state.street === "idle" || p.folded) setCards(cardsEl, "none", "");
-    else if (p.isHero || p.showCards) setCards(cardsEl, "f" + p.cards.join(","), p.cards.map(c => cardHTML(c, !p.isHero)).join(""));
-    else setCards(cardsEl, "back" + state.handNo, backHTML(true) + backHTML(true));
+    const heroFolded = p.isHero && p.folded && state.street !== "idle";
+    if (state.street === "idle") { setCards(cardsEl, "none", ""); cardsEl.classList.remove("folded-cards"); }
+    else if (heroFolded) {
+      // 自分はフォールド後もハンド終了まで手札を薄く表示
+      setCards(cardsEl, "hf" + p.cards.join(","), p.cards.map(c => cardHTML(c)).join(""));
+      cardsEl.classList.add("folded-cards");
+    }
+    else if (p.folded) { setCards(cardsEl, "none", ""); cardsEl.classList.remove("folded-cards"); }
+    else {
+      cardsEl.classList.remove("folded-cards");
+      if (p.isHero || p.showCards) setCards(cardsEl, "f" + p.cards.join(","), p.cards.map(c => cardHTML(c, !p.isHero)).join(""));
+      else setCards(cardsEl, "back" + state.handNo, backHTML(true) + backHTML(true));
+    }
     // アクションのドット文字バッジ(RAISE+FOLDの重ね表示、3BET/4BET/5BETは色分け)
     const actEl = el.querySelector(".seat-act");
     const tags = [];
