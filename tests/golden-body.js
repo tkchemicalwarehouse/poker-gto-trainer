@@ -141,6 +141,24 @@ const POST_SPOTS = [
       prevAggressorSeat: 3, iWasPrevAggressor: false, aggressorActive: true,
     },
     want: a => a.primary === "fold" },
+  { name: "TPGKで66%ベット(GTOは33%)はサイズ軽微ミス(ブランダーでない)",
+    ctx: {
+      heroCards: [mkCard(12, 0), mkCard(11, 2)], heroLabel: "AKo",
+      board: [mkCard(12, 1), mkCard(9, 2), mkCard(4, 3)], street: "flop",
+      potBB: 6, toCallBB: 0, heroBehindBB: 18, effBehindBB: 18, role: "pfr",
+      oppRange: parseRange("22+,A2s+,ATo+,KTs+,KQo,QTs+"), facing: "none", playersIn: 2, canRaise: false, fast: true,
+      posIdx: 5, seatName: "CO", phase: "postflop", prevAggressorSeat: 0, iWasPrevAggressor: true, aggressorActive: true,
+    },
+    gradeAct: ["bet66", { id: "bet66", target: 24000 }, g => g.verdict === "minor" || g.verdict === "mixed"] },
+  { name: "トップセットのフロップチェック(スロープレイ)はブランダーでない",
+    ctx: {
+      heroCards: [mkCard(12, 0), mkCard(12, 3)], heroLabel: "AA",
+      board: [mkCard(12, 1), mkCard(7, 2), mkCard(2, 3)], street: "flop",
+      potBB: 6, toCallBB: 0, heroBehindBB: 18, effBehindBB: 18, role: "pfr",
+      oppRange: parseRange("22+,A2s+,ATo+,KTs+,KQo,QTs+"), facing: "none", playersIn: 2, canRaise: false, fast: true,
+      posIdx: 5, seatName: "CO", phase: "postflop", prevAggressorSeat: 0, iWasPrevAggressor: true, aggressorActive: true,
+    },
+    grade: ["check", g => g.verdict === "minor" || g.verdict === "mixed"] },
   { name: "フロップのセットはベットに対してフォールドしない",
     ctx: {
       heroCards: [mkCard(7, 0), mkCard(7, 1)], heroLabel: "99",
@@ -182,7 +200,11 @@ const POST_SPOTS = [
     let ok = false, detail = "";
     try {
       const a = await postflopAdvice(s.ctx);
-      if (s.grade) {
+      if (s.gradeAct) {
+        const g = gradeDecision(s.ctx, a, s.gradeAct[0], s.gradeAct[1]);
+        ok = s.gradeAct[2](g);
+        detail = `verdict=${g.verdict} sizing=${!!g.sizing}`;
+      } else if (s.grade) {
         const g = gradeDecision(s.ctx, a, s.grade[0]);
         ok = s.grade[1](g);
         detail = `verdict=${g.verdict} primary=${a.primary}`;

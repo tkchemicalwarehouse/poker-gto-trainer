@@ -81,6 +81,28 @@ function gradeDecision(ctx, advice, chosenId, act) {
     if (evLoss > 0 && evLoss < 0.3) verdict = (verdict === "blunder") ? "minor" : verdict;
     if (evLoss === 0 && (verdict === "minor" || verdict === "blunder")) verdict = "mixed";
   }
+  // ---- ポストフロップ: ベットサイズ違いやスロープレイを「致命的」扱いしない ----
+  let postNote = null;
+  if (ctx.phase === "postflop") {
+    const betFreq = (freqs.bet33 || 0) + (freqs.bet66 || 0) + (freqs.jam || 0);
+    // (1) ベットを選びGTOも主にベット → サイズ違いは最悪でも軽微(致命的でない)
+    if ((chosen === "bet33" || chosen === "bet66") && betFreq >= 0.5 &&
+        (verdict === "blunder" || verdict === "minor")) {
+      verdict = (freqs[chosen] || 0) >= 0.35 ? "mixed" : "minor";
+      if (verdict === "minor") {
+        const want = (freqs.bet66 || 0) > (freqs.bet33 || 0) ? "大きめ(66%)" : "小さめ(33%)";
+        postNote = `ベットする判断は正解。ただしサイズはGTO的には${want}が主体です。中盤戦の小さいスタックでは、強い役は早くスタックを入れ切り、弱い手は安く諦める設計が効きます。`;
+      }
+    }
+    // (2) 強い役(ティア4+)のチェック=スロープレイ。バリュー逃しだが致命傷ではない
+    if (chosen === "check" && verdict === "blunder" && d.cls && d.cls.tier >= 4) {
+      verdict = "minor";
+      postNote = `強い役のチェック(スロープレイ)自体は時に有効ですが、中盤戦の浅いスタックでは<b>ベットでバリューを取り、早めにスタックを入れ切る</b>方が基本的に得です。チェックは相手に無料でカードを与え、本来取れたチップを逃します。`;
+    }
+  }
+
+  // ポストフロップのサイズ違い/スロープレイは控えめなEV損失に
+  if (postNote) evLoss = 0.35;
   if (verdict === "best" || verdict === "mixed") evLoss = 0;
 
   // ---- ベットサイズの採点(アクションが正しくてもサイズがGTO標準から外れたら指摘) ----
@@ -92,6 +114,8 @@ function gradeDecision(ctx, advice, chosenId, act) {
       evLoss = sizing.evLoss;
     }
   }
+  // ポストフロップの注記をサイズ注記枠で表示(未設定時のみ)
+  if (postNote && !sizing) sizing = { note: postNote };
 
   return { verdict, evLoss, sizing, explanation: buildExplanation(ctx, advice, chosen, verdict, sizing) };
 }
@@ -176,9 +200,10 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
     (ctx.phase === "preflop" ? `(${ctx.stackBB.toFixed(1)}BB)` : `【${streetJP(ctx.street)}】`) + `</div>`);
   lines.push(`<div class="ex-gto">GTO戦略: <b>${freqsText(advice.freqs)}</b> — あなた: <b>${actionJP(chosen)}</b></div>`);
 
-  // サイズの指摘(ハンド選択は正しいがサイズが外れている場合)
+  // サイズ/方針の指摘(アクション選択は妥当だが改善点がある場合)
   if (sizing && sizing.note) {
-    lines.push(`<p>📏 <b>ハンドの選択(${actionJP(chosen)})は正解</b>。ただし<b>サイズ</b>に改善点があります:</p>`);
+    const head = (chosen === "check") ? "💡 改善点:" : `📏 <b>ハンドの選択(${actionJP(chosen)})は妥当</b>。改善点:`;
+    lines.push(`<p>${head}</p>`);
     lines.push(`<p>${sizing.note}</p>`);
   }
 
