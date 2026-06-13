@@ -4,10 +4,11 @@
 "use strict";
 
 const VERDICT_INFO = {
-  best:    { label: "✓ GTO通り",      cls: "v-best",    score: 10 },
-  mixed:   { label: "✓ OK(混合戦略)", cls: "v-mixed",   score: 10 },
-  minor:   { label: "△ 僅かなミス",   cls: "v-minor",   score: 4 },
-  blunder: { label: "✗ ブランダー",   cls: "v-blunder", score: 0 },
+  best:    { label: "✓ GTO通り",          cls: "v-best",    score: 10 },
+  mixed:   { label: "✓ OK(混合戦略)",     cls: "v-mixed",   score: 10 },
+  caution: { label: "⚠ 注意(EVとICMで割れる)", cls: "v-caution", score: 8 },
+  minor:   { label: "△ 僅かなミス",       cls: "v-minor",   score: 4 },
+  blunder: { label: "✗ ブランダー",       cls: "v-blunder", score: 0 },
 };
 
 /* ---------- 語彙の多様化(同じ表現を連続で出さない) ---------- */
@@ -36,6 +37,12 @@ const COACH_VOICE = {
     "OK。どちらを選んでも責められない。",
     "問題なし。これは「揺らぎ」が正しいスポット。",
     "良い。相手に読まれないために、こういう手も混ぜる。",
+  ],
+  caution: [
+    "ここは「正解」が一つに決まらない。EVとICMで答えが割れる。",
+    "難所だ。チップの理屈と賞金の理屈が逆を向いている。",
+    "ミスではない。ただし、なぜ割れるかを理解しておく価値がある。",
+    "上級者でも意見が分かれるスポット。両方の視点を持っておこう。",
   ],
   minor: [
     "惜しい。方向は合っているが、詰めが甘い。",
@@ -99,24 +106,47 @@ function gradeDecision(ctx, advice, chosenId, act) {
       (verdict === "minor" || verdict === "blunder")) {
     verdict = "mixed";
   }
-  // ICM拒否が理由のジャム/フォールド間違いは、賞金期待値の差でミスの重さを決める
-  // (チップEVでは正しい判断なので、差が小さければ咎めない)
-  if (d.icmJamEval && (verdict === "minor" || verdict === "blunder") &&
-      ((chosen === "jam") !== (advice.primary === "jam"))) {
-    const gap = Math.abs(d.icmJamEval.evJam - d.icmJamEval.evFold); // プライズプール比
-    if (gap < 0.005) verdict = "mixed";
-    else if (gap < 0.015) verdict = "minor";
-    else verdict = "blunder";
+  // ===== EVとICMが割れたら「ミス」でなく「注意」。両方が違うと言った時だけ「ミス」 =====
+  // (ユーザー方針: チップEVの理屈とICMの理屈を統合して1つの正解にしない)
+  let ftSplit = null;
+  if (d.kind === "facingJam" && d.icmPremium > 0.005 && d.icmReq != null && d.equity != null) {
+    ftSplit = {
+      chipDo: d.evCallBB > 0.03,          // チップEVはコールしたいか
+      icmDo: d.equity >= d.icmReq,        // ICMはコールしたいか
+      userDid: chosen === "call",
+      agg: "コール", pass: "フォールド",
+    };
+  } else if ((d.kind === "openJam" || d.kind === "facingOpen") && d.icmJamEval) {
+    ftSplit = {
+      chipDo: (d.marginBB != null ? d.marginBB >= 0 : true),  // チップEV(ナッシュ)はジャムしたいか
+      icmDo: d.icmJamEval.evJam >= d.icmJamEval.evFold,       // ICMはジャムしたいか
+      userDid: chosen === "jam",
+      agg: "ジャム", pass: "フォールド",
+    };
+  }
+  if (ftSplit) {
+    if (ftSplit.chipDo !== ftSplit.icmDo) {
+      verdict = "caution";                 // EVとICMで割れる → 注意(ミスではない)
+    } else {
+      const correct = ftSplit.chipDo;      // 両者一致
+      if (ftSplit.userDid === correct) {
+        if (verdict === "minor" || verdict === "blunder") verdict = "best";
+      } else {
+        verdict = "blunder";               // EVもICMも「違う」と言う → 本物のミス
+      }
+    }
+    d._ftSplit = ftSplit;
   }
 
   // EV損失推定(BB)
   let evLoss = 0;
   if (verdict === "minor") evLoss = 0.4;
   if (verdict === "blunder") evLoss = 1.5;
+  if (verdict === "caution") evLoss = 0;   // 注意はミスではないのでEV損失計上しない
   if (d.kind === "openJam" && d.nash && (verdict === "minor" || verdict === "blunder")) {
     evLoss = Math.round(Math.min(2.5, 0.15 * Math.abs(d.marginBB) + 0.1) * 100) / 100;
   }
-  if (d.kind === "facingJam" && d.evCallBB !== undefined) {
+  if (d.kind === "facingJam" && d.evCallBB !== undefined && !ftSplit) {
     const ev = d.evCallBB;
     if (chosen === "call" && ev < -0.05) evLoss = -ev;
     else if (chosen === "fold" && ev > 0.05) evLoss = ev;
@@ -223,6 +253,33 @@ function calcBox(title, html) {
   return `<div class="calc-box"><h4>${title}</h4>${html}</div>`;
 }
 
+// EVとICMが割れた「注意」局面の二視点解説(矛盾を避け、両方の考え方を分けて示す)
+function splitBox(ft, d, ctx) {
+  const evSide = ft.chipDo ? ft.agg : ft.pass;
+  const icmSide = ft.icmDo ? ft.agg : ft.pass;
+  let evDetail = "", icmDetail = "";
+  if (d.kind === "facingJam") {
+    evDetail = `チップだけで見ると、${hl(d.equity)}のエクイティに対しコールのEVは` +
+      `<b class="${d.evCallBB>=0?"pos":"neg"}">${d.evCallBB>=0?"+":""}${d.evCallBB.toFixed(2)}BB</b>。` +
+      `チップを最大化するなら<b>${evSide}</b>。`;
+    icmDetail = `賞金で見ると、必要勝率がICM補正で<b>${pct(d.breakeven)}→${pct(d.icmReq)}</b>に上がる。` +
+      `あなたのエクイティ${pct(d.equity)}は${d.equity>=d.icmReq?"これを上回る":"これに届かない"}ので、賞金重視なら<b>${icmSide}</b>。`;
+  } else {
+    const i = d.icmJamEval;
+    evDetail = `チップだけで見れば、ナッシュ均衡上このハンドは<b>${ft.chipDo?"ジャム圏内":"圏外"}</b>。チップ最大化なら<b>${evSide}</b>。`;
+    icmDetail = `賞金で見ると、ジャムの賞金期待値<b>${(i.evJam*100).toFixed(2)}%</b> vs フォールド<b>${(i.evFold*100).toFixed(2)}%</b>。` +
+      `飛んだ時の順位下落の代償を含めると、賞金重視なら<b>${icmSide}</b>。`;
+  }
+  return `<div class="split-box">` +
+    `<p><b>このスポットはEVとICMで答えが割れます。だから「ミス」ではなく「注意」です。</b></p>` +
+    `<p>① <b class="sb-ev">チップEVの考え方</b><br>${evDetail}</p>` +
+    `<p>② <b class="sb-icm">ICM(賞金)の考え方</b><br>${icmDetail}</p>` +
+    `<p>③ <b>結論: 注意</b> — あなたの<b>${ft.userDid?ft.agg:ft.pass}</b>は${ft.userDid===ft.chipDo?"チップEV":"ICM"}側に沿った判断で、一理あります。` +
+    `どちらを採るかは「次のペイジャンプの近さ」「自分のスキル優位」「相手の傾向」で決めます。一般に、入賞直後やビッグスタック相手はICM寄り(慎重)、賞金がフラットな局面や格下相手はチップEV寄り(積極)が目安です。</p>` +
+    `</div>`;
+}
+function hl(x){ return `<b>${pct(x)}</b>`; }
+
 // ポットオッズの暗算早見(教材)
 const POT_ODDS_CHEAT = `<span class="dim">【暗算の近道】相手のベットがポットの 1/3 → 必要20% / 半分 → 25% / 2/3 → 28.5% / ポット → 33% / 2倍 → 40%。オールインの場合は「コール額 ÷ (合計ポット+コール額)」を直接計算。</span>`;
 
@@ -297,12 +354,12 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
           ]) : "") + `</p>`);
       }
       // FTのICM判定
-      if (d.icmJamEval) {
+      if (d._ftSplit && verdict === "caution") {
+        lines.push(splitBox(d._ftSplit, d, ctx));   // EVとICMで割れる → 二視点で説明
+      } else if (d.icmJamEval) {
         const i = d.icmJamEval;
         const line = `ジャムの賞金期待値 <b>${(i.evJam * 100).toFixed(2)}%</b> vs フォールド <b>${(i.evFold * 100).toFixed(2)}%</b>`;
-        if (d.icmVeto) lines.push(`<p>🏆 <b>ICM判定(FT)</b>: チップEVのナッシュではジャム圏内ですが、${line} — <b>賞金ベースではフォールド優位</b>に逆転します。</p>`);
-        else if (d.icmMix) lines.push(`<p>🏆 <b>ICM判定(FT)</b>: ${line} — 境界の混合域です。</p>`);
-        else lines.push(`<p>🏆 <b>ICM検証(FT)</b>: ${line} — 賞金ベースでもジャム優位です。</p>`);
+        lines.push(`<p>🏆 <b>ICM検証(FT)</b>: ${line} — チップEVと賞金EVが同じ方向(${i.evJam >= i.evFold ? "ジャム" : "フォールド"})を指しています。</p>`);
       }
       lines.push(`<p>この${ctx.stackBB.toFixed(1)}BBでの${ctx.seatName}のナッシュ・ジャムレンジは上位 <b>${d.rangePct.toFixed(1)}%</b>:</p>`);
       // 📐 計算方法
@@ -366,12 +423,15 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
     if (d.eqVsOpen != null) {
       lines.push(`<p>相手のオープンレンジに対する ${hand} の生エクイティ: <b>${pct(d.eqVsOpen)}</b>(事前計算テーブルによる厳密値)</p>`);
     }
+    // EVとICMが割れる場合は二視点の「注意」解説に切り替え(矛盾回避)
+    if (d._ftSplit && verdict === "caution") {
+      lines.push(splitBox(d._ftSplit, d, ctx));
+      lines.push(rangeGridHTML(d.rejamRange, d.callRange, hand, "オールイン", "コール"));
+      return lines.join("\n");
+    }
     // 選択と正解の組み合わせに応じた説明(定型文の連発はしない)
     const correct = advice.primary;
-    if (d.icmVeto && (chosen === "jam" || chosen === "raise")) {
-      lines.push(`<p><b>チップEVでは ${hand} は明確なリジャム圏内です</b>(あなたの判断はチップ上は正しい)。` +
-        `フォールド推奨の理由は<b>ICM(賞金構造)のみ</b> — 下のICM判定をご覧ください。境界が近い場合はどちらも大きなミスにはなりません。</p>`);
-    } else if (correct === "jam" && chosen === "fold") {
+    if (correct === "jam" && chosen === "fold") {
       lines.push(`<p>${hand} はリジャムレンジ内です。${d.hu ? "HUの超ワイドオープンに対しては、ここで踏み込まないとブラインドを取られ続けます。" : "相手のオープンレンジの大部分はジャムにフォールドするため、フォールドエクイティ+コールされた時のエクイティの合計で+EVです。"}</p>`);
     } else if (correct === "jam" && chosen === "call") {
       lines.push(`<p>コールよりリジャム推奨です。有効${ctx.effBB.toFixed(0)}BBではポストフロップの技術介入余地が小さく、フォールドエクイティを取れるジャムの方がEVが高くなります。</p>`);
@@ -385,13 +445,11 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
     if (correct === "jam" && chosen === "raise" && ctx.effBB >= 18) {
       lines.push(`<p>💡 <b>あなたのノンオールイン3ベットも正解の一つです。</b>本アプリのゲーム木は浅いスタックの標準に合わせて「ジャムかフォールド」に単純化していますが、有効18BB以上の実際のGTOは約3〜3.5倍の小さい3ベットも混ぜます(4ベットジャムされた時の対応計画はセットで)。</p>`);
     }
-    // FTのICM判定
-    if (d.icmJamEval) {
+    // FTのICM判定(両者一致時のみ。割れる場合は上の splitBox で既に説明済み)
+    if (d.icmJamEval && !(d._ftSplit && verdict === "caution")) {
       const i = d.icmJamEval;
       const line = `ジャムの賞金期待値 <b>${(i.evJam * 100).toFixed(2)}%</b> vs フォールド <b>${(i.evFold * 100).toFixed(2)}%</b>(プライズプール比)`;
-      if (d.icmVeto) lines.push(`<p>🏆 <b>ICM判定(FT)</b>: チップEVではジャム圏内ですが、${line} — <b>賞金ベースではフォールド優位</b>。ペイジャンプを前にリスクを取る価値が下がっています。</p>`);
-      else if (d.icmMix) lines.push(`<p>🏆 <b>ICM判定(FT)</b>: ${line} — ほぼ互角の境界。どちらでもOKです。</p>`);
-      else lines.push(`<p>🏆 <b>ICM検証(FT)</b>: ${line} — 賞金ベースでもジャム優位を確認済み。</p>`);
+      lines.push(`<p>🏆 <b>ICM検証(FT)</b>: ${line} — チップEVと賞金EVが同じ方向を指しています。</p>`);
     }
     // 📐 計算方法
     if (d.calc) {
@@ -412,31 +470,34 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
   }
   else if (d.kind === "facingJam") {
     const ev = d.evCallBB;
+    // EVとICMが割れる場合は二視点の「注意」解説に切り替え(矛盾回避)
+    if (d._ftSplit && verdict === "caution") {
+      lines.push(splitBox(d._ftSplit, d, ctx));
+      lines.push(`<p><span class="dim">相手のジャムレンジ上位${d.jamRangePct.toFixed(0)}% / ${hand}のエクイティ${pct(d.equity)}(169×169厳密)</span></p>`);
+      return lines.join("\n");
+    }
+    // 見出しは「エクイティ vs (ICM補正後の)必要勝率」で決める=結論と必ず一致させる
+    const icmOn = d.icmPremium > 0.005 && d.icmReq != null;
+    const thr = d.threshold != null ? d.threshold : d.breakeven;
+    const eqMargin = d.equity - thr;            // +なら継続、−ならフォールド
     let headline;
-    if (ev > 1.5) headline = pickVar("callBig", [
-        `文句なしの+EVコール(<b class="pos">+${ev.toFixed(2)}BB</b>)。考える間もなくスナップ。`,
-        `これは即コール(<b class="pos">+${ev.toFixed(2)}BB</b>)。降りる理由が一つもない。`,
-        `おいしすぎるコール(<b class="pos">+${ev.toFixed(2)}BB</b>)。一瞬で手が出ていい。`,
+    if (eqMargin > 0.06) headline = pickVar("callBig", [
+        `文句なしのコール。エクイティ<b>${pct(d.equity)}</b>が必要勝率<b>${pct(thr)}</b>を大きく上回る。`,
+        `迷わず受ける場面。勝率<b>${pct(d.equity)}</b> ≫ 必要<b>${pct(thr)}</b>。`,
+        `しっかり優位。<b>${pct(d.equity)}</b>対<b>${pct(thr)}</b>でコールが正解。`,
       ]);
-    else if (ev > 0.3) headline = pickVar("callPos", [
-        `+EVのコール(<b class="pos">+${ev.toFixed(2)}BB</b>)。`,
-        `収支はプラス(<b class="pos">+${ev.toFixed(2)}BB</b>)。受けて問題ない。`,
-        `数字は「コール」と言っている(<b class="pos">+${ev.toFixed(2)}BB</b>)。`,
+    else if (eqMargin > 0.015) headline = pickVar("callPos", [
+        `コールが上回る(勝率<b>${pct(d.equity)}</b> > 必要<b>${pct(thr)}</b>)。${icmOn ? "ICM込みでも継続でいい。" : ""}`,
+        `受けて良い。エクイティが必要勝率をきちんと超えている。${icmOn ? "賞金換算でもコール優位。" : ""}`,
       ]);
-    else if (ev > -0.3) headline = pickVar("callEdge", [
-        `ほぼ五分(EV ${ev >= 0 ? "+" : ""}${ev.toFixed(2)}BB)。どちらでも大差ない。`,
-        `境界線上(EV ${ev >= 0 ? "+" : ""}${ev.toFixed(2)}BB)。コインの裏表に近い。`,
-        `紙一重(EV ${ev >= 0 ? "+" : ""}${ev.toFixed(2)}BB)。好みで選んでいい範囲。`,
+    else if (eqMargin > -0.015) headline = pickVar("callEdge", [
+        `ほぼ五分(勝率<b>${pct(d.equity)}</b> ≈ 必要<b>${pct(thr)}</b>)。どちらでも大差ない。`,
+        `境界線上。コールとフォールドのEVは紙一重で、好みの範囲。`,
       ]);
-    else if (ev > -1.5) headline = pickVar("callNeg", [
-        `-EVのコール(<b class="neg">${ev.toFixed(2)}BB</b>)。ここは降りるが正解。`,
-        `赤字のコール(<b class="neg">${ev.toFixed(2)}BB</b>)。フォールドが勝る。`,
-        `わずかに損(<b class="neg">${ev.toFixed(2)}BB</b>)。手を出さないのが上手い。`,
-      ]);
-    else headline = pickVar("callBad", [
-        `はっきり-EV(<b class="neg">${ev.toFixed(2)}BB</b>)。続ければ長期で確実に削られる。`,
-        `大きく赤字(<b class="neg">${ev.toFixed(2)}BB</b>)。この手のコールが資金を溶かす。`,
-        `これは禁物(<b class="neg">${ev.toFixed(2)}BB</b>)。胸の高鳴りは無視して数字を見よう。`,
+    else headline = pickVar("callNeg", [
+        `フォールドが正解。勝率<b>${pct(d.equity)}</b>が必要勝率<b>${pct(thr)}</b>に届かない。`,
+        `ここは降りる。エクイティが必要勝率に足りていない。`,
+        `手を出さないのが上手い。${pct(d.equity)} < ${pct(thr)} で継続は損。`,
       ]);
     lines.push(`<p>${headline}</p>`);
     lines.push(

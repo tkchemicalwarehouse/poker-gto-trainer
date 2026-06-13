@@ -8,3 +8,4 @@ tools/_verify_combined.cjs
 tools/_audit_combined.cjs
 tools/_probe*.cjs
 tools/_adv_combined.cjs
+tools/_ft_combined.cjs

@@ -344,6 +344,7 @@ button.cta:hover { background: linear-gradient(170deg, #ffe085, #e8b52e 55%, #c7
 @keyframes pop { from { transform: translateX(-50%) scale(.8); opacity: 0; } }
 .v-best { background: #1f6e44; color: #fff; }
 .v-mixed { background: #2563ad; color: #fff; }
+.v-caution { background: #7a5a1c; color: #fff; }
 .v-minor { background: #9a7a1f; color: #fff; }
 .v-blunder { background: #a13343; color: #fff; }
 .v-best-t { color: var(--green); }
@@ -634,6 +635,19 @@ body.mode-phone #blind-corner .bc-blinds { font-size: 16px; }
 }
 #sizer-big-ok:active { transform: translate(4px, 4px); box-shadow: none; }
 #sizer-big { pointer-events: none; }
+
+/* EV/ICM二視点ボックス(注意判定) */
+.split-box {
+  background: linear-gradient(170deg, #2a2616, #1d1c14);
+  border: 1px solid #6b5a32; border-left: 3px solid #e8964f;
+  border-radius: 8px; padding: 10px 12px; margin: 10px 0;
+  font-size: 13px; line-height: 1.8;
+}
+.split-box .sb-ev { color: #6fb5ff; }
+.split-box .sb-icm { color: #ffd75e; }
+.split-box b { color: #eaf1f8; }
+.split-box .pos { color: var(--green); }
+.split-box .neg { color: var(--red); }
 
 /* 計算方法ボックス(教材) */
 .calc-box {
