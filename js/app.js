@@ -511,8 +511,8 @@ function buildReport(ctx, advice, act, grade) {
 
 /* ワンタップ自動報告(Googleフォームへ裏側でPOST)。
  * REPORT_ENDPOINT/FIELDを設定すると有効化。未設定時はコピー動作にフォールバック。 */
-const REPORT_ENDPOINT = ""; // 例: https://docs.google.com/forms/d/e/XXXX/formResponse
-const REPORT_FIELD = "";    // 例: entry.1234567890
+const REPORT_ENDPOINT = "https://docs.google.com/forms/d/e/1FAIpQLSeWjiqVDUZJ6gSwopAbjweCfJX6bK4zlNMyQ75I3c4uAP7IrQ/formResponse";
+const REPORT_FIELD = "entry.1854722243";
 function sendReport() {
   if (!window.__lastReport) return;
   if (!REPORT_ENDPOINT || !REPORT_FIELD) { copyReport(); return; }
