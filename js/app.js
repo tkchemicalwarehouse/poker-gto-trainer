@@ -462,34 +462,9 @@ function showToast2(msg) {
 
 // 先回りアクションの予約バー(自分の手番が来る前に表示)
 function renderPreBar(state) {
+  // 「予約フォールド」機能は廃止。先回り予約バーは常に非表示にする(画面を専有しないため)。
   const bar = $("prebar");
-  if (!bar) return;
-  const hero = state.players[0];
-  const heroTurn = state.actorSeat === 0;
-  const canShow = state && state.street !== "idle" && state.street !== "showdown" &&
-    !hero.out && !hero.folded && !hero.allIn && !heroTurn &&
-    $("action-bar").classList.contains("hidden");
-  if (!canShow) { bar.classList.add("hidden"); return; }
-  bar.classList.remove("hidden");
-  const sel = heroPre ? heroPre.id : null;
-  // 予約できるのは「フォールド」だけ。他のアクションは自分の番が来てから選ぶ
-  bar.innerHTML =
-    `<div class="prebar-label">⏩ 先に予約できるのはフォールドだけ(手番が来たら自動で降ります)</div>` +
-    `<div class="prebar-row">` +
-    `<button class="pre-fold${sel === 'fold' ? ' on' : ''}" data-pre="fold">${sel === 'fold' ? '✓ 予約フォールド中(押すと取消)' : '予約フォールド'}</button>` +
-    `</div>` +
-    (sel === 'fold'
-      ? `<div class="prebar-status">手番が来たら自動でフォールドします。</div>`
-      : `<div class="prebar-status dim">レイズ/コール/オールインは、自分の番が来てから選べます。</div>`);
-
-  bar.querySelectorAll("button[data-pre]").forEach(b => {
-    b.onclick = () => {
-      if (heroPre && heroPre.id === "fold") { heroPre = null; }   // 同じボタン=取消
-      else { heroPre = { id: "fold" }; heroPreBet = curMaxStreetBet(state); }
-      Sfx.play("chip");
-      renderPreBar(state);
-    };
-  });
+  if (bar) bar.classList.add("hidden");
 }
 function preLabel(id) {
   return { fold: "フォールド", raise: "レイズ", jam: "オールイン", raiseTo: "レイズ額指定" }[id] || id;
@@ -516,22 +491,7 @@ function mapPre(pre, legal) {
 
 async function heroActUI(ctx, legal) {
   if (aborting) return autoAction(legal);
-
-  // ① 予約アクションの消化
-  if (heroPre) {
-    const pre = heroPre;
-    const changed = curMaxStreetBet(G) !== heroPreBet; // 予約後に誰かがレイズ/3ベットしたか
-    heroPre = null; renderPreBar(G);
-    // フォールドは常に有効。それ以外は状況が変わっていなければ実行
-    if (pre.id === "fold" || !changed) {
-      const act = mapPre(pre, legal);
-      if (act) return await finalizeHeroAct(ctx, act, true);
-    }
-    // 状況が変わった → 予約取消、通常の手番で再提示(額は自動で最新に)
-    showToast2("状況が変わったため予約を解除しました");
-  }
-
-  // ② 通常の手番
+  // 通常の手番(先回り予約フォールドは廃止)
   Sfx.play("turn");
   const act = await showActionButtons(legal);
   return await finalizeHeroAct(ctx, act, false);
@@ -839,9 +799,11 @@ function showCoachPanel(grade, advice, ctx, chosenId) {
     $("coach-body").innerHTML = grade.explanation;
     $("coach-panel").classList.remove("hidden");
     $("blind-corner").classList.add("hidden");
+    $("hero-corner").classList.add("hidden");   // 解説中は自分のスタックHUDも隠す(被って読めなくなるため)
     $("coach-continue").onclick = () => {
       $("coach-panel").classList.add("hidden");
       $("blind-corner").classList.remove("hidden");
+      $("hero-corner").classList.remove("hidden");
       resolve();
     };
   });
