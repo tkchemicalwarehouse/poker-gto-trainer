@@ -1764,3 +1764,10 @@ body.mode-phone .dog-sprite { height: 112px; }
 
 /* 優勝モーダルの犬 */
 .dog-victory { height: 150px; width: auto; display: block; margin: 4px auto 6px; filter: drop-shadow(0 8px 16px rgba(0,0,0,.5)); animation: trophyBounce 1s cubic-bezier(.2,1.6,.4,1) .3s both; }
+
+/* =========================================================
+ * スマホ: テーブル+スタックHUDを下方へ寄せ、下のブラインド表示との空きを詰める
+ * (上部の余白＝残り人数/MENUオーバーレイの場所。フリックなし)
+ * ========================================================= */
+body.mode-phone #screen-game { display: flex; flex-direction: column; box-sizing: border-box; padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
+body.mode-phone #table-wrap { margin-top: auto; }
