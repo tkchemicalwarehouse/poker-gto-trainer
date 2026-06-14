@@ -382,10 +382,32 @@ function madeHandDesc(ctx) {
   return `あなたの${cardText(pairCard)}が場の${R[pr]}とペア${kicker != null ? `・${R[kicker]}キッカー` : ""}`;
 }
 
+/* 信頼度バッジ(誠実さの憲章の可視化)。
+ * 🟢 厳密GTO: オールインの損益が数学的に解けている局面(EQ169ナッシュ/厳密エクイティ)。
+ * 🟡 目安   : 相手オープン幅の推定・手書きチャート・ポストフロップ等の近似。状況次第。
+ * ⚪ どちらでもよい: 無差別点(EVほぼ互角の混合域)。
+ * 嘘をつかない=近似を厳密のように見せない。判定根拠は data.kind と厳密フラグ。 */
+function confidenceBadge(d, freqs, verdict, hint) {
+  if (!d || !d.kind) return null; // 強制チェック等の非・意思決定はバッジ無し
+  const fv = freqs ? Object.values(freqs).filter(v => v > 0) : [];
+  const isMix = (fv.length >= 2 && Math.max.apply(null, fv) <= 0.6) || d.icmMix || (!hint && verdict === "mixed");
+  if (isMix) return { lv: "either", icon: "⚪", label: "どちらでもよい",
+    tip: "ここは無差別点。EVはほぼ互角なので、好みで選んでOK — 迷わないのもポーカーです。" };
+  // 厳密に解けているのは「ナッシュのプッシュ/フォールド」と「オールインへの厳密エクイティのコール判断」のみ
+  const exact = (d.kind === "openJam" && d.nash) || (d.kind === "facingJam" && d.eqExact);
+  if (exact) return { lv: "exact", icon: "🟢", label: "厳密GTO",
+    tip: "この局面はオールインの損益が数学的に解けています(ナッシュ均衡/厳密エクイティ)。安心して従ってOK。" };
+  // それ以外(オープン幅・3ベット幅・フラットコール・ポストフロップ)はモデル近似
+  return { lv: "approx", icon: "🟡", label: "目安",
+    tip: "これは近似です(相手の幅推定やポストフロップは厳密には解いていません)。最善手は状況次第 — 根拠を見て判断材料に。" };
+}
+
 function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
   const d = advice.data;
   const lines = [];
   const hand = ctx.heroLabel;
+  const badge = confidenceBadge(d, advice.freqs, verdict, hint);
+  if (badge) lines.push(`<div class="conf-badge conf-${badge.lv}"><span class="conf-row"><span class="conf-ico">${badge.icon}</span><b>${badge.label}</b></span><span class="conf-tip">${badge.tip}</span></div>`);
   // hint=決定前の「先生に聞く」モード: 採点的な声かけは出さず、推奨を中立に提示する
   if (!hint && verdict && COACH_VOICE[verdict]) {
     lines.push(`<div class="ex-voice">${pickVar("voice", COACH_VOICE[verdict])}</div>`);
