@@ -6,7 +6,7 @@
 const $ = id => document.getElementById(id);
 
 /* ---------- 画面遷移 ---------- */
-const SCREENS = ["screen-home", "screen-game", "screen-sim", "screen-stats", "screen-help", "screen-drill", "screen-learn", "screen-legal"];
+const SCREENS = ["screen-home", "screen-game", "screen-sim", "screen-stats", "screen-help", "screen-drill", "screen-learn", "screen-legal", "screen-unlocks"];
 function showScreen(id) {
   for (const s of SCREENS) $(s).classList.toggle("hidden", s !== id);
 }
@@ -890,6 +890,13 @@ function recordTournament(result, place) {
   return cause;
 }
 
+function freshUnlockHTML() {
+  const fresh = (typeof refreshUnlocks === "function") ? refreshUnlocks() : [];
+  if (!fresh.length) return "";
+  return `<div class="unlock-toast">🎁 <b>解放!</b> ${fresh.map(u => `${u.icon} ${u.title}`).join(" / ")}<br>
+    <span class="dim">「🎁 実績・解放」で確認できます</span></div>`;
+}
+
 function finishTournament(won) {
   if (won) {
     recordTournament("win", 1);
@@ -916,6 +923,7 @@ function finishTournament(won) {
   $("bust-body").innerHTML = `
     <div class="big-num">${place}位 / ${G.fieldSize}人</div>
     ${itmHTML}
+    ${freshUnlockHTML()}
     ${causeHTML}
     ${tallySummaryHTML()}
     <p style="color:var(--dim)">GTO通りに打っても5〜30BBの中盤戦は分散が非常に大きい領域です。シミュレーションで「GTOボットの生存分布」も見てみてください。</p>`;
@@ -944,6 +952,7 @@ function showVictory() {
   $("victory-body").innerHTML = `
     <div class="victory-place">🏆 ${G.fieldSize}人トーナメント 優勝 🏆</div>
     <p class="victory-hands">${G.handNo}ハンドの激闘を制しました!</p>
+    ${freshUnlockHTML()}
     ${tallySummaryHTML()}`;
   $("victory-modal").classList.remove("hidden");
 }
@@ -1326,6 +1335,13 @@ function renderLearn() {
     const ls = LESSONS.filter(l => l.cat === c.key);
     if (!ls.length) return "";
     const cd = ls.filter(l => st.done[l.id]).length;
+    const open = (typeof isChapterUnlocked === "function") ? isChapterUnlocked(c.key) : true;
+    if (!open) {
+      const goal = (typeof CHAPTER_UNLOCK !== "undefined" && CHAPTER_UNLOCK[c.key]) ? CHAPTER_UNLOCK[c.key].goal : "";
+      return `<h3 class="lesson-cat">${c.title} <span class="lesson-cat-prog">🔒</span></h3>` +
+        `<div class="lesson locked-chapter"><div class="lesson-head"><span class="lesson-title">🔒 この章はまだロック中</span></div>
+          <div class="lesson-lock-msg">${goal}<br><span class="dim">条件を満たすと自動で解放されます(「🎁 実績・解放」で進捗を確認)。</span></div></div>`;
+    }
     return `<h3 class="lesson-cat">${c.title} <span class="lesson-cat-prog">${cd}/${ls.length}</span></h3>` + ls.map(lessonHTML).join("");
   }).join("");
   $("learn-body").innerHTML =
@@ -1406,6 +1422,88 @@ function renderLegal() {
   $("legal-body").querySelectorAll(".lesson-head").forEach(h => h.onclick = () => $("lgb-" + h.dataset.id.slice(3)).classList.toggle("hidden"));
 }
 
+/* ---------- 実績・解放(継続のための進捗エンジン) ----------
+ * すべて端末内の既存記録から進捗を算出するゼロコスト方式。
+ * 見た目(キャラ/オールイン演出/KO演出)は Unlocks.isUnlocked(id) を参照して差し込む(デザイン側で実装)。 */
+const UNLOCK_KEY = "pgt_unlocks_v1";
+function computeProgress() {
+  const ts = (loadRecord().tournaments) || [];
+  const L = loadLeaks(), learn = loadLearn();
+  const decisions = ts.reduce((s, t) => s + (t.decisions || 0), 0);
+  const okCount = ts.reduce((s, t) => s + (t.best || 0) + (t.mixed || 0), 0);
+  const lessonsDoneSet = learn.done || {};
+  const basicsDone = LESSONS.filter(l => l.cat === "basics" && lessonsDoneSet[l.id]).length;
+  const leaksMastered = Object.values(L.cats || {}).reduce((s, c) => s + ((c.examples || []).filter(e => (e.sr || 0) >= 3).length), 0);
+  return {
+    tourneys: ts.length,
+    wins: ts.filter(t => t.result === "win").length,
+    hands: ts.reduce((s, t) => s + (t.hands || 0), 0),
+    decisions, okCount, okRate: decisions > 0 ? okCount / decisions : 0,
+    itm: ts.filter(t => t.place && t.place <= 9).length,   // ファイナルテーブル(入賞)到達
+    lessonsDone: Object.values(lessonsDoneSet).filter(Boolean).length,
+    basicsDone, leaksMastered,
+  };
+}
+// 解放アイテム(見た目・称号)。cond(progress)→解放、goal=未解放時のヒント
+const UNLOCKS = [
+  { id: "anim_allin", icon: "⚡", title: "オールイン演出", cond: p => p.hands >= 30, goal: "累計30ハンドで解放" },
+  { id: "char_bunny", icon: "🐰", title: "バニーガール(マスコット)", cond: p => p.tourneys >= 3, goal: "3回トーナメントに挑戦で解放" },
+  { id: "anim_ko", icon: "💥", title: "KO(撃破)演出", cond: p => p.itm >= 1, goal: "初の入賞(FT到達)で解放" },
+  { id: "title_grind", icon: "🔥", title: "称号「グラインダー」", cond: p => p.hands >= 200, goal: "累計200ハンドで解放" },
+  { id: "char_champ", icon: "👑", title: "チャンピオン・スキン", cond: p => p.wins >= 1, goal: "初優勝で解放" },
+  { id: "title_sharp", icon: "🎯", title: "称号「シャープ」", cond: p => p.decisions >= 100 && p.okRate >= 0.85, goal: "100判断でGTO一致率85%以上" },
+  { id: "theme_neon", icon: "🌃", title: "ネオン・テーブル", cond: p => p.hands >= 500, goal: "累計500ハンドで解放" },
+  { id: "char_master", icon: "🏆", title: "マスター・スキン", cond: p => p.wins >= 3, goal: "通算3回優勝で解放" },
+];
+// 講座の章ごとの解放条件(段階的に学べるように)
+const CHAPTER_UNLOCK = {
+  basics: { cond: () => true, goal: "" },
+  preflop: { cond: p => p.basicsDone >= 3, goal: "「基礎」3講座をすべて学習すると解放" },
+  postflop: { cond: p => p.hands >= 100, goal: "累計100ハンドのプレイで解放" },
+  tournament: { cond: p => p.itm >= 1, goal: "ファイナルテーブル(入賞)に1回到達で解放" },
+};
+function loadUnlocks() { try { return JSON.parse(localStorage.getItem(UNLOCK_KEY)) || { ids: [] }; } catch (e) { return { ids: [] }; } }
+function saveUnlocks(u) { try { localStorage.setItem(UNLOCK_KEY, JSON.stringify(u)); } catch (e) { } }
+// 条件を評価し、新たに解放されたものを永続化して返す
+function refreshUnlocks() {
+  const p = computeProgress(), u = loadUnlocks(), have = new Set(u.ids), fresh = [];
+  for (const item of UNLOCKS) if (!have.has(item.id) && item.cond(p)) { have.add(item.id); fresh.push(item); }
+  u.ids = [...have]; saveUnlocks(u);
+  return fresh;
+}
+function isChapterUnlocked(catKey) { const c = CHAPTER_UNLOCK[catKey]; return !c || c.cond(computeProgress()); }
+// 見た目側(デザイン)から参照する公開API
+window.Unlocks = { isUnlocked: id => loadUnlocks().ids.includes(id), refresh: refreshUnlocks, progress: computeProgress };
+
+function renderUnlocks() {
+  const p = computeProgress(), have = new Set(loadUnlocks().ids);
+  const got = UNLOCKS.filter(u => have.has(u.id)).length;
+  const items = UNLOCKS.map(u => {
+    const open = have.has(u.id);
+    return `<div class="unlock-item ${open ? 'got' : 'locked'}">
+      <div class="unlock-ico">${open ? u.icon : '🔒'}</div>
+      <div class="unlock-main">
+        <div class="unlock-title">${u.title}</div>
+        <div class="unlock-sub">${open ? '<span class="unlock-got">解放済み ✓</span>' : u.goal}</div>
+      </div></div>`;
+  }).join("");
+  const chapters = LESSON_CATS.map(c => {
+    const open = isChapterUnlocked(c.key);
+    return `<div class="unlock-item ${open ? 'got' : 'locked'}">
+      <div class="unlock-ico">${open ? '📖' : '🔒'}</div>
+      <div class="unlock-main">
+        <div class="unlock-title">講座: ${c.title.replace(/^■\s*/, '')}</div>
+        <div class="unlock-sub">${open ? '<span class="unlock-got">学習可能 ✓</span>' : (CHAPTER_UNLOCK[c.key] ? CHAPTER_UNLOCK[c.key].goal : '')}</div>
+      </div></div>`;
+  }).join("");
+  $("unlocks-body").innerHTML =
+    `<p class="unlock-intro">プレイや学習を続けると、キャラ・演出・称号・新しい講座が解放されます。<b>${got}/${UNLOCKS.length}</b> 解放済み。
+     <span class="dim">(進捗: ${p.tourneys}挑戦 / ${p.hands}ハンド / ${p.wins}優勝 / 一致率${(p.okRate * 100).toFixed(0)}%)</span></p>
+     <h3 class="unlock-cat">🎨 見た目・称号</h3><div class="unlock-list">${items}</div>
+     <h3 class="unlock-cat">📚 講座の解放</h3><div class="unlock-list">${chapters}</div>
+     <p class="dim" style="font-size:12px;margin-top:10px">※キャラ・演出の見た目は順次追加されます。解放条件を満たすと自動で使えるようになります。</p>`;
+}
+
 /* ---------- イベント登録 ---------- */
 window.addEventListener("DOMContentLoaded", () => {
   renderHomeStats();
@@ -1438,6 +1536,8 @@ window.addEventListener("DOMContentLoaded", () => {
   $("learn-back").onclick = () => showScreen("screen-home");
   $("btn-legal").onclick = () => { renderLegal(); showScreen("screen-legal"); };
   $("legal-back").onclick = () => showScreen("screen-help");
+  $("btn-unlocks").onclick = () => { renderUnlocks(); showScreen("screen-unlocks"); };
+  $("unlocks-back").onclick = () => showScreen("screen-home");
   $("btn-quit").onclick = () => { aborting = true; };
 
   $("bust-again").onclick = () => { $("bust-modal").classList.add("hidden"); startTournament(); };

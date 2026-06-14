@@ -973,6 +973,22 @@ body.mode-phone #blind-corner .bc-blinds { font-size: 16px; }
 .legal-table th, .legal-table td { border: 1px solid #2c3a4d; padding: 8px 10px; text-align: left; vertical-align: top; }
 .legal-table th { background: #1a2330; width: 38%; white-space: nowrap; color: var(--dim); font-weight: 700; }
 
+/* 実績・解放 */
+.unlock-intro { font-size: 13px; margin-bottom: 8px; }
+.unlock-cat { margin: 16px 0 8px; font-size: 14px; color: var(--accent); border-bottom: 1px solid rgba(77,163,255,.3); padding-bottom: 5px; }
+.unlock-list { display: flex; flex-direction: column; gap: 8px; }
+.unlock-item { display: flex; align-items: center; gap: 11px; border-radius: 8px; padding: 10px 12px; border: 1px solid #2c3a4d; background: #161e29; }
+.unlock-item.got { border-color: rgba(70,196,124,.5); background: rgba(20,40,28,.6); }
+.unlock-item.locked { opacity: .72; }
+.unlock-ico { flex: 0 0 auto; font-size: 22px; width: 30px; text-align: center; }
+.unlock-main { flex: 1; min-width: 0; }
+.unlock-title { font-weight: 700; font-size: 14px; }
+.unlock-sub { font-size: 12px; color: var(--dim); margin-top: 2px; }
+.unlock-got { color: #46c47c; font-weight: 700; }
+.unlock-toast { background: rgba(70,196,124,.14); border: 1px solid #46c47c; border-radius: 8px; padding: 10px 12px; margin: 8px 0; font-size: 14px; }
+.lesson.locked-chapter { opacity: .8; }
+.lesson-lock-msg { padding: 10px 14px; font-size: 13px; color: var(--dim); }
+
 /* 成績 */
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 14px 0; }
 .stat-card { background: var(--panel); border-radius: 10px; padding: 14px; text-align: center; }
@@ -1460,19 +1476,46 @@ select {
  * フェルト/レール/座席ボックス/カード/ポット/ディーラーの“見た目”のみ。
  * ========================================================= */
 
-/* --- フェルト + レール --- */
+/* --- フェルト + レール (テーマ変数化: 報酬解放はテーマクラス付替えだけ) --- */
 #table {
+  /* === 既定テーマ = クラシック(オーソドックス・開始時) === */
+  --felt-hi: rgba(255,255,255,.07);   /* 上部スポットライト */
+  --felt-1: #1f7a52;                   /* 中央(明) */
+  --felt-2: #155a3b;                   /* 中間 */
+  --felt-3: #0e4128;                   /* 周縁(暗) */
+  --rail: #2d2117;                     /* レール(木) */
+  --pinline: rgba(231,189,82,.14);     /* 金ピンライン(控えめ) */
+  --rail-glow: 0 0 0 0 transparent;    /* レール外周グロー(報酬で追加) */
   background:
-    radial-gradient(ellipse 72% 50% at 50% 26%, rgba(255,255,255,.075), transparent 58%),
-    radial-gradient(ellipse at 50% 56%, #20694a 0%, #164e35 58%, #0e3a26 100%);
-  border: 11px solid #2a1f15;
+    radial-gradient(ellipse 72% 50% at 50% 26%, var(--felt-hi), transparent 58%),
+    radial-gradient(ellipse at 50% 56%, var(--felt-1) 0%, var(--felt-2) 58%, var(--felt-3) 100%);
+  border: 11px solid var(--rail);
   box-shadow:
-    inset 0 0 0 3px rgba(231,189,82,.18),       /* 金のピンライン */
-    inset 0 7px 26px rgba(0,0,0,.35),
-    inset 0 -12px 44px rgba(0,0,0,.48),
-    0 18px 48px rgba(0,0,0,.6);                  /* テーブルの落ち影 */
+    inset 0 0 0 3px var(--pinline),
+    inset 0 7px 26px rgba(0,0,0,.32),
+    inset 0 -12px 44px rgba(0,0,0,.45),
+    var(--rail-glow),
+    0 18px 48px rgba(0,0,0,.55);
 }
 #table::before { border-color: rgba(255,255,255,.10); }
+
+/* === 報酬テーマ(将来の解放用・JSで #table にクラス付与するだけ) === */
+/* エメラルド: 明るく鮮やかなトーナメント緑 */
+#table.theme-emerald {
+  --felt-hi: rgba(255,255,255,.11); --felt-1: #2a956c; --felt-2: #1b6f4a; --felt-3: #0f5030;
+  --pinline: rgba(231,189,82,.20);
+}
+/* ラグジュアリー: 深緑×強い金。上位報酬向け */
+#table.theme-luxe {
+  --felt-hi: rgba(255,255,255,.06); --felt-1: #1a5740; --felt-2: #103c2b; --felt-3: #08291c;
+  --rail: #241a0f; --pinline: rgba(231,189,82,.36);
+  --rail-glow: 0 0 26px rgba(231,189,82,.22);
+}
+/* サファイア: 青フェルト(別系統スキン) */
+#table.theme-sapphire {
+  --felt-hi: rgba(255,255,255,.10); --felt-1: #2a5ea8; --felt-2: #1b4078; --felt-3: #112a50;
+  --rail: #20253a; --pinline: rgba(231,189,82,.22);
+}
 
 /* ファイナルテーブル(ロイヤルブルー)も同じ質感ロジックで --- */
 #table.ft {
