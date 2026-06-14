@@ -278,7 +278,7 @@ function render(state) {
     const htxt = hero.chips + "|" + sgClsH;
     if (hc.dataset.t !== htxt) {
       hc.dataset.t = htxt;
-      hc.innerHTML = `<div class="hc-label">YOU</div>` +
+      hc.innerHTML =
         `<div class="hc-bb ${sgClsH}-t">${fmtBB(hero.chips)}<span>BB</span></div>` +
         `<div class="hc-chips">${fmtChips(hero.chips)}</div>`;
     }
