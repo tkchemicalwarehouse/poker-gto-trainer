@@ -240,6 +240,11 @@ function render(state) {
     `<span class="${state.finalTable ? "ft-badge" : "field-badge"}">${state.finalTable ? "🔥FT " : ""}残り${state.fieldLeft}人</span>`;
   // FTはテーブルの色が変わる
   $("table").classList.toggle("ft", !!state.finalTable);
+  // ヘッズアップ(残り2人)突入でVS演出を一度だけ
+  if (state.fieldLeft === 2 && !huSplashShown && state.street !== "idle") {
+    huSplashShown = true;
+    showHUSplash(state);
+  }
 
   const pot = potTotal(state);
   $("pot-disp").textContent = state.street === "idle" ? "" : `ポット: ${fmtChips(pot)} (${fmtBB(pot)}BB)`;
@@ -417,6 +422,7 @@ function logMsg(msg, cls) {
 
 // AAが配られたらKIMが走り抜ける(ハンドごとに1回)
 let lastAARun = 0;
+let huSplashShown = false;  // ヘッズアップ突入VS演出(トーナメント中1回)
 function checkAARun(state) {
   if (typeof Mascot === "undefined" || !state || state.street !== "preflop") return;
   const hero = state.players[0];
@@ -881,6 +887,7 @@ async function startTournament() {
   aborting = false;
   G = newTournament("あなた", fieldSizeSel(), heroBBSel());
   tally = newTally();
+  huSplashShown = false;
   const hero = G.players[0];
   logMsg(`${G.fieldSize}人トーナメント開始! あなたのスタック: ${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)`, "info");
   render(G);
@@ -969,6 +976,33 @@ function finishTournament(won) {
 }
 
 /* ---------- 優勝演出 ---------- */
+// ヘッズアップ突入のVS演出(自分の装備犬 vs 相手犬・ディーラーなし)
+function showHUSplash(state) {
+  const me = state.players[0];
+  const opp = state.players.find(p => !p.isHero && !p.out) || {};
+  const ov = document.createElement("div"); ov.id = "hu-splash";
+  // 相手犬(プレースホルダ=ドット絵・別配色)
+  const ot = document.createElement("div"); ot.className = "hu-opp";
+  if (typeof Mascot !== "undefined" && Mascot.pixelCanvas && Mascot.MAP) {
+    const pal = ((Mascot.skins && (Mascot.skins.shiba || Mascot.skins.corgi)) || {}).palette;
+    const cv = Mascot.pixelCanvas(Mascot.MAP, pal, 6, false); cv.className = "hu-pix";
+    ot.appendChild(cv);
+  }
+  ot.insertAdjacentHTML("beforeend", `<div class="hu-tag">${opp.name || "RIVAL"}　${opp.chips != null ? fmtBB(opp.chips) + "BB" : ""}</div>`);
+  // 中央 VS / 決着戦
+  const ct = document.createElement("div"); ct.className = "hu-center";
+  ct.innerHTML = `<div class="hu-vs">VS</div><div class="hu-duel">決着戦</div>`;
+  // 自分(装備犬イラスト)
+  const mt = document.createElement("div"); mt.className = "hu-me";
+  const src = (typeof Cosmetics !== "undefined" && Cosmetics.equippedDog && Cosmetics.equippedDog().img) || null;
+  mt.innerHTML = (src ? `<img src="${src}" alt="">` : "") +
+    `<div class="hu-tag"><b style="color:#5fd492">YOU</b>　${fmtBB(me.chips)}BB</div>`;
+  ov.appendChild(ot); ov.appendChild(ct); ov.appendChild(mt);
+  document.body.appendChild(ov);
+  if (typeof Sfx !== "undefined") { try { Sfx.play("win"); } catch (e) { } }
+  setTimeout(() => { ov.classList.add("out"); setTimeout(() => ov.remove(), 500); }, 2300);
+}
+
 function showVictory() {
   Sfx.play("victory");
   const layer = $("confetti-layer");

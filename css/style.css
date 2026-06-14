@@ -1863,3 +1863,24 @@ body[data-fx="min"] .vic-sparkle, body[data-fx="min"] .victory-flash, body[data-
  * ========================================================= */
 body.mode-phone #screen-game { display: flex; flex-direction: column; box-sizing: border-box; padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
 body.mode-phone #table-wrap { margin-top: auto; }
+
+/* =========================================================
+ * ヘッズアップ突入 VS演出(ディーラーなし・相手1匹)
+ * ========================================================= */
+#hu-splash{position:fixed;inset:0;z-index:9000;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:8vh 0;text-align:center;background:radial-gradient(ellipse at 50% 50%,rgba(70,20,70,.45),rgba(4,6,10,.86));animation:huBg .3s ease both}
+#hu-splash.out{animation:huOut .5s ease both}
+#hu-splash .hu-opp{color:#fff;animation:huTop .6s cubic-bezier(.2,1.3,.4,1) both}
+#hu-splash .hu-me{color:#fff;animation:huBot .6s cubic-bezier(.2,1.3,.4,1) both}
+#hu-splash .hu-pix{image-rendering:pixelated;filter:drop-shadow(0 6px 10px rgba(0,0,0,.6))}
+#hu-splash .hu-me img{height:clamp(150px,32vw,220px);filter:drop-shadow(0 0 16px rgba(255,215,94,.5)) drop-shadow(0 8px 16px rgba(0,0,0,.5))}
+#hu-splash .hu-tag{display:inline-block;margin-top:4px;background:rgba(10,14,20,.6);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:3px 13px;font-size:13px;font-weight:700}
+#hu-splash .hu-center{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%)}
+#hu-splash .hu-vs{font-size:clamp(64px,18vw,120px);font-weight:900;font-style:italic;color:#fff;line-height:1;text-shadow:0 0 22px rgba(255,80,80,.85),0 5px 0 #7a0f22;animation:huVs .5s cubic-bezier(.2,1.6,.4,1) .25s both}
+#hu-splash .hu-duel{font-size:clamp(20px,5vw,30px);font-weight:900;letter-spacing:8px;color:#ffd75e;text-shadow:0 2px 8px #000;animation:huFade .4s ease .55s both}
+@keyframes huBg{from{opacity:0}to{opacity:1}}
+@keyframes huOut{to{opacity:0}}
+@keyframes huTop{from{opacity:0;transform:translateY(-120px)}to{opacity:1;transform:translateY(0)}}
+@keyframes huBot{from{opacity:0;transform:translateY(120px)}to{opacity:1;transform:translateY(0)}}
+@keyframes huVs{from{opacity:0;transform:scale(2.4) rotate(-8deg)}60%{opacity:1;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+@keyframes huFade{from{opacity:0}to{opacity:1}}
+body[data-fx="min"] #hu-splash{animation:none}

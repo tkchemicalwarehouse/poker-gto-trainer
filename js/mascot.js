@@ -199,7 +199,7 @@ const Mascot = (() => {
     setTimeout(() => { wrap.remove(); running = false; }, 7600);
   }
 
-  return { mount, run, runPack, buildEl, pixelCanvas, bunnyWalk, setSkin, getSkin: () => activeSkinId, skins: DOG_SKINS };
+  return { mount, run, runPack, buildEl, pixelCanvas, bunnyWalk, setSkin, getSkin: () => activeSkinId, skins: DOG_SKINS, MAP };
 })();
 
 /* =========================================================
