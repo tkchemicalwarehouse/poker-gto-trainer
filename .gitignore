@@ -23,3 +23,4 @@ tools/_*_combined.cjs
 tools/*-result.json
 tools/comments-report.txt
 tools/*.log
+tools/comments-full.txt
