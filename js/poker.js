@@ -724,15 +724,23 @@ function allinEquities(players, board) {
 }
 
 // ランアウト中、各参加者に勝率(eqPct)を付与して描画し、ゆっくり見せる
+// 勝率を出すのは「3人以下」のオールインのみ(4人以上は計算が重く表示も窮屈なので非表示)
 async function showRunoutEquity(state, io) {
   const contenders = state.players.filter(p => !p.folded);
   if (contenders.length < 2) return;
   for (const p of contenders) p.showCards = true;
-  const eqs = allinEquities(contenders, state.board);
-  for (const e of eqs) e.player.eqPct = e.pct;
-  state.runout = true;
-  io.render(state);
-  await io.delay(1500);   // オールインの勝率を読む時間(速度設定でさらに伸縮)
+  if (contenders.length <= 3) {
+    const eqs = allinEquities(contenders, state.board);
+    for (const e of eqs) e.player.eqPct = e.pct;
+    state.runout = true;
+    io.render(state);
+    await io.delay(1500);   // オールインの勝率を読む時間(速度設定でさらに伸縮)
+  } else {
+    // 4人以上: 勝率は出さず、カードを公開してランアウトを見せるだけ
+    state.runout = true;    // eqPct は付けない → 勝率バッジは非表示
+    io.render(state);
+    await io.delay(800);
+  }
 }
 
 /* ---------- ハンド解決(ショーダウン・サイドポット) ---------- */
