@@ -245,6 +245,15 @@ function render(state) {
     huSplashShown = true;
     showHUSplash(state);
   }
+  // ヘッズアップは一人称(POV)画面に切替(通常テーブルを隠す)
+  const huMode = state.fieldLeft === 2 && state.street !== "idle";
+  const huPov = $("hu-pov");
+  if (huPov) {
+    huPov.classList.toggle("hidden", !huMode);
+    $("table-wrap").classList.toggle("hidden", huMode);
+    document.body.classList.toggle("hu-mode", huMode);
+    if (huMode) { renderHUPov(state); $("hero-corner").classList.add("hidden"); }
+  }
 
   const pot = potTotal(state);
   $("pot-disp").textContent = state.street === "idle" ? "" : `ポット: ${fmtChips(pot)} (${fmtBB(pot)}BB)`;
@@ -1001,6 +1010,30 @@ function showHUSplash(state) {
   document.body.appendChild(ov);
   if (typeof Sfx !== "undefined") { try { Sfx.play("win"); } catch (e) { } }
   setTimeout(() => { ov.classList.add("out"); setTimeout(() => ov.remove(), 500); }, 2300);
+}
+
+// ヘッズアップ 一人称(POV)画面の中身を更新
+function renderHUPov(state) {
+  const hero = state.players[0];
+  const opp = state.players.find(p => !p.isHero && !p.out);
+  // 相手犬(一度だけ生成)
+  const od = $("pov-opp-dog");
+  if (od && !od.firstChild && typeof Dog !== "undefined" && Dog.oppCanvas) { const c = Dog.oppCanvas(5); if (c) od.appendChild(c); }
+  // 相手の手札(ショーダウンのみ表向き)
+  const showOpp = state.street === "showdown" && opp && opp.showCards;
+  $("pov-opp-cards").innerHTML = !opp ? "" : (opp.folded ? "" : (showOpp ? opp.cards.map(c => cardHTML(c, true)).join("") : backHTML(true) + backHTML(true)));
+  $("pov-opp-info").innerHTML = opp ? `${opp.name}　<b>${fmtChips(opp.chips)} (${fmtBB(opp.chips)}BB)</b>` : "";
+  // 場札・ポット・チップ
+  const pot = potTotal(state);
+  $("pov-board").innerHTML = state.board.map(c => cardHTML(c)).join("");
+  $("pov-pot").innerHTML = `ポット ${fmtChips(pot)} (${fmtBB(pot)}BB)`;
+  $("pov-chips").innerHTML = chipStackHTML(pot, false, 8);
+  // 自分の手札・スタック
+  $("pov-hole").innerHTML = (hero.cards && hero.cards.length) ? hero.cards.map(c => cardHTML(c)).join("") : "";
+  $("pov-hero-info").innerHTML = `<b style="color:#5fd492">YOU</b>　<b>${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)</b>`;
+  // 前景の手(一度だけ生成)
+  const pw = $("pov-paws");
+  if (pw && !pw.firstChild && typeof Dog !== "undefined" && Dog.pawsCanvas) { const c = Dog.pawsCanvas(document.body.classList.contains("mode-phone") ? 10 : 12); if (c) pw.appendChild(c); }
 }
 
 function showVictory() {

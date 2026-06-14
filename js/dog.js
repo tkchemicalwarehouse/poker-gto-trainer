@@ -84,5 +84,19 @@ const Dog = (() => {
     return s ? '<img src="' + s + '" class="dog-victory" alt="">' : "";
   }
 
-  return { run, sign, victoryImgTag, hasImg };
+  /* ---- HU POV用 ドット絵: 前景の手(コーギーの手) ---- */
+  var PAWS_PAL = { K: "#2a2118", O: "#d98e4a", W: "#fdf6ec" };
+  var PAW1 = [".KK.KK.KK.", "KOOKOOKOOK", "KOOOOOOOOK", "KOWWWWWWOK", "KOOOOOOOOK", ".KOOOOOOK.", "..KKKKKK.."];
+  var PAWS = PAW1.map(function (r) { return r + "...." + r; });
+  function pawsCanvas(scale) {
+    return (typeof Mascot !== "undefined" && Mascot.pixelCanvas) ? Mascot.pixelCanvas(PAWS, PAWS_PAL, scale || 10, false) : null;
+  }
+  // 相手犬(プレースホルダ=ドット絵チビ犬・別配色)
+  function oppCanvas(scale) {
+    if (typeof Mascot === "undefined" || !Mascot.pixelCanvas || !Mascot.MAP) return null;
+    var pal = ((Mascot.skins && (Mascot.skins.shiba || Mascot.skins.corgi)) || {}).palette;
+    return Mascot.pixelCanvas(Mascot.MAP, pal, scale || 5, false);
+  }
+
+  return { run, sign, victoryImgTag, hasImg, pawsCanvas, oppCanvas };
 })();
