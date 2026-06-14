@@ -170,13 +170,13 @@ async function playHand(state, io) {
   for (const p of state.players) {
     if (p.out) {
       p.folded = true; p.cards = []; p.showCards = false;
-      p.streetBet = 0; p.committed = 0; p.allIn = false; p.tagAgg = null; p.tagPass = null;
+      p.streetBet = 0; p.committed = 0; p.allIn = false; p.tagAgg = null; p.tagPass = null; p.showResult = null;
       continue;
     }
     p.cards = [deck.pop(), deck.pop()];
     p.folded = false; p.allIn = false;
     p.streetBet = 0; p.committed = 0; p.hasActed = false; p.hadAggression = false;
-    p.assumedRange = null; p.rangeNote = ""; p.showCards = false; p.tagAgg = null; p.tagPass = null;
+    p.assumedRange = null; p.rangeNote = ""; p.showCards = false; p.tagAgg = null; p.tagPass = null; p.showResult = null;
     p.startChips = p.chips;
   }
 
@@ -730,9 +730,12 @@ async function resolveHand(state, io) {
     for (let i = 0; i < ws.length; i++) {
       const give = i === ws.length - 1 ? pt.amt - dealt : share;
       ws[i].chips += give; dealt += give;
+      ws[i].showResult = "win";
       winners.push({ name: ws[i].name, isHero: ws[i].isHero, amount: give, hand: handRankJP(scores.get(ws[i])) });
     }
   }
+  // ショーダウンに残った各プレイヤーに勝敗フラグ(速くても WIN/LOSE が見分けられるように)
+  for (const p of contenders) if (p.showResult !== "win") p.showResult = "lose";
   resetCommit(state);
 
   // ログ

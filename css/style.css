@@ -664,6 +664,16 @@ body.mode-phone .prebar-row button { font-size: 12px; padding: 8px 3px; min-widt
 .sa-tag.sa-4bet  { color: #ff7bff; border-color: #ff7bff; }
 .sa-tag.sa-5bet  { color: #4dffff; border-color: #4dffff; }
 .sa-tag.sa-allin { color: #ff3355; border-color: #ff3355; animation: allinColors .7s steps(1) infinite; }
+.sa-tag.sa-win {
+  color: #0a0; border-color: #46ff7c; background: rgba(8, 40, 16, .95);
+  font-size: 14px; padding: 6px 11px; box-shadow: 0 0 12px rgba(70,255,124,.6); animation: resultPop .2s steps(2) both;
+}
+.sa-tag.sa-lose {
+  color: #fff; border-color: #ff5a5a; background: rgba(50, 8, 8, .95);
+  font-size: 14px; padding: 6px 11px; box-shadow: 0 0 12px rgba(255,90,90,.5); animation: resultPop .2s steps(2) both;
+}
+@keyframes resultPop { from { transform: scale(.3); } }
+body.mode-phone .sa-tag.sa-win, body.mode-phone .sa-tag.sa-lose { font-size: 11px; padding: 4px 7px; }
 .sa-tag .sa-amt { display: block; margin-top: 2px; font-size: 8px; color: #ffe2a0; letter-spacing: 0; }
 body.mode-phone .sa-tag { font-size: 8px; padding: 3px 5px; }
 body.mode-phone .sa-tag .sa-amt { font-size: 7px; }

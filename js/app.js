@@ -318,12 +318,24 @@ function render(state) {
     }
     // アクションのドット文字バッジ(RAISE+FOLDの重ね表示、3BET/4BET/5BETは色分け)
     const actEl = el.querySelector(".seat-act");
+    const showdownResult = state.street === "showdown" && p.showResult;
     const tags = [];
-    if (p.tagAgg) tags.push(p.tagAgg);
-    if (p.tagPass) tags.push(p.tagPass);
+    if (!showdownResult) {
+      if (p.tagAgg) tags.push(p.tagAgg);
+      if (p.tagPass) tags.push(p.tagPass);
+    }
     // 攻撃アクションには投入額を併記(RAISE/3BET/BET/ALL IN等。いくら入れたか一目で)
     const aggAmt = (p.tagAgg && p.streetBet > 0) ? p.streetBet : 0;
-    if (tags.length && state.street !== "idle") {
+    if (showdownResult) {
+      // ショーダウンの勝敗を WIN/LOSE のドット字で大きく表示(速くても見分けられるように)
+      const key = "result:" + p.showResult;
+      if (actEl.dataset.k !== key) {
+        actEl.dataset.k = key;
+        actEl.className = "seat-act";
+        const cls = p.showResult === "win" ? "sa-win" : "sa-lose";
+        actEl.innerHTML = `<div class="sa-tag ${cls}">${p.showResult === "win" ? "WIN" : "LOSE"}</div>`;
+      }
+    } else if (tags.length && state.street !== "idle") {
       const key = tags.join("|") + "|" + aggAmt;
       if (actEl.dataset.k !== key) {
         actEl.dataset.k = key;
@@ -429,38 +441,24 @@ function renderPreBar(state) {
   if (!canShow) { bar.classList.add("hidden"); return; }
   bar.classList.remove("hidden");
   const sel = heroPre ? heroPre.id : null;
-  const heroBB = (hero.chips / LIVE.bb).toFixed(1);
+  // 予約できるのは「フォールド」だけ。他のアクションは自分の番が来てから選ぶ
   bar.innerHTML =
-    `<div class="prebar-label">⏩ 先に予約(手番が来たら自動実行)</div>` +
+    `<div class="prebar-label">⏩ 先に予約できるのはフォールドだけ(手番が来たら自動で降ります)</div>` +
     `<div class="prebar-row">` +
-    `<button class="pre-fold${sel === 'fold' ? ' on' : ''}" data-pre="fold">フォールド</button>` +
-    `<button class="pre-raise${sel === 'raise' ? ' on' : ''}" data-pre="raise">レイズ</button>` +
-    `<button class="pre-jam${sel === 'jam' ? ' on' : ''}" data-pre="jam">オールイン (${heroBB}BB)</button>` +
-    `<button class="pre-sizer${sel === 'raiseTo' ? ' on' : ''}" data-pre="raiseTo">🎚 レイズ額指定</button>` +
+    `<button class="pre-fold${sel === 'fold' ? ' on' : ''}" data-pre="fold">${sel === 'fold' ? '✓ 予約フォールド中(押すと取消)' : '予約フォールド'}</button>` +
     `</div>` +
-    (sel === "raiseTo" ? `<div class="prebar-sizer">
-        <input type="range" id="pre-range" min="${2 * LIVE.bb}" max="${hero.chips}" step="1000" value="${heroPre.target || 3 * LIVE.bb}">
-        <span id="pre-val"></span></div>` : "") +
-    (sel ? `<div class="prebar-status">予約中: <b>${preLabel(sel)}</b>(取り消すにはもう一度押す)</div>` : "");
+    (sel === 'fold'
+      ? `<div class="prebar-status">手番が来たら自動でフォールドします。</div>`
+      : `<div class="prebar-status dim">レイズ/コール/オールインは、自分の番が来てから選べます。</div>`);
 
   bar.querySelectorAll("button[data-pre]").forEach(b => {
     b.onclick = () => {
-      const id = b.dataset.pre;
-      if (heroPre && heroPre.id === id) { heroPre = null; }   // 同じボタン=取消
-      else {
-        heroPre = { id };
-        if (id === "raiseTo") heroPre.target = 3 * LIVE.bb;
-        heroPreBet = curMaxStreetBet(state);
-      }
+      if (heroPre && heroPre.id === "fold") { heroPre = null; }   // 同じボタン=取消
+      else { heroPre = { id: "fold" }; heroPreBet = curMaxStreetBet(state); }
       Sfx.play("chip");
       renderPreBar(state);
     };
   });
-  const range = bar.querySelector("#pre-range");
-  if (range) {
-    const upd = () => { bar.querySelector("#pre-val").textContent = `${fmtChips(+range.value)} (${(range.value / LIVE.bb).toFixed(1)}BB)`; heroPre.target = +range.value; };
-    upd(); range.oninput = upd;
-  }
 }
 function preLabel(id) {
   return { fold: "フォールド", raise: "レイズ", jam: "オールイン", raiseTo: "レイズ額指定" }[id] || id;
