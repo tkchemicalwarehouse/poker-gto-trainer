@@ -16,9 +16,9 @@ const Cosmetics = (() => {
   // カタログ: 各カテゴリの先頭=既定(cond:常時true)。cond(progress)→解放、goal=未解放ヒント。
   const CATALOG = {
     dogs: [
-      { id: "mutt",  name: "雑種(あいぼう)",   icon: "🐶", cond: () => true,            goal: "最初の相棒" },
-      { id: "shiba", name: "柴犬",             icon: "🦊", cond: p => p.tourneys >= 3,   goal: "3回トーナメントに挑戦で解放" },
-      { id: "corgi", name: "コーギー(KIM)",    icon: "🐕", cond: p => p.wins >= 1,       goal: "初優勝で解放" },
+      { id: "jack",  name: "ジャックコギ", icon: "🐕", img: "img/dogs/jack-corgi.png", line: "いざ、勝負。", cond: () => true, goal: "最初の相棒" },
+      { id: "shiba", name: "柴犬",         icon: "🦊", cond: p => p.tourneys >= 3, goal: "3回トーナメントに挑戦で解放" },
+      { id: "corgi", name: "コーギー",     icon: "🐶", cond: p => p.wins >= 1,     goal: "初優勝で解放" },
     ],
     tables: [
       { id: "classic",  name: "クラシック",       icon: "🟢", cond: () => true,           goal: "既定" },
@@ -89,5 +89,7 @@ const Cosmetics = (() => {
     return fresh;
   }
 
-  return { CATALOG, isUnlocked, unlockedList, allDogsUnlocked, equip, equippedId, apply, newlyUnlocked, progress: P };
+  function equippedDog() { return item("dogs", equippedId("dogs")) || CATALOG.dogs[0]; }
+
+  return { CATALOG, isUnlocked, unlockedList, allDogsUnlocked, equip, equippedId, equippedDog, apply, newlyUnlocked, progress: P };
 })();

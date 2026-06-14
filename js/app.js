@@ -401,17 +401,17 @@ function logMsg(msg, cls) {
   el.textContent = msg;
   $("log-panel").appendChild(el);
   $("log-panel").scrollTop = $("log-panel").scrollHeight;
-  // ブラインドアップ → KIMが旗を持って走る
-  if (cls === "levelup" && msg.includes("ブラインドアップ") && typeof Mascot !== "undefined") {
-    Mascot.run({ flagText: "BLIND UP!" });
+  // ブラインドアップ → 装備犬が旗を持って走る
+  if (cls === "levelup" && msg.includes("ブラインドアップ") && typeof Dog !== "undefined") {
+    Dog.run({ flagText: "BLIND UP!" });
   }
-  // バブル(残り10人) → バニーガールが BUBBLE 看板で歩く
-  if (cls === "levelup" && msg.includes("バブル!") && typeof Mascot !== "undefined") {
-    Mascot.bunnyWalk(["BUBBLE", "あと1人で入賞!"]);
+  // バブル(残り10人) → 装備犬が BUBBLE 看板で歩く
+  if (cls === "levelup" && msg.includes("バブル!") && typeof Dog !== "undefined") {
+    Dog.sign(["BUBBLE", "あと1人で入賞!"]);
   }
-  // ファイナルテーブル → バニーガールが FINAL TABLE 看板で歩く
-  else if (cls === "levelup" && msg.includes("ファイナルテーブル!") && typeof Mascot !== "undefined") {
-    Mascot.bunnyWalk(["FINAL TABLE", "IN THE MONEY"]);
+  // ファイナルテーブル → 装備犬が FINAL TABLE 看板で歩く
+  else if (cls === "levelup" && msg.includes("ファイナルテーブル!") && typeof Dog !== "undefined") {
+    Dog.sign(["FINAL TABLE", "IN THE MONEY"]);
   }
 }
 
@@ -424,12 +424,9 @@ function checkAARun(state) {
   if (state.handNo === lastAARun) return;
   if (handLabelOf(hero.cards[0], hero.cards[1]) === "AA") {
     lastAARun = state.handNo;
-    // 上位報酬: 全犬解放済みなら犬群が走る。通常は装備中の1匹。
-    if (typeof Cosmetics !== "undefined" && Cosmetics.allDogsUnlocked() && Mascot.runPack) {
-      Mascot.runPack(Cosmetics.unlockedList("dogs"));
-    } else {
-      Mascot.run({ callout: "AA!! 最強のハンド!" });
-    }
+    // 装備犬が走り抜ける(画像が無ければドットにフォールバック)
+    if (typeof Dog !== "undefined") Dog.run({ callout: "AA!! 最強のハンド!" });
+    else if (typeof Mascot !== "undefined") Mascot.run({ callout: "AA!! 最強のハンド!" });
     Sfx.play("win");
   }
 }
@@ -861,6 +858,7 @@ async function startTournament() {
   const hero = G.players[0];
   logMsg(`${G.fieldSize}人トーナメント開始! あなたのスタック: ${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)`, "info");
   render(G);
+  if (typeof Dog !== "undefined" && Dog.hasImg()) Dog.cutin();   // 装備犬の登場カットイン
   await runTournamentLoop();
 }
 
@@ -965,6 +963,7 @@ function showVictory() {
     layer.appendChild(c);
   }
   $("victory-body").innerHTML = `
+    ${(typeof Dog !== "undefined") ? Dog.victoryImgTag() : ""}
     <div class="victory-place">🏆 ${G.fieldSize}人トーナメント 優勝 🏆</div>
     <p class="victory-hands">${G.handNo}ハンドの激闘を制しました!</p>
     ${freshUnlockHTML()}

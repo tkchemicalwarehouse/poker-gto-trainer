@@ -1738,3 +1738,29 @@ body.mode-phone #table { height: min(132vw, calc(100vh - 188px)); }
  * ========================================================= */
 body.mode-phone .c-pip { font-size: 1.12em; right: 1px; bottom: -1px; }
 body.mode-phone .c-idx { font-size: 1.28em; }
+
+/* =========================================================
+ * 装備犬(画像)の演出 — 走り / 看板 / カットイン / 優勝
+ * ========================================================= */
+.dog-run { position: fixed; bottom: 22%; left: -260px; z-index: 8500; pointer-events: none; animation: mascotDash 4.2s linear forwards; }
+.dog-run.dog-walk { bottom: 26%; animation-duration: 7.4s; }
+.dog-sprite { height: 150px; width: auto; display: block; filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); }
+.dog-gallop { animation: mascotGallop .28s steps(2) infinite; }
+.dog-sway { animation: bunnySway .5s steps(2) infinite; }
+body.mode-phone .dog-sprite { height: 112px; }
+
+/* カットイン */
+.dog-cutin { position: fixed; inset: 0; z-index: 9000; pointer-events: none; display: flex; align-items: center; justify-content: center; }
+.dog-cutin::before { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,.42), rgba(0,0,0,.72)); animation: dogCutBg .3s ease both; }
+.dog-cutin-img { position: relative; height: min(60vh, 440px); width: auto; filter: drop-shadow(0 12px 24px rgba(0,0,0,.6)); animation: dogCutIn .55s cubic-bezier(.2,1.5,.4,1) both; }
+.dog-cutin-plate { position: absolute; bottom: 15%; left: 50%; transform: translateX(-50%); text-align: center; animation: dogCutPlate .3s ease .35s both; }
+.dog-cutin-name { font-family: var(--font-display); font-weight: 900; font-size: clamp(26px, 6vw, 46px); color: #fff; letter-spacing: 1px; text-shadow: 0 3px 10px rgba(0,0,0,.8), 0 0 18px rgba(231,189,82,.5); }
+.dog-cutin-line { font-weight: 800; font-size: clamp(16px, 3.5vw, 24px); color: var(--gold-2); text-shadow: 0 2px 6px rgba(0,0,0,.85); margin-top: 4px; }
+.dog-cutin.out { animation: dogCutOut .4s ease both; }
+@keyframes dogCutBg { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dogCutIn { 0% { transform: translateX(60vw) scale(.7) rotate(6deg); opacity: 0; } 60% { transform: translateX(-2vw) scale(1.08) rotate(-1deg); opacity: 1; } 100% { transform: translateX(0) scale(1) rotate(0); } }
+@keyframes dogCutPlate { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+@keyframes dogCutOut { to { opacity: 0; transform: scale(1.05); } }
+
+/* 優勝モーダルの犬 */
+.dog-victory { height: 150px; width: auto; display: block; margin: 4px auto 6px; filter: drop-shadow(0 8px 16px rgba(0,0,0,.5)); animation: trophyBounce 1s cubic-bezier(.2,1.6,.4,1) .3s both; }
