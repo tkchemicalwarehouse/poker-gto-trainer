@@ -382,16 +382,18 @@ function madeHandDesc(ctx) {
   return `あなたの${cardText(pairCard)}が場の${R[pr]}とペア${kicker != null ? `・${R[kicker]}キッカー` : ""}`;
 }
 
-function buildExplanation(ctx, advice, chosen, verdict, sizing) {
+function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
   const d = advice.data;
   const lines = [];
   const hand = ctx.heroLabel;
-  if (verdict && COACH_VOICE[verdict]) {
+  // hint=決定前の「先生に聞く」モード: 採点的な声かけは出さず、推奨を中立に提示する
+  if (!hint && verdict && COACH_VOICE[verdict]) {
     lines.push(`<div class="ex-voice">${pickVar("voice", COACH_VOICE[verdict])}</div>`);
   }
   lines.push(`<div class="ex-head"><b>${hand}</b> @ ${ctx.seatName} ` +
     (ctx.phase === "preflop" ? `(${bb1(ctx.stackBB)}BB)` : `【${streetJP(ctx.street)}】`) + `</div>`);
-  lines.push(`<div class="ex-gto">GTO戦略: <b>${freqsText(advice.freqs)}</b> — あなた: <b>${actionJP(chosen)}</b></div>`);
+  lines.push(`<div class="ex-gto">GTO戦略: <b>${freqsText(advice.freqs)}</b>` +
+    (hint ? ` ／ 先生の推奨: <b>${actionJP(advice.primary)}</b>` : ` — あなた: <b>${actionJP(chosen)}</b>`) + `</div>`);
 
   // サイズ/方針の指摘(アクション選択は妥当だが改善点がある場合)
   if (sizing && sizing.note) {
@@ -591,7 +593,12 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
     const matched = userCalled === callRight;    // 自分の選択が推奨と一致したか
     const eqs = `勝率<b>${pct(d.equity)}</b> ${callRight ? "≥" : "＜"} 必要<b>${pct(thr)}</b>`;
     let headline;
-    if (callRight) {
+    if (hint) {
+      // 決定前ヒント: 採点ではなく中立に推奨を提示
+      headline = callRight
+        ? `推奨は<b>コール</b>。${eqs} なので受けるのが+EVです。`
+        : `推奨は<b>フォールド</b>。${eqs} なので降りるのが正解です。`;
+    } else if (callRight) {
       // コールが正解
       if (matched) headline = pickVar("callRightYes", [
           `ナイスコール。${eqs}で、受けて正解。`,

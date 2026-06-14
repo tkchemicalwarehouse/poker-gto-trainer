@@ -993,6 +993,24 @@ body.mode-phone #blind-corner .bc-blinds { font-size: 16px; }
 .resume-cta { display: block; width: 100%; margin-bottom: 10px; background: linear-gradient(135deg, #2e9e5b, #46c47c) !important; }
 .resume-cta .resume-sub { display: block; font-size: 11px; font-weight: 400; opacity: .9; margin-top: 2px; }
 
+/* 🧑‍🏫 先生に聞く(手番中のお助けボタン)。アイコンはデザイン側でキャラに差し替え可 */
+.ask-teacher {
+  display: inline-flex; align-items: center; gap: 7px; align-self: center;
+  margin: 0 auto 8px; padding: 7px 16px; border-radius: 999px; cursor: pointer;
+  background: rgba(77,163,255,.16); border: 1px solid var(--accent); color: var(--accent);
+  font-size: 14px; font-weight: 700;
+}
+.ask-teacher:hover { background: rgba(77,163,255,.28); }
+.ask-teacher .ask-ico { font-size: 20px; }
+/* 推奨ヒントのオーバーレイ */
+#hint-ov { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; padding: 14px; }
+#hint-ov.hidden { display: none; }
+.hint-inner { background: var(--panel, #141b26); border: 1px solid #34465c; border-radius: 12px; max-width: 560px; width: 100%; max-height: 88vh; overflow-y: auto; padding: 16px; }
+.hint-head { font-size: 16px; font-weight: 800; color: var(--accent); margin-bottom: 10px; }
+.hint-head .hint-sub { display: block; font-size: 11px; font-weight: 400; color: var(--dim); margin-top: 2px; }
+.hint-body { font-size: 14px; line-height: 1.7; }
+#hint-close { width: 100%; margin-top: 14px; padding: 12px; border-radius: 8px; }
+
 /* 成績 */
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 14px 0; }
 .stat-card { background: var(--panel); border-radius: 10px; padding: 14px; text-align: center; }

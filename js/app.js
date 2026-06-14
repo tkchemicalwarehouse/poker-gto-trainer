@@ -488,15 +488,16 @@ function mapPre(pre, legal) {
 
 async function heroActUI(ctx, legal) {
   if (aborting) return autoAction(legal);
-  // 通常の手番(先回り予約フォールドは廃止)
+  // 決定前に助言を計算(「先生に聞く」用)。採点でも再利用してムダ計算を避ける
   Sfx.play("turn");
-  const act = await showActionButtons(legal);
-  return await finalizeHeroAct(ctx, act, false);
+  const advice = ctx.phase === "preflop" ? await preflopAdvice(ctx) : await postflopAdvice(ctx);
+  const act = await showActionButtons(legal, ctx, advice);
+  return await finalizeHeroAct(ctx, act, false, advice);
 }
 
 // アクション確定後の共通処理(採点・記録・コーチ表示)。fast=予約消化による即時実行
-async function finalizeHeroAct(ctx, act, fast) {
-  const advice = ctx.phase === "preflop" ? await preflopAdvice(ctx) : await postflopAdvice(ctx);
+async function finalizeHeroAct(ctx, act, fast, advice) {
+  if (!advice) advice = ctx.phase === "preflop" ? await preflopAdvice(ctx) : await postflopAdvice(ctx);
   const grade = gradeDecision(ctx, advice, gradeIdFor(act, ctx), act);
 
   tally.decisions++;
@@ -518,11 +519,19 @@ async function finalizeHeroAct(ctx, act, fast) {
   return act;
 }
 
-function showActionButtons(legal) {
+function showActionButtons(legal, ctx, advice) {
   return new Promise(resolve => {
     const bar = $("action-bar");
     bar.innerHTML = "";
     bar.classList.remove("hidden");
+    // 🧑‍🏫 先生に聞く(決定前の推奨を表示。間違えなくても学べる)
+    if (ctx && advice) {
+      const ask = document.createElement("button");
+      ask.className = "ask-teacher";
+      ask.innerHTML = `<span class="ask-ico">🧑‍🏫</span><span class="ask-txt">先生に聞く</span>`;
+      ask.onclick = () => openHint(ctx, advice);
+      bar.appendChild(ask);
+    }
     const big = $("sizer-big");
     const done = a => { bar.classList.add("hidden"); big.classList.add("hidden"); resolve(a); };
     const raiseTo = legal.find(a => a.id === "raiseTo");
@@ -600,6 +609,22 @@ function showActionButtons(legal) {
     }
     bar.appendChild(btnRow);
   });
+}
+
+// 🧑‍🏫 「先生に聞く」: 決定前に現局面の推奨(GTO頻度・EV・ICM)を表示。閉じると手番に戻る(手は消費しない)
+function openHint(ctx, advice) {
+  let ov = $("hint-ov");
+  if (!ov) { ov = document.createElement("div"); ov.id = "hint-ov"; ov.className = "hidden"; document.body.appendChild(ov); }
+  let body = "";
+  try { body = buildExplanation(ctx, advice, advice.primary, "best", null, true); } catch (e) { body = "推奨の生成に失敗しました。"; }
+  ov.innerHTML = `<div class="hint-inner">
+    <div class="hint-head">🧑‍🏫 先生のアドバイス<span class="hint-sub">(決定前のヒント・手は消費しません)</span></div>
+    <div class="hint-body">${body}</div>
+    <button id="hint-close" class="primary">閉じてプレイに戻る ▶</button>
+  </div>`;
+  ov.classList.remove("hidden");
+  $("hint-close").onclick = () => ov.classList.add("hidden");
+  Sfx.play("turn");
 }
 
 // スライダー指定額を採点用の抽象アクションに変換
