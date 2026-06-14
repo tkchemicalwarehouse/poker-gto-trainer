@@ -730,11 +730,14 @@ async function showRunoutEquity(state, io) {
   if (contenders.length < 2) return;
   for (const p of contenders) p.showCards = true;
   if (contenders.length <= 3) {
+    state.runout = true;
+    // 2段階で見せる: ①盤面と各プレイヤーの手札 → ②勝率%。一度に出すと速くて読めないため
+    io.render(state);
+    await io.delay(1800);   // まず「フロップ/手札」を読む時間
     const eqs = allinEquities(contenders, state.board);
     for (const e of eqs) e.player.eqPct = e.pct;
-    state.runout = true;
     io.render(state);
-    await io.delay(1500);   // オールインの勝率を読む時間(速度設定でさらに伸縮)
+    await io.delay(3200);   // 次に「勝率%」を読む時間(速度設定でさらに伸縮)
   } else {
     // 4人以上: 勝率は出さず、カードを公開してランアウトを見せるだけ
     state.runout = true;    // eqPct は付けない → 勝率バッジは非表示
