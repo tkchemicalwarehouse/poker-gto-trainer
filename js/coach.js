@@ -357,32 +357,25 @@ const EQUITY_CHEAT =
   `・2オーバー vs 2アンダー ≈ <b>67:33</b>(例: AQ vs 87)<br>` +
   `・「レンジ」に対しては中間を取る: 例えばAToはタイトな10%レンジ(99+,AJ+級)に対して約38%、ワイドな40%レンジに対して約57%`;
 
-/* 成立役を具体的に言語化する(「弱いペア」だけでは分かりにくいので、どのカードでペアかまで明示)。
- * ペア系・ノーペアを重点的に説明。複雑な役(ストレート/フラッシュ等)は cls.label に任せて null を返す。 */
+/* 「ワンペア」のとき、どのホールカードが場の何とペアかを明示する補足だけを返す。
+ * (ユーザーが『弱いペアと出るがペアが無い』と混乱したのを解消する目的)
+ * ポケットペア/ツーペア/トリップス/ノーペア/ストレート等は cls.label に任せ null を返す
+ * — そうしないと「ツーペア — トップペア」「ストレート — ノーペア」のような矛盾表記になるため。 */
 function madeHandDesc(ctx) {
   if (!ctx || !ctx.board || ctx.board.length < 3 || !ctx.heroCards || ctx.heroCards.length < 2) return null;
   if (typeof cardText !== "function") return null;
   const R = RANK_CHARS;
   const h = ctx.heroCards.map(c => c >> 2);
   const b = ctx.board.map(c => c >> 2);
-  const bUniqDesc = [...new Set(b)].sort((x, y) => y - x); // 場のランク(高い順・重複なし)
-  if (h[0] === h[1]) {                                     // ポケットペア
-    const pr = h[0];
-    if (b.includes(pr)) return `セット(${R[pr]}が3枚)`;
-    return (bUniqDesc.length && pr > bUniqDesc[0])
-      ? `オーバーペア(${R[pr]}のペアが場の最高位${R[bUniqDesc[0]]}より上)`
-      : `ポケット${R[pr]}(場に絡まず)`;
-  }
+  if (h[0] === h[1]) return null;                          // ポケットペアは cls に任せる
   const made = [...new Set(h.filter(hr => b.includes(hr)))];
-  if (made.length === 0) return `ノーペア(${R[Math.max(h[0], h[1])]}ハイ)`;
-  if (made.length === 2) return `ツーペア(${R[made[0]]}と${R[made[1]]})`;
+  if (made.length !== 1) return null;                      // ノーペア/ツーペアは cls に任せる
   const pr = made[0];
-  if (b.filter(x => x === pr).length >= 2) return `トリップス(${R[pr]}が3枚)`;
-  const idx = bUniqDesc.indexOf(pr);
-  const posName = idx === 0 ? "トップペア" : idx === bUniqDesc.length - 1 ? "ボトムペア" : "ミドルペア";
+  if (b.filter(x => x === pr).length >= 2) return null;     // トリップス(場に2枚)は cls に任せる
   const kicker = h.find(x => x !== pr);
   const pairCard = ctx.heroCards.find(c => (c >> 2) === pr);
-  return `${posName}(あなたの${cardText(pairCard)}が場の${R[pr]}とペア${kicker != null ? `・${R[kicker]}キッカー` : ""})`;
+  // cls.label が強さ(弱いペア/トップペア等)を既に示すので、ここは「どのカードでペアか」だけ補足
+  return `あなたの${cardText(pairCard)}が場の${R[pr]}とペア${kicker != null ? `・${R[kicker]}キッカー` : ""}`;
 }
 
 function buildExplanation(ctx, advice, chosen, verdict, sizing) {
@@ -576,7 +569,7 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
     const callRight = eqMargin >= 0;             // コールが推奨か
     const userCalled = chosen === "call";
     const matched = userCalled === callRight;    // 自分の選択が推奨と一致したか
-    const eqs = `勝率<b>${pct(d.equity)}</b> ${callRight ? "≥" : "<"} 必要<b>${pct(thr)}</b>`;
+    const eqs = `勝率<b>${pct(d.equity)}</b> ${callRight ? "≥" : "＜"} 必要<b>${pct(thr)}</b>`;
     let headline;
     if (callRight) {
       // コールが正解
@@ -626,7 +619,7 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
       EQUITY_CHEAT + `<br>` +
       `今回: 相手のジャムレンジ(上位${d.jamRangePct.toFixed(0)}%)に対する ${hand} の厳密値 = <b>${pct(d.equity)}</b><br><br>` +
       `<b>手順3: 比較して決める</b><br>` +
-      `勝率${pct(d.equity)} ${d.equity >= d.threshold ? "≥" : "<"} 必要勝率${pct(d.threshold)} → <b>${d.equity >= d.threshold ? "コール" : "フォールド"}</b><br>` +
+      `勝率${pct(d.equity)} ${d.equity >= d.threshold ? "≥" : "＜"} 必要勝率${pct(d.threshold)} → <b>${d.equity >= d.threshold ? "コール" : "フォールド"}</b><br>` +
       `EVに直すと: EV = ${pct(d.equity)} × ${(potC + callC).toFixed(1)} − ${callC.toFixed(1)} = <b class="${d.evCallBB >= 0 ? "pos" : "neg"}">${d.evCallBB >= 0 ? "+" : ""}${d.evCallBB.toFixed(2)}BB</b>`));
     if (d.icmDetail) {
       const i = d.icmDetail;
@@ -647,7 +640,9 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
   else if (d.kind === "postflop") {
     const c = d.cls;
     const made = madeHandDesc(ctx);
-    lines.push(`<p>あなたのハンド: <b>${c.label}</b>${made ? ` — ${made}` : ""} (強度ティア ${c.tier}/5)<br>` +
+    // 単一ペア系のラベルのときだけ補足(ツーペア等に付けると矛盾表記になるので除外)
+    const showMade = made && /ペア/.test(c.label) && !/ツーペア/.test(c.label);
+    lines.push(`<p>あなたのハンド: <b>${c.label}</b>${showMade ? `(${made})` : ""} (強度ティア ${c.tier}/5)<br>` +
       (d.equity !== undefined ? `${d.vsLabel}に対するエクイティ: <b>${pct(d.equity)}</b><br>` : "") +
       (d.breakeven !== undefined ? `必要勝率: <b>${pct(d.breakeven)}</b>` +
         (d.icmPremium > 0.005 ? ` → ICM補正後 <b>${pct(d.icmReq)}</b>(🏆FT賞金圧力)` : "") + `<br>` : "") +

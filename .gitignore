@@ -18,3 +18,8 @@ tools/autoplay-result.json
 tools/_valref_combined.cjs
 tools/_dev_combined.cjs
 .claude/
+
+tools/_*_combined.cjs
+tools/*-result.json
+tools/comments-report.txt
+tools/*.log
