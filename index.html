@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>トナメ中盤戦、、ここでGTO!! — 5〜30BB GTOトーナメント・トレーナー</title>
+<title>GTO Odyssey — 5〜30BB GTOトーナメント・トレーナー</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Noto+Sans+JP:wght@400;500;700;900&family=Outfit:wght@600;700;800;900&family=Press+Start+2P&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -17,53 +17,91 @@
   <div class="suit-float sf1">♠</div>
   <div class="suit-float sf2">♥</div>
   <div class="suit-float sf3">♦</div>
-  <div class="suit-float sf4">♣</div>
-  <div class="suit-float sf5">♠</div>
-  <div class="suit-float sf6">♥</div>
   <div class="home-inner">
-    <h1 class="logo logo-title">トナメ中盤戦、、<br><span class="gto-bang">ここでGTO!!</span></h1>
-    <div id="scene-home"></div>
-    <p class="tagline">5〜30BB GTOトーナメント・トレーナー</p>
-    <p class="sub">優勝するか、飛ぶか。すべての判断をGTOが採点する。</p>
-    <div class="setup-row">
-      <div class="device-toggle">
-        <span class="dev-label">端末:</span>
-        <button id="dev-phone" class="dev-btn">📱 スマホ</button>
-        <button id="dev-tablet" class="dev-btn">🖥️ タブレット / PC</button>
-      </div>
-      <label class="field-label">参加人数:
-        <select id="field-size">
-          <option value="18">18人 (短期決戦)</option>
-          <option value="27" selected>27人 (標準)</option>
-          <option value="45">45人 (長丁場)</option>
-        </select>
-      </label>
-      <label class="field-label">自分の開始スタック:
-        <select id="hero-bb">
-          <option value="random" selected>ランダム (5〜30BB)</option>
-          <option value="5">5BB</option>
-          <option value="8">8BB</option>
-          <option value="10">10BB</option>
-          <option value="15">15BB</option>
-          <option value="20">20BB</option>
-          <option value="25">25BB</option>
-          <option value="30">30BB</option>
-        </select>
-      </label>
+
+    <!-- ブランドバー -->
+    <div class="brandbar">
+      <span class="brand-mark">♠</span>
+      <span class="brand-tag">MTT中盤戦 · 中級者向けトレーナー</span>
     </div>
-    <div id="home-stats" class="home-stats"></div>
+
+    <!-- ヒーロー -->
+    <header class="hero">
+      <h1 class="logo logo-title"><span class="wm-gto">GTO</span><span class="wm-rest">dyssey</span></h1>
+      <p class="tagline">5〜30BB GTOトーナメント・トレーナー</p>
+      <p class="sub"><b class="catch">次は、飛ばない。</b>優勝するか、飛ぶか。すべての判断をGTOが採点する。</p>
+    </header>
+
+    <!-- 独自価値カード -->
+    <div class="value-cards">
+      <div class="vcard">
+        <div class="vc-ico">⚖️</div>
+        <div class="vc-title">自前計算のナッシュ均衡</div>
+        <div class="vc-desc">ジャム/リジャム/コールは“近似”ではなく計算済み閾値。EV・必要勝率も実数表示。</div>
+      </div>
+      <div class="vcard">
+        <div class="vc-ico">🏆</div>
+        <div class="vc-title">優勝までの通し実戦</div>
+        <div class="vc-desc">スポット訓練で終わらない。中盤戦から優勝かバストまで、1トーナメントを完走。</div>
+      </div>
+      <div class="vcard">
+        <div class="vc-ico">📈</div>
+        <div class="vc-title">分散を“体”で覚える</div>
+        <div class="vc-desc">バストの敗因を「ミスか運か」に分解。回数を重ねて勝負勘そのものを鍛える。</div>
+      </div>
+    </div>
+
+    <!-- 対決シーン(プレビュー) -->
+    <div class="preview-frame">
+      <span class="preview-label">▶ LIVE PREVIEW</span>
+      <div id="scene-home"></div>
+    </div>
+
+    <!-- セットアップ -->
+    <div class="setup-card">
+      <div class="setup-row">
+        <div class="device-toggle">
+          <span class="dev-label">端末</span>
+          <button id="dev-phone" class="dev-btn">📱 スマホ</button>
+          <button id="dev-tablet" class="dev-btn">🖥️ タブレット / PC</button>
+        </div>
+        <label class="field-label">参加人数
+          <select id="field-size">
+            <option value="18">18人 (短期決戦)</option>
+            <option value="27" selected>27人 (標準)</option>
+            <option value="45">45人 (長丁場)</option>
+          </select>
+        </label>
+        <label class="field-label">開始スタック
+          <select id="hero-bb">
+            <option value="random" selected>ランダム (5〜30BB)</option>
+            <option value="5">5BB</option>
+            <option value="8">8BB</option>
+            <option value="10">10BB</option>
+            <option value="15">15BB</option>
+            <option value="20">20BB</option>
+            <option value="25">25BB</option>
+            <option value="30">30BB</option>
+          </select>
+        </label>
+      </div>
+      <div id="home-stats" class="home-stats"></div>
+    </div>
+
+    <!-- CTA -->
     <div class="menu">
       <button id="btn-start" class="big cta">▶ トーナメント開始</button>
       <div class="menu-row">
-        <button id="btn-learn" class="big">📚 GTO講座</button>
-        <button id="btn-drill" class="big">🎯 弱点復習</button>
+        <button id="btn-learn" class="big ghost">📚 GTO講座</button>
+        <button id="btn-drill" class="big ghost">🎯 弱点復習</button>
+        <button id="btn-sim" class="big ghost">⚡ シミュ</button>
       </div>
       <div class="menu-row">
-        <button id="btn-sim" class="big">⚡ シミュレーション</button>
-        <button id="btn-stats" class="big">📊 成績</button>
-        <button id="btn-help" class="big">❓ 遊び方</button>
+        <button id="btn-stats" class="big ghost">📊 成績</button>
+        <button id="btn-help" class="big ghost">❓ 遊び方</button>
       </div>
     </div>
+
     <p class="disclaimer">ブラインド2,000/4,000開始・2周ごとにアップ・BBアンティ<br>プリフロップ: ナッシュ均衡チャート / ポストフロップ: ソルバー傾向+リアルタイムエクイティ計算による近似</p>
   </div>
 </div>
@@ -266,7 +304,17 @@
       </table>
       <p>つまり本アプリの価値は「正解表の正確さ」ではなく、<b>優勝かバストまでの通し実戦・全判断の即時採点・分散を体で覚える学習体験</b>にあります。頻度レベルの厳密な暗記学習にはソルバー製品の併用をおすすめします。今後のアップデートで、真のナッシュ均衡計算(ショートスタック領域)・簡易ICM・混合頻度の導入を予定しています。</p>
     </div>
+    <button id="btn-legal" class="ghost" style="margin-right:8px">📜 規約・プライバシー・運営情報</button>
     <button id="help-back">戻る</button>
+  </div>
+</div>
+
+<!-- 規約・運営情報画面 -->
+<div id="screen-legal" class="screen hidden">
+  <div class="panel-inner">
+    <h2>📜 規約・プライバシー・運営情報</h2>
+    <div id="legal-body"></div>
+    <button id="legal-back">戻る</button>
   </div>
 </div>
 

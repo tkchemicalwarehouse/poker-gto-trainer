@@ -6,7 +6,7 @@
 const $ = id => document.getElementById(id);
 
 /* ---------- 画面遷移 ---------- */
-const SCREENS = ["screen-home", "screen-game", "screen-sim", "screen-stats", "screen-help", "screen-drill", "screen-learn"];
+const SCREENS = ["screen-home", "screen-game", "screen-sim", "screen-stats", "screen-help", "screen-drill", "screen-learn", "screen-legal"];
 function showScreen(id) {
   for (const s of SCREENS) $(s).classList.toggle("hidden", s !== id);
 }
@@ -220,7 +220,7 @@ function cardHTML(c, small) {
   const r = cardRank(c) === 8 ? "10" : RANK_CHARS[cardRank(c)];
   const s = SUIT_SYMBOLS[cardSuit(c)];
   return `<div class="card s${cardSuit(c)}${small ? " small" : ""}">` +
-    `<div class="c-idx">${r}<span>${s}</span></div>` +
+    `<div class="c-idx">${r}</div>` +
     `<div class="c-pip">${s}</div></div>`;
 }
 function backHTML(small) { return `<div class="card back${small ? " small" : ""}"></div>`; }
@@ -333,7 +333,8 @@ function render(state) {
       const key = "eq:" + pctTxt;
       if (actEl.dataset.k !== key) {
         actEl.dataset.k = key;
-        actEl.className = "seat-act";
+        // カードに被らないよう、勝率バッジは座席枠の上に出す(自分・相手とも手札が見える)
+        actEl.className = "seat-act sa-eq-pos";
         const cls = p.eqPct >= 0.55 ? "sa-eq-hi" : p.eqPct <= 0.45 ? "sa-eq-lo" : "sa-eq-ev";
         actEl.innerHTML = `<div class="sa-tag sa-eq ${cls}"><span class="sa-eq-lbl">勝率</span>${pctTxt}</div>`;
       }
@@ -342,7 +343,8 @@ function render(state) {
       const key = "result:" + p.showResult;
       if (actEl.dataset.k !== key) {
         actEl.dataset.k = key;
-        actEl.className = "seat-act";
+        // WIN/LOSEもカードに被らないよう座席枠の上に出す
+        actEl.className = "seat-act sa-eq-pos";
         const cls = p.showResult === "win" ? "sa-win" : "sa-lose";
         actEl.innerHTML = `<div class="sa-tag ${cls}">${p.showResult === "win" ? "WIN" : "LOSE"}</div>`;
       }
@@ -364,15 +366,15 @@ function render(state) {
       actEl.className = "seat-act hidden";
       actEl.innerHTML = "";
     }
-    // ベットチップ(座席と中央の中間に表示)。フォールドした人のチップは消す(混乱防止)
+    // ベット額(座席と中央の中間に表示)。チップ画像は出さず金額テキストのみ(画面の混雑回避)
     const betEl = $("bet-" + s);
     if (betEl) {
       if (p.streetBet > 0 && !p.folded && state.street !== "idle") {
-        // 攻撃バッジ側に金額を出している席は、チップ脇の数字を消して重複を防ぐ(CO等)
+        // 攻撃バッジ側に金額を出している席は、脇の数字を消して重複を防ぐ(CO等)
         const dupOnBadge = p.tagAgg && aggAmt;
         // ブラインド投稿は「SB/BB+額」のドット字で何の額か分かるように(BB4,000等)
         const lbl = (pos === "BB" || pos === "SB") ? pos + fmtChips(p.streetBet) : fmtChips(p.streetBet);
-        betEl.innerHTML = chipRowHTML(p.streetBet, 6) + (dupOnBadge ? "" : `<div class="bet-amt">${lbl}</div>`);
+        betEl.innerHTML = dupOnBadge ? "" : `<div class="bet-amt">${lbl}</div>`;
       } else {
         betEl.innerHTML = "";
       }
@@ -1350,6 +1352,60 @@ function renderLearn() {
   });
 }
 
+/* ---------- 規約・プライバシー・運営情報(有料配信に必須) ----------
+ * 【要記入】の箇所は、販売開始前に実際の事業者情報・価格・決済方法を必ず記入すること。 */
+const LEGAL_UPDATED = "2026-06-14";
+const LEGAL_DOCS = [
+  { id: "gamble", title: "⚠ 重要なお知らせ(ギャンブルではありません)", body:
+    `<p>本アプリは、テキサスホールデムのトーナメント中盤戦を<b>GTO(ゲーム理論的最適)で学ぶための教育・トレーニング用シミュレーター</b>です。</p>
+    <ul>
+    <li>使用するチップは<b>仮想のポイント</b>であり、<b>現実の金銭的・財産的価値は一切ありません</b>。</li>
+    <li>本アプリ内で<b>現実の金銭を賭けることはできず</b>、賞金・換金性のある景品も<b>一切提供しません</b>。したがって本アプリは賭博(ギャンブル)に該当しません。</li>
+    <li>本アプリでの学習・成績は、現実のギャンブルでの勝利や利益を<b>保証するものではありません</b>。ギャンブルには依存性・経済的損失のリスクがあります。</li>
+    <li>対象年齢の目安: <b>18歳以上</b>。オンライン賭博は地域により違法です。本アプリを違法な賭博の目的に使用しないでください。</li>
+    </ul>` },
+  { id: "privacy", title: "プライバシーポリシー", body:
+    `<p>本アプリは<b>アカウント登録不要</b>で、氏名・住所・メールアドレス等の個人情報を<b>収集しません</b>。</p>
+    <ul>
+    <li><b>端末内保存のみ</b>: 成績・設定・学習進捗は、お使いのブラウザ内(localStorage)に<b>のみ保存</b>され、運営者のサーバには送信されません。ブラウザのデータを消去すると失われます。</li>
+    <li><b>任意送信</b>: 「判定の報告」「講座への意見」ボタンを<b>お客様自身が押したときのみ</b>、その局面データ・コメントがGoogleフォーム経由で運営者に送られます。氏名等は含まれず、品質改善の目的にのみ使用します。送信は任意です。</li>
+    <li><b>外部サービス</b>: 画面表示にGoogle Fonts、上記の任意送信にGoogleフォームを利用します。これに伴いIPアドレス等がGoogle社へ送信される場合があります(同社のプライバシーポリシーに従います)。</li>
+    <li><b>広告・トラッキングなし</b>: 広告配信や行動追跡を目的としたCookie・トラッキングは使用しません。</li>
+    </ul>
+    <p>本ポリシーは必要に応じて改定し、本ページで告知します。</p>` },
+  { id: "terms", title: "利用規約", body:
+    `<p><b>第1条(目的)</b> 本規約は、本アプリ(以下「本サービス」)の利用条件を定めます。本サービスはポーカーGTOの学習・娯楽を目的とします。</p>
+    <p><b>第2条(禁止事項)</b> お客様は次の行為をしてはなりません: 法令・公序良俗に反する行為、本サービスを違法な賭博の目的に利用する行為、リバースエンジニアリング、私的利用の範囲を超える複製・再配布・転売、運営を妨害する行為。</p>
+    <p><b>第3条(知的財産権)</b> 本サービスのプログラム・文章・画像・計算データ等の権利は運営者または正当な権利者に帰属します。</p>
+    <p><b>第4条(免責)</b> 本サービスは「現状有姿」で提供され、学習効果・計算の正確性・無中断・無誤りを保証しません。GTOの計算には近似・簡略化を含みます(詳細は「遊び方」参照)。本サービスの利用により生じた損害について、運営者は法令が許す範囲で責任を負いません。特に、現実のギャンブルにおける損失について一切責任を負いません。</p>
+    <p><b>第5条(サービスの変更・中断・終了)</b> 運営者は予告なく内容の変更・中断・終了を行うことがあります。</p>
+    <p><b>第6条(規約の変更)</b> 本規約は必要に応じて変更し、本ページへの掲示をもって効力を生じます。</p>
+    <p><b>第7条(準拠法・管轄)</b> 本規約は日本法に準拠します。紛争は運営者所在地を管轄する裁判所を専属的合意管轄とします。</p>
+    <p class="legal-note">最終更新: ${LEGAL_UPDATED}</p>` },
+  { id: "tokushoho", title: "特定商取引法に基づく表記", body:
+    `<p class="legal-note">⚠ <b>販売開始前に必ず実際の情報を記入してください。</b>有料のデジタルサービスを日本国内で提供する場合、特定商取引法によりこの表記が義務付けられています。</p>
+    <table class="legal-table">
+    <tr><th>販売事業者</th><td>【要記入: 氏名 または 法人名】</td></tr>
+    <tr><th>運営統括責任者</th><td>【要記入: 氏名】</td></tr>
+    <tr><th>所在地</th><td>【要記入】(個人の場合、請求があれば遅滞なく開示する旨の記載でも可)</td></tr>
+    <tr><th>連絡先</th><td>【要記入: メールアドレス】(電話番号は請求があれば遅滞なく開示)</td></tr>
+    <tr><th>販売価格</th><td>【要記入: 例 月額○○円(税込)】(課金方式の決定後に記入)</td></tr>
+    <tr><th>商品代金以外の必要料金</th><td>インターネット接続の通信料はお客様のご負担となります</td></tr>
+    <tr><th>支払方法・支払時期</th><td>【要記入: 例 App Store / Google Play / クレジットカード。決済時に課金】</td></tr>
+    <tr><th>提供時期</th><td>決済完了後、ただちにご利用いただけます</td></tr>
+    <tr><th>返品・解約</th><td>【要記入】デジタルコンテンツの性質上、購入後の返金は原則お受けできません。月額課金の場合は次回更新日の前に解約手続きをすることで、次回以降の課金を停止できます</td></tr>
+    </table>` },
+];
+function renderLegal() {
+  $("legal-body").innerHTML =
+    `<p class="legal-intro">本サービスをご利用の前に、以下をご確認ください。<span class="dim">(最終更新: ${LEGAL_UPDATED})</span></p>` +
+    LEGAL_DOCS.map((d, i) => `<div class="lesson">
+      <div class="lesson-head" data-id="lg-${d.id}"><span class="lesson-title">${d.title}</span><span class="lesson-toggle">▼</span></div>
+      <div class="lesson-body${i === 0 ? '' : ' hidden'}" id="lgb-${d.id}">${d.body}</div>
+    </div>`).join("");
+  $("legal-body").querySelectorAll(".lesson-head").forEach(h => h.onclick = () => $("lgb-" + h.dataset.id.slice(3)).classList.toggle("hidden"));
+}
+
 /* ---------- イベント登録 ---------- */
 window.addEventListener("DOMContentLoaded", () => {
   renderHomeStats();
@@ -1380,6 +1436,8 @@ window.addEventListener("DOMContentLoaded", () => {
   $("drill-back").onclick = () => showScreen("screen-home");
   $("btn-learn").onclick = () => { renderLearn(); showScreen("screen-learn"); };
   $("learn-back").onclick = () => showScreen("screen-home");
+  $("btn-legal").onclick = () => { renderLegal(); showScreen("screen-legal"); };
+  $("legal-back").onclick = () => showScreen("screen-help");
   $("btn-quit").onclick = () => { aborting = true; };
 
   $("bust-again").onclick = () => { $("bust-modal").classList.add("hidden"); startTournament(); };
