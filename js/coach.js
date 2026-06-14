@@ -561,12 +561,14 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
         `EV(リジャム) = P(オープナーが降りる) × 今のポット + P(コール) × (勝率 × 最終ポット − リスク)<br><br>` +
         `<b>今回の数字を代入(有効${c.S.toFixed(0)}BB):</b><br>` +
         `① 今のポット = 2.5(ブラインド+アンティ) + 2.2(オープン) = <b>${c.potNow.toFixed(1)}BB</b><br>` +
-        `② オープナーがコールするには勝率${pct0(c.openerBE)}が必要 → オープンレンジのうちコールできるのは約<b>${pct0(c.pCall)}</b>(残り${pct0(1 - c.pCall)}は降りる!)<br>` +
+        `② オープナーがコールするには勝率${pct0(c.openerBE)}が必要 → オープンレンジのうちコールに回るのは約<b>${pct0(c.pCall)}</b>(降りるのは残り${pct0(1 - c.pCall)})<br>` +
         `③ コールされた時の ${hand} の勝率 ≈ <b>${pct0(c.eqVsCall)}</b><br>` +
         `④ EV ≈ ${pct0(1 - c.pCall)}×${c.potNow.toFixed(1)} + ${pct0(c.pCall)}×(${pct0(c.eqVsCall)}×${c.finalPot.toFixed(1)} − ${c.risk.toFixed(1)}) ` +
         `≈ <b class="${c.ev >= 0 ? "pos" : "neg"}">${c.ev >= 0 ? "+" : ""}${c.ev.toFixed(2)}BB</b><br><br>` +
-        `<b>🧮 自分で概算するコツ:</b> リジャムの利益の大半は「相手のオープンレンジの${pct0(1 - c.pCall)}が降りて${c.potNow.toFixed(1)}BBをタダ取りする」部分。` +
-        `相手のオープンが広いほど(レイトポジションほど)降ろせる率が上がるので、リジャムレンジも広がります。`));
+        `<b>🧮 自分で概算するコツ:</b> ` +
+        ((1 - c.pCall) >= 0.35
+          ? `リジャムの利益の大半は「相手のオープンレンジの${pct0(1 - c.pCall)}が降りて${c.potNow.toFixed(1)}BBをタダ取りする」部分。相手のオープンが広いほど(レイトポジションほど)降ろせる率が上がるので、リジャムレンジも広がります。`
+          : `この深さでは相手はほぼ降りません(降りるのは約${pct0(1 - c.pCall)})。利益はフォールドさせて稼ぐのではなく、コールされた時のエクイティ<b>${pct0(c.eqVsCall)}</b>から生まれます。だから浅くて降ろせない時ほど、リジャムには勝率のある手を選ぶのが鍵です。`)));
     }
     lines.push(rangeGridHTML(d.rejamRange, d.callRange, hand, "オールイン", "コール"));
   }
@@ -580,7 +582,9 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
     }
     // 見出しは「エクイティ vs (ICM補正後の)必要勝率」で決める=結論と必ず一致させる
     const icmOn = d.icmPremium > 0.005 && d.icmReq != null;
-    const thr = d.threshold != null ? d.threshold : d.breakeven;
+    // 表示する必要勝率は「下の計算で説明される値」に揃える(内部閾値の安全マージン分のズレを見せない):
+    //   ICM時=ICM必要勝率 / 多人数で後続補正が出る時=閾値 / それ以外=ポットオッズ(breakeven)
+    const thr = icmOn ? d.icmReq : (d.margin > 0.02 ? d.threshold : d.breakeven);
     const eqMargin = d.equity - thr;            // +なら継続、−なら降り
     const callRight = eqMargin >= 0;             // コールが推奨か
     const userCalled = chosen === "call";
@@ -635,7 +639,7 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
       EQUITY_CHEAT + `<br>` +
       `今回: 相手のジャムレンジ(上位${d.jamRangePct.toFixed(0)}%)に対する ${hand} の厳密値 = <b>${pct(d.equity)}</b><br><br>` +
       `<b>手順3: 比較して決める</b><br>` +
-      `勝率${pct(d.equity)} ${d.equity >= d.threshold ? "≥" : "＜"} 必要勝率${pct(d.threshold)} → <b>${d.equity >= d.threshold ? "コール" : "フォールド"}</b><br>` +
+      `勝率${pct(d.equity)} ${d.equity >= thr ? "≥" : "＜"} 必要勝率${pct(thr)} → <b>${d.equity >= thr ? "コール" : "フォールド"}</b>${icmOn ? "(ICM補正後)" : ""}<br>` +
       `EVに直すと: EV = ${pct(d.equity)} × ${(potC + callC).toFixed(1)} − ${callC.toFixed(1)} = <b class="${d.evCallBB >= 0 ? "pos" : "neg"}">${d.evCallBB >= 0 ? "+" : ""}${d.evCallBB.toFixed(2)}BB</b>`));
     if (d.icmDetail) {
       const i = d.icmDetail;
