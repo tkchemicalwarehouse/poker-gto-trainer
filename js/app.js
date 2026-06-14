@@ -858,7 +858,6 @@ async function startTournament() {
   const hero = G.players[0];
   logMsg(`${G.fieldSize}人トーナメント開始! あなたのスタック: ${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)`, "info");
   render(G);
-  if (typeof Dog !== "undefined" && Dog.hasImg()) Dog.cutin();   // 装備犬の登場カットイン
   await runTournamentLoop();
 }
 
@@ -946,25 +945,35 @@ function finishTournament(won) {
 /* ---------- 優勝演出 ---------- */
 function showVictory() {
   Sfx.play("victory");
-  // 紙吹雪を生成
   const layer = $("confetti-layer");
   layer.innerHTML = "";
-  const colors = ["#e8c352", "#e05252", "#46c47c", "#4da3ff", "#c2569d", "#e67e22", "#fff"];
-  for (let i = 0; i < 80; i++) {
+  // 一瞬の白フラッシュ
+  const flash = document.createElement("div"); flash.className = "victory-flash"; layer.appendChild(flash);
+  // きらめき(✦)
+  for (let i = 0; i < 16; i++) {
+    const s = document.createElement("div");
+    s.className = "vic-sparkle"; s.textContent = "✦";
+    s.style.cssText = `left:${Math.random() * 100}%;top:${Math.random() * 86}%;` +
+      `font-size:${10 + Math.random() * 20}px;animation-delay:${(Math.random() * 1.8).toFixed(2)}s;`;
+    layer.appendChild(s);
+  }
+  // 紙吹雪(ゴールド多め・前面)
+  const colors = ["#ffd75e", "#e8c352", "#fff3c4", "#ffd75e", "#e8c352", "#e05252", "#46c47c", "#4da3ff", "#c2569d", "#fff"];
+  for (let i = 0; i < 150; i++) {
     const c = document.createElement("div");
     c.className = "confetti";
-    const sz = 6 + Math.random() * 8;
+    const sz = 6 + Math.random() * 9;
     c.style.cssText =
       `left:${Math.random() * 100}%;` +
-      `width:${sz}px;height:${sz * (0.4 + Math.random() * 0.8)}px;` +
+      `width:${sz}px;height:${sz * (0.4 + Math.random() * 1.2)}px;` +
       `background:${colors[i % colors.length]};` +
-      `animation-delay:${Math.random() * 2.5}s;` +
-      `animation-duration:${2.6 + Math.random() * 2.4}s;`;
+      `animation-delay:${(Math.random() * 2.8).toFixed(2)}s;` +
+      `animation-duration:${(2.4 + Math.random() * 2.6).toFixed(2)}s;`;
     layer.appendChild(c);
   }
   $("victory-body").innerHTML = `
     ${(typeof Dog !== "undefined") ? Dog.victoryImgTag() : ""}
-    <div class="victory-place">🏆 ${G.fieldSize}人トーナメント 優勝 🏆</div>
+    <div class="victory-place">👑 ${G.fieldSize}人トーナメント 制覇 👑</div>
     <p class="victory-hands">${G.handNo}ハンドの激闘を制しました!</p>
     ${freshUnlockHTML()}
     ${tallySummaryHTML()}`;

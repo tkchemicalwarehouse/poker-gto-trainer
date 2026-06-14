@@ -1,7 +1,8 @@
 /* =========================================================
- * dog.js — 装備中の犬(画像)を各場面で動かす
- * 出番: カットイン / 走り抜け / 看板ウォーク(バブル・FT) / 優勝
- * 画像が無い犬(ドットスキン)は Mascot にフォールバック。
+ * dog.js — 装備中の犬を各場面で動かす
+ * - 走り抜け / 看板ウォーク = 手描きドット絵スプライト(脚2コマでアニメ)
+ * - 優勝モーダル = イラスト(透過PNG)
+ * 画像も無い犬は Mascot にフォールバック。
  * ========================================================= */
 "use strict";
 
@@ -10,11 +11,43 @@ const Dog = (() => {
   function src() { var d = eq(); return d && d.img ? d.img : null; }
   function hasImg() { return !!src(); }
 
-  // 画面を走り抜ける(旗・吹き出し対応)
+  /* ---- ジャックコギ 走りドット絵(横向き・右へ走る) ----
+   * K=輪郭 O=毛(タン) W=白 N=鼻 P=舌 M=マゼンタの背中マント */
+  var CORGI_PAL = { K: "#2a2118", O: "#d98e4a", W: "#fdf6ec", N: "#1a140d", P: "#f0807e", M: "#c0246b" };
+  var C_UP = [
+    "..........KK......",
+    "...K......KOOK....",
+    "..KOK....KOOOOK...",
+    "..KOKKKKKKOOOOOK..",
+    ".KOOOOOOMMOOOWOK..",
+    ".KOOOOOOMMOOOONK..",
+    ".KOOOOOOMMOOOWWK..",
+    ".KOOOOOOMMOOOOKK..",
+    ".KWWWWWWWWWWWWK..."
+  ];
+  var C_LEGA = ["..KO.......KO.....", "..KW.......KW.....", "..KK.......KK....."];
+  var C_LEGB = ["....KO...KO.......", "....KW...KW.......", "....KK...KK......."];
+
+  // 脚2コマを切り替える走りスプライト(canvas2枚をトグル)
+  function corgiSprite(scale, speedMs) {
+    if (typeof Mascot === "undefined" || !Mascot.pixelCanvas) return null;
+    var FA = C_UP.concat(C_LEGA), FB = C_UP.concat(C_LEGB);
+    var box = document.createElement("div"); box.className = "dog-sprite-box";
+    var a = Mascot.pixelCanvas(FA, CORGI_PAL, scale, false);
+    var b = Mascot.pixelCanvas(FB, CORGI_PAL, scale, false);
+    a.className = "dog-frame"; b.className = "dog-frame"; b.style.display = "none";
+    box.appendChild(a); box.appendChild(b);
+    var i = 0;
+    box._timer = setInterval(function () { i ^= 1; a.style.display = i ? "none" : "block"; b.style.display = i ? "block" : "none"; }, speedMs || 120);
+    return box;
+  }
+  function scaleNow() { return document.body.classList.contains("mode-phone") ? 7 : 9; }
+
+  // 画面を走り抜ける(旗・吹き出し対応) = ドット絵で脚を動かす
   function run(opts) {
     opts = opts || {};
-    var s = src();
-    if (!s) { if (typeof Mascot !== "undefined" && Mascot.run) Mascot.run(opts); return; }
+    var box = corgiSprite(scaleNow(), 110);
+    if (!box) { if (typeof Mascot !== "undefined" && Mascot.run) Mascot.run(opts); return; }
     var wrap = document.createElement("div"); wrap.className = "dog-run";
     if (opts.flagText) {
       var f = document.createElement("div"); f.className = "mascot-flag";
@@ -25,51 +58,31 @@ const Dog = (() => {
       var c = document.createElement("div"); c.className = "mascot-callout"; c.textContent = opts.callout;
       wrap.appendChild(c);
     }
-    var img = document.createElement("img"); img.src = s; img.alt = ""; img.className = "dog-sprite dog-gallop";
-    wrap.appendChild(img);
+    box.classList.add("dog-gallop");
+    wrap.appendChild(box);
     document.body.appendChild(wrap);
-    setTimeout(function () { wrap.remove(); }, 4300);
+    setTimeout(function () { clearInterval(box._timer); wrap.remove(); }, 4300);
   }
 
-  // 看板ウォーク(BUBBLE / FINAL TABLE)
+  // 看板ウォーク(BUBBLE / FINAL TABLE) = ドット絵でゆっくり歩く
   function sign(lines) {
-    var s = src();
-    if (!s) { if (typeof Mascot !== "undefined" && Mascot.bunnyWalk) Mascot.bunnyWalk(lines); return; }
+    var box = corgiSprite(scaleNow(), 220);
+    if (!box) { if (typeof Mascot !== "undefined" && Mascot.bunnyWalk) Mascot.bunnyWalk(lines); return; }
     var wrap = document.createElement("div"); wrap.className = "dog-run dog-walk";
     var sg = document.createElement("div"); sg.className = "bunny-sign";
     sg.innerHTML = lines.map(function (t, i) { return '<div class="bs-line bs-' + i + '">' + t + '</div>'; }).join("");
     wrap.appendChild(sg);
-    var img = document.createElement("img"); img.src = s; img.alt = ""; img.className = "dog-sprite dog-sway";
-    wrap.appendChild(img);
+    box.classList.add("dog-sway");
+    wrap.appendChild(box);
     document.body.appendChild(wrap);
-    setTimeout(function () { wrap.remove(); }, 7600);
+    setTimeout(function () { clearInterval(box._timer); wrap.remove(); }, 7600);
   }
 
-  // カットイン(大きく登場+名前+セリフ+SE)
-  var cutBusy = false;
-  function cutin(opts) {
-    opts = opts || {};
-    var d = eq(), s = src();
-    if (!s || cutBusy) return;
-    cutBusy = true;
-    var ov = document.createElement("div"); ov.className = "dog-cutin";
-    ov.innerHTML =
-      '<img src="' + s + '" class="dog-cutin-img" alt="">' +
-      '<div class="dog-cutin-plate"><div class="dog-cutin-name">' + (opts.name || (d && d.name) || "") + '</div>' +
-      '<div class="dog-cutin-line">' + (opts.line || (d && d.line) || "") + '</div></div>';
-    document.body.appendChild(ov);
-    if (typeof Sfx !== "undefined" && Sfx.play) { try { Sfx.play("win"); } catch (e) { } }
-    setTimeout(function () {
-      ov.classList.add("out");
-      setTimeout(function () { ov.remove(); cutBusy = false; }, 400);
-    }, opts.hold || 1900);
-  }
-
-  // 優勝モーダル用の犬画像要素(無ければnull)
+  // 優勝モーダル用の犬画像(イラスト)。無ければ空。
   function victoryImgTag() {
     var s = src();
     return s ? '<img src="' + s + '" class="dog-victory" alt="">' : "";
   }
 
-  return { run, sign, cutin, victoryImgTag, hasImg };
+  return { run, sign, victoryImgTag, hasImg };
 })();

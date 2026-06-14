@@ -1745,6 +1745,8 @@ body.mode-phone .c-idx { font-size: 1.28em; }
 .dog-run { position: fixed; bottom: 22%; left: -260px; z-index: 8500; pointer-events: none; animation: mascotDash 4.2s linear forwards; }
 .dog-run.dog-walk { bottom: 26%; animation-duration: 7.4s; }
 .dog-sprite { height: 150px; width: auto; display: block; filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); }
+.dog-sprite-box { position: relative; will-change: transform; }
+.dog-frame { display: block; image-rendering: pixelated; filter: drop-shadow(0 4px 6px rgba(0,0,0,.5)); }
 .dog-gallop { animation: mascotGallop .28s steps(2) infinite; }
 .dog-sway { animation: bunnySway .5s steps(2) infinite; }
 body.mode-phone .dog-sprite { height: 112px; }
@@ -1764,6 +1766,75 @@ body.mode-phone .dog-sprite { height: 112px; }
 
 /* 優勝モーダルの犬 */
 .dog-victory { height: 150px; width: auto; display: block; margin: 4px auto 6px; filter: drop-shadow(0 8px 16px rgba(0,0,0,.5)); animation: trophyBounce 1s cubic-bezier(.2,1.6,.4,1) .3s both; }
+
+/* =========================================================
+ * 優勝画面プレミアム — 豪華に盛る(ゴールド放射・シマー・前面紙吹雪)
+ * ========================================================= */
+#victory-modal {
+  background:
+    radial-gradient(circle at 50% 38%, rgba(231,189,82,.20), transparent 60%),
+    rgba(4,6,10,.92);
+}
+.victory-inner {
+  background: radial-gradient(ellipse at 50% 0%, rgba(58,46,16,.98), rgba(14,17,23,.98) 70%);
+  border: 0; border-radius: 20px;
+  box-shadow:
+    0 0 0 2px rgba(231,189,82,.95),
+    0 0 0 7px rgba(231,189,82,.22),
+    0 0 90px rgba(231,189,82,.5),
+    0 26px 70px rgba(0,0,0,.78);
+}
+/* カード背後で回るゴッドレイ */
+.victory-inner::before {
+  content: ""; position: absolute; left: 50%; top: -12%; width: 170%; height: 170%;
+  transform: translateX(-50%); pointer-events: none; z-index: 0;
+  background: repeating-conic-gradient(from 0deg, rgba(255,221,110,.12) 0 6deg, transparent 6deg 16deg);
+  -webkit-mask-image: radial-gradient(circle at 50% 30%, #000, transparent 60%);
+  mask-image: radial-gradient(circle at 50% 30%, #000, transparent 60%);
+  animation: raysSpin 16s linear infinite;
+}
+.victory-inner > * { position: relative; z-index: 1; }
+
+/* 紙吹雪・きらめき・フラッシュを最前面に(カードの裏に隠れない) */
+#confetti-layer { z-index: 5; }
+
+.trophy-rays { width: 420px; height: 420px; background: repeating-conic-gradient(rgba(255,221,110,.24) 0 7deg, transparent 7deg 16deg); animation-duration: 7s; }
+.trophy { font-size: 128px; }
+
+.victory-title {
+  font-size: clamp(40px, 9vw, 60px); letter-spacing: 8px;
+  background: linear-gradient(100deg, #c79410 0%, #fff3c4 25%, #ffd75e 45%, #fff8e0 55%, #ffd75e 65%, #c79410 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,.7)) drop-shadow(0 0 16px rgba(255,215,94,.45));
+  animation: titleZoom .55s cubic-bezier(.2,1.5,.4,1) .55s both, vicShimmer 2.6s linear 1s infinite;
+}
+@keyframes vicShimmer { to { background-position: 250% 0; } }
+
+.dog-victory {
+  height: clamp(150px, 30vw, 200px); margin: 2px auto 8px;
+  filter: drop-shadow(0 0 18px rgba(255,215,94,.55)) drop-shadow(0 10px 18px rgba(0,0,0,.5));
+  animation: trophyBounce 1s cubic-bezier(.2,1.6,.4,1) .3s both, vicFloat 2.6s ease-in-out 1.4s infinite;
+}
+@keyframes vicFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+
+.victory-place {
+  display: inline-block; font-size: clamp(15px, 3.6vw, 19px); font-weight: 900; color: #2a2008;
+  background: var(--grad-gold); padding: 7px 20px; border-radius: 999px;
+  box-shadow: 0 4px 16px rgba(231,189,82,.5), inset 0 1px 0 rgba(255,255,255,.6);
+  margin-bottom: 10px; letter-spacing: 1px;
+}
+.victory-hands { color: var(--gold-2); font-weight: 700; }
+
+/* 入場フラッシュ */
+.victory-flash { position: absolute; inset: 0; background: #fff; pointer-events: none; animation: vicFlash .6s ease-out forwards; }
+@keyframes vicFlash { from { opacity: .85; } to { opacity: 0; } }
+/* きらめき */
+.vic-sparkle { position: absolute; color: #fff6cf; text-shadow: 0 0 8px rgba(255,221,110,.95); pointer-events: none; animation: vicTwinkle 1.6s ease-in-out infinite; }
+@keyframes vicTwinkle { 0%,100% { opacity: 0; transform: scale(.4); } 50% { opacity: 1; transform: scale(1); } }
+
+/* 演出ひかえめ時 */
+body[data-fx="min"] .vic-sparkle, body[data-fx="min"] .victory-flash, body[data-fx="min"] .victory-inner::before { display: none !important; animation: none !important; }
 
 /* =========================================================
  * スマホ: テーブル+スタックHUDを下方へ寄せ、下のブラインド表示との空きを詰める
