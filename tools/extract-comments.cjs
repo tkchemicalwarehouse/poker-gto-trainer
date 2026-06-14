@@ -35,6 +35,12 @@ function narrative(html) {
   }
   return strip(h);
 }
+// 全文(レンジグリッドだけ除去、計算ボックスは残す)= 1件ずつの精読用
+function fullText(html) {
+  let h = String(html);
+  const i = h.indexOf('<div class="rg-wrap"'); if (i >= 0) h = h.slice(0, i);
+  return strip(h);
+}
 
 const PRAISE = /(ナイス|その通り|よく受けた|よく降り|正しく(降り|守|た)|正解|ど真ん中|余裕で|問題ない|完璧|お見事)/;
 const records = [];
@@ -67,7 +73,7 @@ function makeHeroAct() {
         sig: `${advice.data ? advice.data.kind : "?"}|${ctx.facing}|${ctx.street || "preflop"}|primary=${advice.primary}|chosen=${chosen}|${g.verdict}`,
         hand: ctx.heroLabel, pos: ctx.seatName, eff: Math.round((ctx.effBB || ctx.stackBB || 0) * 10) / 10,
         primary: advice.primary, chosen, verdict: g.verdict, freqs: advice.freqs,
-        flags, narr,
+        flags, narr, full: fullText(g.explanation),
       });
     }
     return act;
@@ -111,6 +117,19 @@ function makeHeroAct() {
     }
   }
   fs.writeFileSync(path.join(__dirname, "comments-report.txt"), out.join("\n"), "utf8");
+
+  // 1件ずつ精読用: 全文(計算ボックス込み)を「全文テキスト」で重複排除し通し番号で出力
+  const seen = new Map();
+  for (const r of records) { const g = seen.get(r.full); if (g) g.count++; else seen.set(r.full, { count: 1, r }); }
+  const uniq = [...seen.values()].sort((a, b) => b.count - a.count);
+  const full = [];
+  full.push(`ミス ${records.length}件 → 全文ユニーク ${uniq.length}件(1件ずつ精読用・件数順)`);
+  uniq.forEach((u, i) => {
+    full.push(`\n\n=========== #${i + 1}/${uniq.length}  [${u.count}件] ${u.r.sig} ===========`);
+    full.push(`局面: ${u.r.pos} ${u.r.hand} ${u.r.eff}BB / 推奨=${u.r.primary} 選択=${u.r.chosen} 判定=${u.r.verdict}`);
+    full.push(u.r.full);
+  });
+  fs.writeFileSync(path.join(__dirname, "comments-full.txt"), full.join("\n"), "utf8");
   fs.writeFileSync(path.join(__dirname, "extract-comments-result.json"), JSON.stringify({ count: records.length, distinct: arr.length, totalFlagged, records }, null, 1), "utf8");
-  console.log(`ミス ${records.length}件 / 型 ${arr.length}種 / チグハグ候補 ${totalFlagged}件 → tools/comments-report.txt`);
+  console.log(`ミス ${records.length}件 / 型 ${arr.length}種 / 全文ユニーク ${uniq.length}件 / チグハグ候補 ${totalFlagged}件\n→ comments-report.txt(型別) / comments-full.txt(1件ずつ全文)`);
 })().catch(e => { console.error(e); process.exitCode = 1; });

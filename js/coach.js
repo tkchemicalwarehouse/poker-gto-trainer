@@ -305,6 +305,11 @@ function freqsText(freqs) {
 
 function pct(x) { return (x * 100).toFixed(1) + "%"; }
 function pct0(x) { return (x * 100).toFixed(0) + "%"; }
+// スタック表示の安全化(0チップ/未設定の劣化ctxで NaN を出さない)
+function bb1(x) { return Number.isFinite(+x) ? (+x).toFixed(1) : "—"; }
+function bb0(x) { return Number.isFinite(+x) ? (+x).toFixed(0) : "—"; }
+// EV計算ボックスを表示してよいか(超浅スタックや非有限値では破綻するので出さない)
+function calcSane(c) { return c && Number.isFinite(c.ev) && Number.isFinite(c.S) && c.S >= 2.5; }
 
 // 計算方法の解説ボックス
 function calcBox(title, html) {
@@ -317,29 +322,28 @@ function splitBox(ft, d, ctx) {
   const icmSide = ft.icmDo ? ft.agg : ft.pass;
   let evDetail = "", icmDetail = "";
   if (d.kind === "facingJam") {
-    evDetail = `チップだけで見ると、${hl(d.equity)}のエクイティに対しコールのEVは` +
-      `<b class="${d.evCallBB>=0?"pos":"neg"}">${d.evCallBB>=0?"+":""}${d.evCallBB.toFixed(2)}BB</b>。` +
-      `チップを最大化するなら<b>${evSide}</b>。`;
-    icmDetail = `賞金で見ると、必要勝率がICM補正で<b>${pct(d.breakeven)}→${pct(d.icmReq)}</b>に上がる。` +
-      `あなたのエクイティ${pct(d.equity)}は${d.equity>=d.icmReq?"これを上回る":"これに届かない"}ので、賞金重視なら<b>${icmSide}</b>。`;
+    evDetail = `まず<b class="sb-ev">チップ(スタック)の観点</b>から見ると、${hl(d.equity)}のエクイティに対しコールのEVは` +
+      `<b class="${d.evCallBB>=0?"pos":"neg"}">${d.evCallBB>=0?"+":""}${d.evCallBB.toFixed(2)}BB</b>。チップの最大化だけを考えるなら<b>${evSide}</b>が得です。`;
+    icmDetail = `<b class="sb-icm">一方、ICM(賞金)の観点からすると</b>、必要勝率が賞金圧力で<b>${pct(d.breakeven)}→${pct(d.icmReq)}</b>に上がります。` +
+      `あなたのエクイティ${pct(d.equity)}は${d.equity>=d.icmReq?"これを上回る":"これに届かない"}ため、賞金(順位)を守る観点では<b>${icmSide}</b>が正解になります。`;
   } else {
     const i = d.icmJamEval;
-    evDetail = `チップだけで見れば、ナッシュ均衡上このハンドは<b>${ft.chipDo?"ジャム圏内":"圏外"}</b>。チップ最大化なら<b>${evSide}</b>。`;
-    icmDetail = `賞金で見ると、ジャムの賞金期待値<b>${(i.evJam*100).toFixed(2)}%</b> vs フォールド<b>${(i.evFold*100).toFixed(2)}%</b>。` +
-      `飛んだ時の順位下落の代償を含めると、賞金重視なら<b>${icmSide}</b>。`;
+    evDetail = `まず<b class="sb-ev">チップ(スタック)の観点</b>から見ると、ナッシュ均衡上このハンドは<b>${ft.chipDo?"ジャム圏内":"圏外"}</b>。チップの最大化だけなら<b>${evSide}</b>です。`;
+    icmDetail = `<b class="sb-icm">一方、ICM(賞金)の観点からすると</b>、ジャムの賞金期待値<b>${(i.evJam*100).toFixed(2)}%</b> vs フォールド<b>${(i.evFold*100).toFixed(2)}%</b>。` +
+      `飛んだ時の順位下落の代償まで含めると、賞金重視なら<b>${icmSide}</b>になります。`;
   }
   const followed = d._ftFollowed;
   const intro = followed
-    ? `<b>このスポットはEVとICMで答えが割れます。あなたは推奨ライン(賞金を守る側)に沿った正しい選択をしました。</b>もう一方の見方も知っておきましょう。`
-    : `<b>このスポットはEVとICMで答えが割れます。だから「ミス」ではなく「注意」です。</b>`;
+    ? `<b>この局面は「チップの得」と「賞金(ICM)の得」で答えが割れます。</b>あなたは賞金を守る推奨ラインに沿った正しい選択をしました — もう一方の見方も知っておきましょう。`
+    : `<b>この局面は「チップの得」と「賞金(ICM)の得」で答えが割れます。</b>だからこれは「ミス」ではなく「注意」です。`;
   const concl = followed
-    ? `③ <b>結論: 正解</b> — あなたの<b>${ft.userDid?ft.agg:ft.pass}</b>は推奨どおり。チップだけ見ると別の選択も+ですが、後半戦で順位(賞金)を守るこの判断が基本的に勝ります。`
-    : `③ <b>結論: 注意</b> — あなたの<b>${ft.userDid?ft.agg:ft.pass}</b>は${ft.userDid===ft.chipDo?"チップEV":"ICM"}側に沿った判断で、一理あります。` +
+    ? `<b>結論: 正解</b>。あなたの<b>${ft.userDid?ft.agg:ft.pass}</b>は推奨どおりです。チップだけ見れば別の選択も+EVですが、後半戦で順位(賞金)を守るこの判断が基本的に勝ります。`
+    : `<b>結論: 注意</b>。あなたの<b>${ft.userDid?ft.agg:ft.pass}</b>は${ft.userDid===ft.chipDo?"チップEV":"ICM"}側に沿った判断で、一理あります。` +
       `どちらを採るかは「次のペイジャンプの近さ」「自分のスキル優位」「相手の傾向」で決めます。一般に、入賞直後やビッグスタック相手はICM寄り(慎重)、賞金がフラットな局面や格下相手はチップEV寄り(積極)が目安です。`;
   return `<div class="split-box">` +
     `<p>${intro}</p>` +
-    `<p>① <b class="sb-ev">チップEVの考え方</b><br>${evDetail}</p>` +
-    `<p>② <b class="sb-icm">ICM(賞金)の考え方</b><br>${icmDetail}</p>` +
+    `<p>${evDetail}</p>` +
+    `<p>${icmDetail}</p>` +
     `<p>${concl}</p>` +
     `</div>`;
 }
@@ -386,7 +390,7 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
     lines.push(`<div class="ex-voice">${pickVar("voice", COACH_VOICE[verdict])}</div>`);
   }
   lines.push(`<div class="ex-head"><b>${hand}</b> @ ${ctx.seatName} ` +
-    (ctx.phase === "preflop" ? `(${ctx.stackBB.toFixed(1)}BB)` : `【${streetJP(ctx.street)}】`) + `</div>`);
+    (ctx.phase === "preflop" ? `(${bb1(ctx.stackBB)}BB)` : `【${streetJP(ctx.street)}】`) + `</div>`);
   lines.push(`<div class="ex-gto">GTO戦略: <b>${freqsText(advice.freqs)}</b> — あなた: <b>${actionJP(chosen)}</b></div>`);
 
   // サイズ/方針の指摘(アクション選択は妥当だが改善点がある場合)
@@ -404,11 +408,14 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
         : th >= 16 ? "16BB以上でもジャムできます"
         : `<b>${th.toFixed(1)}BB以下ならジャム</b>です`;
       const stackText = d.effLimited
-        ? `現在 実効<b>${effS.toFixed(1)}BB</b>(あなたは${ctx.stackBB.toFixed(1)}BB持ちですが、後ろの最大スタックがそれだけなので、リスクに晒されるのはこの分だけ)`
-        : `現在 <b>${effS.toFixed(1)}BB</b>`;
+        ? `現在 実効<b>${bb1(effS)}BB</b>(あなたは${bb1(ctx.stackBB)}BB持ちですが、後ろの最大スタックがそれだけなので、リスクに晒されるのはこの分だけ)`
+        : `現在 <b>${bb1(effS)}BB</b>`;
       lines.push(`<p>ナッシュ均衡(計算済み)では、${ctx.seatName}の ${hand} は${thText}。${stackText}。</p>`);
+      if (Number.isFinite(effS) && effS < 2.5 && effS > 0) {
+        lines.push(`<p>💡 実効<b>${bb1(effS)}BB</b>は実質オールイン級の浅さ。この深さでは細かいEV計算より「降りずに押す/受ける」が基本です。</p>`);
+      }
       if (d.effLimited && effS <= 3) {
-        lines.push(`<p>💡 <b>相手のスタックが極端に短い時の鉄則</b>: 実効${effS.toFixed(1)}BBに対してリスクはごく僅か、しかもポットには既に2.5BBのデッドマネー。この状況では<b>ほぼ全ハンドがジャムで+EV</b>です。相手の残りチップを常に確認しましょう。</p>`);
+        lines.push(`<p>💡 <b>相手のスタックが極端に短い時の鉄則</b>: 実効${bb1(effS)}BBに対してリスクはごく僅か、しかもポットには既に2.5BBのデッドマネー。この状況では<b>ほぼ全ハンドがジャムで+EV</b>です。相手の残りチップを常に確認しましょう。</p>`);
       }
       if (Math.abs(m) <= 0.5) {
         lines.push(`<p>ちょうど境界線上の<b>混合域</b>です。ジャムもフォールドもEVはほぼ同じ — どちらを選んでもミスではありません。</p>`);
@@ -447,9 +454,9 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
         const line = `ジャムの賞金期待値 <b>${(i.evJam * 100).toFixed(2)}%</b> vs フォールド <b>${(i.evFold * 100).toFixed(2)}%</b>`;
         lines.push(`<p>🏆 <b>ICM検証(FT)</b>: ${line} — チップEVと賞金EVが同じ方向(${i.evJam >= i.evFold ? "ジャム" : "フォールド"})を指しています。</p>`);
       }
-      lines.push(`<p>この${ctx.stackBB.toFixed(1)}BBでの${ctx.seatName}のナッシュ・ジャムレンジは上位 <b>${d.rangePct.toFixed(1)}%</b>:</p>`);
-      // 📐 計算方法
-      if (d.calc) {
+      lines.push(`<p>この${bb1(ctx.stackBB)}BBでの${ctx.seatName}のナッシュ・ジャムレンジは上位 <b>${d.rangePct.toFixed(1)}%</b>:</p>`);
+      // 📐 計算方法(超浅・非有限では破綻するので出さない)
+      if (calcSane(d.calc)) {
         const c = d.calc;
         lines.push(calcBox("📐 ジャムEVの計算方法(ナッシュ表の中身)",
           `<b>基本式:</b><br>` +
@@ -468,7 +475,7 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
       }
     } else {
       const inR = rangeHas(d.range, hand);
-      lines.push(`<p>${ctx.stackBB.toFixed(1)}BBの${ctx.seatName}のジャムレンジは上位 <b>${d.rangePct.toFixed(1)}%</b>。` +
+      lines.push(`<p>${bb1(ctx.stackBB)}BBの${ctx.seatName}のジャムレンジは上位 <b>${d.rangePct.toFixed(1)}%</b>。` +
         `${hand} は<b>${inR ? "含まれます" : "含まれません"}</b>。</p>`);
     }
     lines.push(rangeGridHTML(d.range, null, hand, "ジャム"));
@@ -484,16 +491,16 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
       const posNote = inR
         ? (dist > 20 ? "レンジのド真ん中。標準的なオープンです" : "オープンレンジの下限付近ですが、オープンが正解です")
         : (dist > 20 ? "オープンレンジから大きく外れています" : `惜しくもレンジ外(レンジ上位${d.rangePct.toFixed(0)}%に対し強度${pctile.toFixed(0)}%)`);
-      lines.push(`<p>${ctx.seatName}(${ctx.stackBB.toFixed(0)}BB)のオープンレンジは上位 <b>${d.rangePct.toFixed(1)}%</b>。${hand} は${posNote}。</p>`);
+      lines.push(`<p>${ctx.seatName}(${bb0(ctx.stackBB)}BB)のオープンレンジは上位 <b>${d.rangePct.toFixed(1)}%</b>。${hand} は${posNote}。</p>`);
     }
-    if (chosen === "jam" && inR) lines.push(`<p>このスタック(${ctx.stackBB.toFixed(0)}BB)ではオールインより2.2BBレイズが標準。強いハンドの価値を最大化し、弱いハンドにフォールドの余地を残せます。</p>`);
+    if (chosen === "jam" && inR) lines.push(`<p>このスタック(${bb0(ctx.stackBB)}BB)ではオールインより2.2BBレイズが標準。強いハンドの価値を最大化し、弱いハンドにフォールドの余地を残せます。</p>`);
     lines.push(rangeGridHTML(d.range, null, hand, "レイズ"));
   }
   else if (d.kind === "facingOpen") {
     const inJam = rangeHas(d.rejamRange, hand);
     const inCall = d.callRange ? rangeHas(d.callRange, hand) : false;
     const openerDesc = d.hu ? "<b>ヘッズアップ</b>のSBオープン(超ワイドレンジ)" : `${d.openerClass}ポジションからのオープン`;
-    lines.push(`<p>${openerDesc}に対する有効${ctx.effBB.toFixed(0)}BBの戦略: リジャム上位 <b>${d.rejamPct.toFixed(1)}%</b>` +
+    lines.push(`<p>${openerDesc}に対する有効${bb0(ctx.effBB)}BBの戦略: リジャム上位 <b>${d.rejamPct.toFixed(1)}%</b>` +
       (d.callRange ? ` / コール <b>${d.callPct.toFixed(1)}%</b>` : " / コールなし(ジャムかフォールド)") + `。</p>`);
     if (d.nashRejam && d.threshold !== null) {
       const th = d.threshold, m = d.marginBB;
@@ -504,7 +511,10 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
       if (Math.abs(m) <= 0.5) nuance = " — ちょうど境界の混合域です";
       else if (m > 0 && m < 2) nuance = ` — ぎりぎり圏内(余裕${m.toFixed(1)}BB)`;
       else if (m < 0 && m > -2) nuance = ` — 僅かに圏外(あと${(-m).toFixed(1)}BB浅ければジャム)`;
-      lines.push(`<p>${thText}。現在 有効<b>${ctx.effBB.toFixed(1)}BB</b>${nuance}。</p>`);
+      lines.push(`<p>${thText}。現在 有効<b>${bb1(ctx.effBB)}BB</b>${nuance}。</p>`);
+      if (Number.isFinite(ctx.effBB) && ctx.effBB < 2.5 && ctx.effBB > 0) {
+        lines.push(`<p>💡 実効<b>${bb1(ctx.effBB)}BB</b>は実質オールイン級の浅さ。この深さでは細かいEV計算より「ジャムで受ける/降りる」の二択が基本です。</p>`);
+      }
     }
     if (d.eqVsOpen != null) {
       lines.push(`<p>相手のオープンレンジに対する ${hand} の生エクイティ: <b>${pct(d.eqVsOpen)}</b>(事前計算テーブルによる厳密値)</p>`);
@@ -518,9 +528,15 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
     // 選択と正解の組み合わせに応じた説明(定型文の連発はしない)
     const correct = advice.primary;
     if (correct === "jam" && chosen === "fold") {
-      lines.push(`<p>${hand} はリジャムレンジ内です。${d.hu ? "HUの超ワイドオープンに対しては、ここで踏み込まないとブラインドを取られ続けます。" : "相手のオープンレンジの大部分はジャムにフォールドするため、フォールドエクイティ+コールされた時のエクイティの合計で+EVです。"}</p>`);
+      // 相手が降りる割合(フォールドエクイティ)が高いか低いかで説明を変える(committedな短オープナーで矛盾しないように)
+      const pCall = d.calc && Number.isFinite(d.calc.pCall) ? d.calc.pCall : null;
+      const why = d.hu ? "HUの超ワイドオープンに対しては、ここで踏み込まないとブラインドを取られ続けます。"
+        : (pCall != null && pCall > 0.65)
+          ? `この深さでは相手は概ねコールしてきますが、${hand}はコールされても十分なエクイティがあり、フォールドする分も合わせて+EVになります。`
+          : `相手のオープンレンジの多くはジャムにフォールドするため、フォールドエクイティ(相手が降りる分)＋コールされた時のエクイティの合計で+EVです。`;
+      lines.push(`<p>${hand} はリジャムレンジ内です。${why}</p>`);
     } else if (correct === "jam" && chosen === "call") {
-      lines.push(`<p>コールよりリジャム推奨です。有効${ctx.effBB.toFixed(0)}BBではポストフロップの技術介入余地が小さく、フォールドエクイティを取れるジャムの方がEVが高くなります。</p>`);
+      lines.push(`<p>コールよりリジャム推奨です。有効${bb0(ctx.effBB)}BBではポストフロップの技術介入余地が小さく、フォールドエクイティを取れるジャムの方がEVが高くなります。</p>`);
     } else if (correct === "call" && chosen === "fold") {
       lines.push(`<p>必要勝率は約<b>${pct(ctx.toCallBB / (ctx.potBB + ctx.toCallBB))}</b>と安く、${hand} はコールレンジ内。ここを全部降りるとブラインドの搾取に対して無防備になります。</p>`);
     } else if (correct === "call" && chosen === "jam") {
@@ -537,8 +553,8 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing) {
       const line = `ジャムの賞金期待値 <b>${(i.evJam * 100).toFixed(2)}%</b> vs フォールド <b>${(i.evFold * 100).toFixed(2)}%</b>(プライズプール比)`;
       lines.push(`<p>🏆 <b>ICM検証(FT)</b>: ${line} — チップEVと賞金EVが同じ方向を指しています。</p>`);
     }
-    // 📐 計算方法
-    if (d.calc) {
+    // 📐 計算方法(超浅・非有限では破綻するので出さない)
+    if (calcSane(d.calc)) {
       const c = d.calc;
       lines.push(calcBox("📐 リジャムEVの計算方法",
         `<b>基本式:</b><br>` +
