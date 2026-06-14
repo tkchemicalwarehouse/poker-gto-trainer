@@ -237,9 +237,7 @@ function render(state) {
   if (!state) return;
   const hero = state.players[0];
   $("game-info").innerHTML =
-    `#${state.handNo}　` +
-    `<span class="${state.finalTable ? "ft-badge" : "field-badge"}">${state.finalTable ? "🔥FT " : ""}残り${state.fieldLeft}人</span>　` +
-    `あなた: ${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)`;
+    `<span class="${state.finalTable ? "ft-badge" : "field-badge"}">${state.finalTable ? "🔥FT " : ""}残り${state.fieldLeft}人</span>`;
   // FTはテーブルの色が変わる
   $("table").classList.toggle("ft", !!state.finalTable);
 
@@ -268,6 +266,21 @@ function render(state) {
     if (bc.dataset.t !== txt) {
       bc.dataset.t = txt;
       bc.innerHTML = `<div class="bc-lv">LV ${LIVE.level + 1}</div><div class="bc-blinds">${fmtChips(LIVE.sb)}<span>/</span>${fmtChips(LIVE.bb)}</div><div class="bc-ante">ANTE ${fmtChips(LIVE.ante)}</div>`;
+    }
+  }
+  // 左下の大型「自分のスタック」表示(右下のブラインドと左右対称。一番大切な情報を大きく)
+  const hc = $("hero-corner");
+  if (hc) {
+    const coachOpen = !$("coach-panel").classList.contains("hidden");
+    hc.classList.toggle("hidden", coachOpen || state.street === "idle" || hero.out);
+    const hbb = +fmtBB(hero.chips);
+    const sgClsH = hbb < 10 ? "sg-danger" : hbb < 20 ? "sg-warn" : hbb < 35 ? "sg-ok" : "sg-big";
+    const htxt = hero.chips + "|" + sgClsH;
+    if (hc.dataset.t !== htxt) {
+      hc.dataset.t = htxt;
+      hc.innerHTML = `<div class="hc-label">YOU</div>` +
+        `<div class="hc-bb ${sgClsH}-t">${fmtBB(hero.chips)}<span>BB</span></div>` +
+        `<div class="hc-chips">${fmtChips(hero.chips)}</div>`;
     }
   }
 
@@ -411,7 +424,12 @@ function checkAARun(state) {
   if (state.handNo === lastAARun) return;
   if (handLabelOf(hero.cards[0], hero.cards[1]) === "AA") {
     lastAARun = state.handNo;
-    Mascot.run({ callout: "AA!! 最強のハンド!" });
+    // 上位報酬: 全犬解放済みなら犬群が走る。通常は装備中の1匹。
+    if (typeof Cosmetics !== "undefined" && Cosmetics.allDogsUnlocked() && Mascot.runPack) {
+      Mascot.runPack(Cosmetics.unlockedList("dogs"));
+    } else {
+      Mascot.run({ callout: "AA!! 最強のハンド!" });
+    }
     Sfx.play("win");
   }
 }
@@ -841,8 +859,36 @@ function heroBBSel() {
   return raw === "random" ? null : parseInt(raw);
 }
 
+/* ---------- 中断・再開(モバイルで進捗を失わない) ---------- */
+const RESUME_KEY = "pgt_resume_v1";
+function saveResume() {
+  // ハンド開始前の clean state を保存(中断時の復帰点)。LIVE/デッキは handNo から再生成されるので不要
+  try { localStorage.setItem(RESUME_KEY, JSON.stringify({ v: 1, ts: Date.now(), G, tally })); } catch (e) { }
+}
+function clearResume() { try { localStorage.removeItem(RESUME_KEY); } catch (e) { } }
+function loadResume() {
+  try { const r = JSON.parse(localStorage.getItem(RESUME_KEY)); if (r && r.v === 1 && r.G && !r.G.over && r.G.players) return r; } catch (e) { }
+  return null;
+}
+
+async function runTournamentLoop() {
+  while (!G.over && !aborting) {
+    heroPre = null;           // ハンド開始時に予約をクリア
+    saveResume();             // 中断しても直前のハンド開始時点から再開できる
+    await playHand(G, gameIO);
+  }
+  if (G.over) clearResume();
+  if (!aborting) {
+    finishTournament(G.won);
+  } else {
+    showScreen("screen-home");
+    renderHomeStats();
+  }
+}
+
 async function startTournament() {
   simCancel = true; // 実行中のシミュレーションがあれば停止
+  clearResume();    // 新規開始時は古い中断データを破棄
   showScreen("screen-game");
   $("log-panel").innerHTML = "";
   $("coach-panel").classList.add("hidden");
@@ -853,17 +899,22 @@ async function startTournament() {
   const hero = G.players[0];
   logMsg(`${G.fieldSize}人トーナメント開始! あなたのスタック: ${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)`, "info");
   render(G);
+  await runTournamentLoop();
+}
 
-  while (!G.over && !aborting) {
-    heroPre = null;           // ハンド開始時に予約をクリア
-    await playHand(G, gameIO);
-  }
-  if (!aborting) {
-    finishTournament(G.won);
-  } else {
-    showScreen("screen-home");
-    renderHomeStats();
-  }
+async function resumeTournament() {
+  const r = loadResume();
+  if (!r) { renderHomeStats(); return; }
+  simCancel = true;
+  showScreen("screen-game");
+  $("log-panel").innerHTML = "";
+  $("coach-panel").classList.add("hidden");
+  buildSeats();
+  aborting = false;
+  G = r.G; tally = r.tally || newTally();
+  logMsg(`▶ 中断したトーナメントを再開(${G.handNo}ハンド目 / 残り${G.fieldLeft}人)`, "info");
+  render(G);
+  await runTournamentLoop();
 }
 
 function tallySummaryHTML() {
@@ -892,9 +943,11 @@ function recordTournament(result, place) {
 
 function freshUnlockHTML() {
   const fresh = (typeof refreshUnlocks === "function") ? refreshUnlocks() : [];
-  if (!fresh.length) return "";
-  return `<div class="unlock-toast">🎁 <b>解放!</b> ${fresh.map(u => `${u.icon} ${u.title}`).join(" / ")}<br>
-    <span class="dim">「🎁 実績・解放」で確認できます</span></div>`;
+  const cosmo = (typeof Cosmetics !== "undefined" && Cosmetics.newlyUnlocked) ? Cosmetics.newlyUnlocked() : [];
+  const all = [...fresh.map(u => `${u.icon} ${u.title}`), ...cosmo.map(c => `${c.icon} ${c.name}`)];
+  if (!all.length) return "";
+  return `<div class="unlock-toast">🎁 <b>解放!</b> ${all.join(" / ")}<br>
+    <span class="dim">「🎁 実績・解放」で確認・装備できます</span></div>`;
 }
 
 function finishTournament(won) {
@@ -1032,15 +1085,21 @@ function renderSimResult(results, simWins) {
 function renderHomeStats() {
   const rec = loadRecord();
   const ts = rec.tournaments;
-  if (ts.length === 0) {
-    $("home-stats").innerHTML = "まだ記録がありません。トーナメントに挑戦しましょう。";
-    return;
+  const resume = (typeof loadResume === "function") ? loadResume() : null;
+  let html = "";
+  if (resume && resume.G) {
+    html += `<button id="btn-resume" class="big cta resume-cta">▶ 中断したトーナメントを再開<span class="resume-sub">${resume.G.handNo}ハンド目 / 残り${resume.G.fieldLeft}人</span></button>`;
   }
-  const wins = ts.filter(t => t.result === "win").length;
-  const dec = ts.reduce((s, t) => s + t.decisions, 0);
-  const ok = ts.reduce((s, t) => s + t.best + t.mixed, 0);
-  $("home-stats").innerHTML =
-    `挑戦 <b>${ts.length}回</b> ・ 優勝 <b>🏆${wins}回</b> ・ GTO一致率 <b>${dec ? (ok / dec * 100).toFixed(1) : "—"}%</b>`;
+  if (ts.length === 0) {
+    html += "まだ記録がありません。トーナメントに挑戦しましょう。";
+  } else {
+    const wins = ts.filter(t => t.result === "win").length;
+    const dec = ts.reduce((s, t) => s + t.decisions, 0);
+    const ok = ts.reduce((s, t) => s + t.best + t.mixed, 0);
+    html += `挑戦 <b>${ts.length}回</b> ・ 優勝 <b>🏆${wins}回</b> ・ GTO一致率 <b>${dec ? (ok / dec * 100).toFixed(1) : "—"}%</b>`;
+  }
+  $("home-stats").innerHTML = html;
+  const rb = $("btn-resume"); if (rb) rb.onclick = () => resumeTournament();
 }
 
 function renderStats() {
@@ -1475,6 +1534,42 @@ function isChapterUnlocked(catKey) { const c = CHAPTER_UNLOCK[catKey]; return !c
 // 見た目側(デザイン)から参照する公開API
 window.Unlocks = { isUnlocked: id => loadUnlocks().ids.includes(id), refresh: refreshUnlocks, progress: computeProgress };
 
+// コレクション(犬舎): 装備可能なコスメ。所持=装備切替、未所持=シルエット+条件。
+const COSMO_CATS = [
+  { cat: "dogs",   label: "🐕 仲間(犬)" },
+  { cat: "tables", label: "🟢 テーブル" },
+  { cat: "fx",     label: "✨ 演出" },
+];
+function cosmeticsSectionHTML() {
+  if (typeof Cosmetics === "undefined") return "";
+  return COSMO_CATS.map(({ cat, label }) => {
+    const equipped = Cosmetics.equippedId(cat);
+    const items = Cosmetics.CATALOG[cat].map(it => {
+      const open = Cosmetics.isUnlocked(cat, it.id);
+      const isEq = open && it.id === equipped;
+      const cls = isEq ? "equipped" : open ? "equipable" : "locked";
+      const sub = isEq ? '<span class="cosmo-eq">装備中 ✓</span>'
+        : open ? '<span class="cosmo-tap">タップで装備</span>'
+        : it.goal;
+      return `<div class="cosmo-item ${cls}" ${open && !isEq ? `data-cat="${cat}" data-id="${it.id}"` : ""}>
+        <div class="cosmo-ico">${open ? it.icon : "🔒"}</div>
+        <div class="cosmo-main"><div class="cosmo-name">${it.name}</div><div class="cosmo-sub">${sub}</div></div>
+      </div>`;
+    }).join("");
+    return `<h3 class="unlock-cat">${label}</h3><div class="cosmo-grid">${items}</div>`;
+  }).join("");
+}
+function wireCollection() {
+  document.querySelectorAll("#unlocks-body .cosmo-item.equipable").forEach(el => {
+    el.onclick = () => {
+      if (Cosmetics.equip(el.dataset.cat, el.dataset.id)) {
+        if (typeof Sfx !== "undefined") Sfx.play("win");
+        renderUnlocks();   // 再描画して装備中表示を更新
+      }
+    };
+  });
+}
+
 function renderUnlocks() {
   const p = computeProgress(), have = new Set(loadUnlocks().ids);
   const got = UNLOCKS.filter(u => have.has(u.id)).length;
@@ -1497,17 +1592,21 @@ function renderUnlocks() {
       </div></div>`;
   }).join("");
   $("unlocks-body").innerHTML =
-    `<p class="unlock-intro">プレイや学習を続けると、キャラ・演出・称号・新しい講座が解放されます。<b>${got}/${UNLOCKS.length}</b> 解放済み。
+    `<p class="unlock-intro">プレイを続けると仲間(犬)・テーブル・演出が解放されます。所持済みはタップで装備できます。
      <span class="dim">(進捗: ${p.tourneys}挑戦 / ${p.hands}ハンド / ${p.wins}優勝 / 一致率${(p.okRate * 100).toFixed(0)}%)</span></p>
-     <h3 class="unlock-cat">🎨 見た目・称号</h3><div class="unlock-list">${items}</div>
-     <h3 class="unlock-cat">📚 講座の解放</h3><div class="unlock-list">${chapters}</div>
-     <p class="dim" style="font-size:12px;margin-top:10px">※キャラ・演出の見た目は順次追加されます。解放条件を満たすと自動で使えるようになります。</p>`;
+     <h2 class="collection-head">🐕 コレクション(犬舎)</h2>
+     ${cosmeticsSectionHTML()}
+     <h2 class="collection-head" style="margin-top:22px">🏅 称号・実績 <span class="dim" style="font-size:13px">${got}/${UNLOCKS.length}</span></h2>
+     <div class="unlock-list">${items}</div>
+     <h3 class="unlock-cat">📚 講座の解放</h3><div class="unlock-list">${chapters}</div>`;
+  wireCollection();
 }
 
 /* ---------- イベント登録 ---------- */
 window.addEventListener("DOMContentLoaded", () => {
   renderHomeStats();
   applyDeviceMode(deviceMode(), false);
+  if (typeof Cosmetics !== "undefined") { Cosmetics.apply(); Cosmetics.newlyUnlocked(); }   // 装備適用 + 解放スナップショットのベースライン化
   // ハンド強度テーブルをバックグラウンドで事前計算
   setTimeout(() => { try { getHandPower(); } catch (e) { } }, 400);
 
@@ -1538,7 +1637,11 @@ window.addEventListener("DOMContentLoaded", () => {
   $("legal-back").onclick = () => showScreen("screen-help");
   $("btn-unlocks").onclick = () => { renderUnlocks(); showScreen("screen-unlocks"); };
   $("unlocks-back").onclick = () => showScreen("screen-home");
-  $("btn-quit").onclick = () => { aborting = true; };
+  // 設定メニュー(☰ MENU): 効果音/コーチ表示/速度/退出をまとめる
+  $("btn-menu").onclick = () => $("game-menu").classList.remove("hidden");
+  $("gm-close").onclick = () => $("game-menu").classList.add("hidden");
+  $("game-menu").onclick = (e) => { if (e.target.id === "game-menu") $("game-menu").classList.add("hidden"); };
+  $("btn-quit").onclick = () => { aborting = true; $("game-menu").classList.add("hidden"); };
 
   $("bust-again").onclick = () => { $("bust-modal").classList.add("hidden"); startTournament(); };
   $("bust-home").onclick = () => {

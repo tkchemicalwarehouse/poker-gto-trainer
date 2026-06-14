@@ -6,14 +6,17 @@
 "use strict";
 
 const Mascot = (() => {
-  const PALETTE = {
-    K: "#1a1a1a", // 黒(輪郭)
-    O: "#e0913f", // コーギーオレンジ
-    W: "#ffffff", // 白
-    Y: "#f0d04a", // ベスト黄
-    R: "#d4373e", // 赤(蝶ネクタイ・スペード)
-    P: "#f0907e", // 舌ピンク
+  // 犬スキン: 同じ体型マップをパレットで着せ替え(将来は犬種ごとの専用マップも load 可)
+  // K=輪郭 O=毛(主) W=毛(白) Y=ベスト/首輪 R=蝶ネクタイ P=舌
+  const DOG_SKINS = {
+    mutt:  { name: "雑種(あいぼう)", icon: "🐶", palette: { K: "#2a2118", O: "#9c7850", W: "#ece2cf", Y: "#6f6052", R: "#cf5a3e", P: "#f0907e" } },
+    corgi: { name: "コーギー(KIM)", icon: "🐕", palette: { K: "#1a1a1a", O: "#e0913f", W: "#ffffff", Y: "#f0d04a", R: "#d4373e", P: "#f0907e" } },
+    shiba: { name: "柴犬",          icon: "🦊", palette: { K: "#241a12", O: "#e08a3c", W: "#fff3e2", Y: "#caa24a", R: "#c0392b", P: "#f0907e" } },
   };
+  let activeSkinId = "mutt";
+  function skinPalette() { return (DOG_SKINS[activeSkinId] || DOG_SKINS.mutt).palette; }
+  function skinMap() { return (DOG_SKINS[activeSkinId] && DOG_SKINS[activeSkinId].map) || MAP; }
+  function setSkin(id) { if (DOG_SKINS[id]) activeSkinId = id; }
 
   // 22桁 × 20行のピクセルマップ
   const MAP = [
@@ -63,7 +66,7 @@ const Mascot = (() => {
   }
 
   function buildCanvas(scale) {
-    return pixelCanvas(MAP, PALETTE, scale, false);
+    return pixelCanvas(skinMap(), skinPalette(), scale, false);
   }
 
   // KIMの本体要素(名札+カードファン付き)
@@ -128,6 +131,23 @@ const Mascot = (() => {
     setTimeout(() => { wrap.remove(); running = false; }, 4300);
   }
 
+  // 全犬解放の上位報酬: 解放済みの犬がぞろぞろ走り抜ける(AA配牌など)
+  function runPack(ids) {
+    ids = (ids && ids.length) ? ids : Object.keys(DOG_SKINS);
+    const prev = activeSkinId;
+    ids.forEach((id, i) => {
+      if (!DOG_SKINS[id]) return;
+      activeSkinId = id;                       // buildElは現在スキンを参照するので走者ごとに切替
+      const wrap = document.createElement("div");
+      wrap.className = "mascot-run";
+      wrap.style.animationDelay = (i * 0.22) + "s";
+      wrap.appendChild(buildEl(4, { className: "mascot-runner", cards: false }));
+      document.body.appendChild(wrap);
+      setTimeout(() => wrap.remove(), 4600 + i * 250);
+    });
+    activeSkinId = prev;                        // 装備中スキンに戻す
+  }
+
   /* ---------- バニーガール(FT入場の看板ウォーク) ---------- */
   const BUNNY_PAL = {
     K: "#1a1a1a", W: "#ffffff", P: "#ffb0c8", S: "#f0c8a0",
@@ -179,7 +199,7 @@ const Mascot = (() => {
     setTimeout(() => { wrap.remove(); running = false; }, 7600);
   }
 
-  return { mount, run, buildEl, pixelCanvas, bunnyWalk };
+  return { mount, run, runPack, buildEl, pixelCanvas, bunnyWalk, setSkin, getSkin: () => activeSkinId, skins: DOG_SKINS };
 })();
 
 /* =========================================================

@@ -989,6 +989,10 @@ body.mode-phone #blind-corner .bc-blinds { font-size: 16px; }
 .lesson.locked-chapter { opacity: .8; }
 .lesson-lock-msg { padding: 10px 14px; font-size: 13px; color: var(--dim); }
 
+/* 中断トーナメントの再開ボタン(ホーム) */
+.resume-cta { display: block; width: 100%; margin-bottom: 10px; background: linear-gradient(135deg, #2e9e5b, #46c47c) !important; }
+.resume-cta .resume-sub { display: block; font-size: 11px; font-weight: 400; opacity: .9; margin-top: 2px; }
+
 /* 成績 */
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 14px 0; }
 .stat-card { background: var(--panel); border-radius: 10px; padding: 14px; text-align: center; }
@@ -1580,3 +1584,156 @@ select {
   border: 3px solid var(--gold);
   box-shadow: 0 0 14px rgba(231,189,82,.8), 0 3px 8px rgba(0,0,0,.6);
 }
+
+/* =========================================================
+ * コレクション(犬舎) — コスメ装備UI
+ * ========================================================= */
+.collection-head { font-size: 18px; font-weight: 900; margin: 6px 0 4px; letter-spacing: .5px; }
+.cosmo-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px; margin: 6px 0 8px;
+}
+.cosmo-item {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface-1); border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm); padding: 10px 12px;
+  transition: transform .1s ease, border-color .15s ease, background .15s ease;
+}
+.cosmo-ico { font-size: 24px; line-height: 1; flex: 0 0 auto; }
+.cosmo-main { min-width: 0; }
+.cosmo-name { font-weight: 700; font-size: 13.5px; color: #eef3f8; }
+.cosmo-sub { font-size: 11px; color: var(--dim); margin-top: 2px; }
+.cosmo-eq { color: var(--gold-2); font-weight: 800; }
+.cosmo-tap { color: var(--accent); }
+.cosmo-item.equipable { cursor: pointer; }
+.cosmo-item.equipable:hover { border-color: var(--accent); background: rgba(77,163,255,.1); transform: translateY(-2px); }
+.cosmo-item.equipped {
+  border-color: var(--gold); background: rgba(231,189,82,.1);
+  box-shadow: inset 0 0 0 1px rgba(231,189,82,.4);
+}
+.cosmo-item.locked { opacity: .55; }
+.cosmo-item.locked .cosmo-name { color: var(--dim); }
+
+/* =========================================================
+ * 演出強度フラグ data-fx — 報酬/省電力で段階制御
+ * min: モーションを抑える(酔い/低スペック/省電力)
+ * ========================================================= */
+body[data-fx="min"] .suit-float,
+body[data-fx="min"] .mascot-run,
+body[data-fx="min"] .confetti,
+body[data-fx="min"] .trophy-rays { display: none !important; }
+body[data-fx="min"] .home-bg,
+body[data-fx="min"] .gto-bang,
+body[data-fx="min"] button.cta { animation: none !important; }
+
+/* =========================================================
+ * PC/タブレット: ゲーム画面を1画面に収める(縦スクロール不要)
+ * テーブル高さをビューポート高で上限制御し、周辺クロムを詰める。
+ * 座席は%配置なのでテーブルが平たくなっても正しく並ぶ。
+ * (スマホモードは従来どおり = body.mode-phone 側で別管理)
+ * ========================================================= */
+body:not(.mode-phone) #game-top { padding: 6px 14px; }
+body:not(.mode-phone) #table-wrap { padding: 8px 10px 2px; }
+body:not(.mode-phone) #table {
+  height: min(54vw, 520px, calc(100vh - 340px));
+}
+body:not(.mode-phone) #action-bar { padding: 8px 12px; }
+body:not(.mode-phone) #log-panel { max-height: 96px; padding-top: 4px; padding-bottom: 10px; }
+
+/* =========================================================
+ * ① アクションバッジ(RAISE/CALL/FOLD等)はカードの上へ下げる
+ *    → 残りスタック(チップ量)の数字を隠さない。
+ *    勝率%/WIN-LOSE(.sa-eq-pos)と自席(.seat.hero)は従来位置のまま。
+ * ========================================================= */
+.seat-act:not(.sa-eq-pos) { top: 60%; }
+
+/* =========================================================
+ * ② 自分のスタック表示 — 自席(下中央)の真下に、普通字で見やすく
+ *    (右下ブラインドはドット字のまま。こちらは可読性優先で通常フォント)
+ * ========================================================= */
+#hero-corner {
+  margin: 7px auto 0; padding: 0 12px; pointer-events: none;
+  display: flex; align-items: baseline; justify-content: center; gap: 12px;
+  font-family: var(--font-jp);
+}
+#hero-corner .hc-label { font-size: 12px; letter-spacing: 2px; font-weight: 800; color: var(--accent); }
+#hero-corner .hc-bb { font-weight: 900; font-size: 27px; line-height: 1; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+#hero-corner .hc-bb span { font-size: .5em; margin-left: 3px; color: var(--dim); font-weight: 700; }
+#hero-corner .hc-chips { font-size: 15px; font-weight: 700; color: var(--gold-2); }
+/* スマホ: アクションバーの上に固定オーバーレイ(下中央) */
+body.mode-phone #hero-corner {
+  position: fixed; left: 50%; transform: translateX(-50%); margin: 0; z-index: 55;
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  background: rgba(10,14,20,.85); border: 1px solid var(--hairline-strong);
+  border-radius: 999px; padding: 5px 16px; box-shadow: 0 4px 14px rgba(0,0,0,.5);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+body.mode-phone #hero-corner .hc-bb { font-size: 20px; }
+body.mode-phone #hero-corner .hc-chips { font-size: 13px; }
+
+/* ② 自席の枠内スタック表示は削除(真下のHUDに集約) */
+.seat.hero .seat-stack { display: none; }
+
+/* スマホ: 下部の状況ログ(○○:フォールド…)は情報過多なので非表示(PCは表示のまま) */
+body.mode-phone #log-panel { display: none; }
+
+/* =========================================================
+ * ☰ MENU — 上部の設定(効果音/コーチ表示/速度/退出)を集約(PC・スマホ共通)
+ * ========================================================= */
+#btn-menu {
+  font-weight: 800; font-size: 14px; padding: 8px 16px; letter-spacing: 1px;
+  border-radius: var(--radius-sm); border: 1px solid var(--hairline-strong);
+  background: rgba(255,255,255,.06); color: var(--text);
+}
+#btn-menu:hover { background: rgba(255,255,255,.12); }
+
+#game-menu {
+  position: fixed; inset: 0; z-index: 80;
+  background: rgba(0,0,0,.5); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+}
+.gm-sheet {
+  position: absolute; top: 10px; right: 10px; width: min(300px, 92vw);
+  background: linear-gradient(180deg, var(--surface-2), rgba(11,15,22,.98));
+  border: 1px solid var(--hairline-strong); border-radius: var(--radius);
+  box-shadow: 0 20px 60px rgba(0,0,0,.6); padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.gm-title { font-weight: 900; font-size: 15px; letter-spacing: 1px; color: var(--text); }
+.gm-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--dim); }
+.gm-item select { min-width: 150px; }
+#game-menu #btn-mute {
+  font-size: 18px; padding: 6px 14px; border-radius: var(--radius-sm);
+  border: 1px solid var(--hairline); background: rgba(255,255,255,.05);
+}
+.gm-quit {
+  margin-top: 4px; padding: 11px; border-radius: var(--radius-sm); font-weight: 700;
+  background: rgba(224,82,82,.16); border: 1px solid rgba(224,82,82,.45); color: #ff9a9a;
+}
+.gm-quit:hover { background: rgba(224,82,82,.24); }
+.gm-close {
+  padding: 9px; border-radius: var(--radius-sm); color: var(--dim);
+  background: transparent; border: 1px solid var(--hairline);
+}
+
+/* =========================================================
+ * 上部バーを廃止 → 残り人数(左上)とMENU(右上)をテーブルに重ねる
+ *   帯がなくなる分テーブルを拡大できる。
+ * ========================================================= */
+#screen-game { position: relative; }
+#game-top {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 25;
+  background: none; border: none; padding: 8px 12px;
+  pointer-events: none; gap: 0;
+}
+#game-info {
+  font-weight: 700; font-size: 14px; color: var(--text);
+  background: rgba(10,14,20,.55); border: 1px solid var(--hairline);
+  border-radius: 999px; padding: 5px 14px;
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+#btn-menu { pointer-events: auto; }
+
+/* バーが消えた分テーブルを拡大(縦領域を取り戻す) */
+body:not(.mode-phone) #table { height: min(56vw, 560px, calc(100vh - 300px)); }
+body.mode-phone #table { height: min(132vw, calc(100vh - 188px)); }

@@ -111,24 +111,33 @@
 <div id="screen-game" class="screen hidden">
   <div id="game-top">
     <span id="game-info"></span>
-    <span id="game-controls">
-      <button id="btn-mute" title="効果音オン/オフ">🔊</button>
-      <label>コーチ表示:
+    <button id="btn-menu" title="メニュー">☰ MENU</button>
+  </div>
+
+  <!-- 設定メニュー(効果音/コーチ表示/速度/退出) -->
+  <div id="game-menu" class="hidden">
+    <div class="gm-sheet">
+      <div class="gm-title">メニュー</div>
+      <div class="gm-item">効果音
+        <button id="btn-mute" title="効果音オン/オフ">🔊</button>
+      </div>
+      <label class="gm-item">コーチ表示
         <select id="coach-mode">
           <option value="mistakes" selected>ミスのみ</option>
           <option value="always">毎回</option>
           <option value="off">なし(結果のみ)</option>
         </select>
       </label>
-      <label>速度:
+      <label class="gm-item">速度
         <select id="game-speed">
           <option value="1" selected>普通</option>
           <option value="0.4">速い</option>
           <option value="2">遅い</option>
         </select>
       </label>
-      <button id="btn-quit">退出</button>
-    </span>
+      <button id="btn-quit" class="gm-quit">⏏ 退出</button>
+      <button id="gm-close" class="gm-close">閉じる</button>
+    </div>
   </div>
 
   <div id="table-wrap">
@@ -144,6 +153,7 @@
     </div>
   </div>
 
+  <div id="hero-corner" class="hidden"></div>
   <div id="prebar" class="hidden"></div>
   <div id="action-bar" class="hidden"></div>
   <div id="sizer-big" class="hidden">
@@ -335,6 +345,7 @@
 <script src="js/data-rejam.js"></script>
 <script src="js/icm.js"></script>
 <script src="js/mascot.js"></script>
+<script src="js/cosmetics.js"></script>
 <script src="js/ranges.js"></script>
 <script src="js/strategy.js"></script>
 <script src="js/poker.js"></script>
