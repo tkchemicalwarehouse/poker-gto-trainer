@@ -1737,3 +1737,9 @@ body.mode-phone #log-panel { display: none; }
 /* バーが消えた分テーブルを拡大(縦領域を取り戻す) */
 body:not(.mode-phone) #table { height: min(56vw, 560px, calc(100vh - 300px)); }
 body.mode-phone #table { height: min(132vw, calc(100vh - 188px)); }
+
+/* =========================================================
+ * スマホ: スート記号(ピップ)が数字(ランク)に被るので小さく+角へ寄せる
+ * ========================================================= */
+body.mode-phone .c-pip { font-size: 1.12em; right: 1px; bottom: -1px; }
+body.mode-phone .c-idx { font-size: 1.28em; }
