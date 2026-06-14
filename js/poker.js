@@ -156,6 +156,7 @@ async function playHand(state, io) {
   state.jamCallers = 0;
   state.preflopBetLevel = 1; // 1=BB, 2=オープン(RAISE), 3=3BET, 4=4BET…
   state.handLog = [];
+  state.runout = false;
 
   // デッキ
   const deck = [];
@@ -170,13 +171,13 @@ async function playHand(state, io) {
   for (const p of state.players) {
     if (p.out) {
       p.folded = true; p.cards = []; p.showCards = false;
-      p.streetBet = 0; p.committed = 0; p.allIn = false; p.tagAgg = null; p.tagPass = null; p.showResult = null;
+      p.streetBet = 0; p.committed = 0; p.allIn = false; p.tagAgg = null; p.tagPass = null; p.showResult = null; p.eqPct = null;
       continue;
     }
     p.cards = [deck.pop(), deck.pop()];
     p.folded = false; p.allIn = false;
     p.streetBet = 0; p.committed = 0; p.hasActed = false; p.hadAggression = false;
-    p.assumedRange = null; p.rangeNote = ""; p.showCards = false; p.tagAgg = null; p.tagPass = null; p.showResult = null;
+    p.assumedRange = null; p.rangeNote = ""; p.showCards = false; p.tagAgg = null; p.tagPass = null; p.showResult = null; p.eqPct = null;
     p.startChips = p.chips;
   }
 
@@ -208,6 +209,12 @@ async function playHand(state, io) {
   state.prevAggressorSeat = state.preflopOpen ? state.preflopOpen.seat
     : (state.preflopJams.length > 0 ? state.preflopJams[state.preflopJams.length - 1].seat : null);
 
+  // ランアウト判定: 参加者2人以上だが、もう誰もアクションできない(全員オールイン等)
+  const isRunout = () => activeCount(state) > 1 && canAct(state).length < 2;
+  let runoutStarted = false;
+  // プリフロップでオールイン成立 → まず「オールイン時点(プリフロップ)」の勝率を見せる
+  if (isRunout()) { runoutStarted = true; await showRunoutEquity(state, io); }
+
   const streets = [["flop", 3], ["turn", 1], ["river", 1]];
   for (const [street, n] of streets) {
     if (activeCount(state) <= 1) break;
@@ -220,15 +227,20 @@ async function playHand(state, io) {
     }
     io.log(`【${streetJP(street)}】 ${state.board.map(cardText).join(" ")}`, "street");
     if (io.sound) io.sound("deal");
-    io.render(state);
-    await io.delay(450);
-    if (canAct(state).length >= 2) {
-      await bettingRound(state, street, 0, io);
+    if (runoutStarted) {
+      // ランアウト中: このストリートの勝率を更新表示(ターン・リバーで勝率がどう動くか)
+      await showRunoutEquity(state, io);
     } else {
-      // オールイン済み: カードを公開してランアウトを見せる
-      for (const p of state.players) if (!p.folded) p.showCards = true;
       io.render(state);
-      await io.delay(700);
+      await io.delay(450);
+      if (canAct(state).length >= 2) {
+        await bettingRound(state, street, 0, io);
+        // このストリートのベットでオールインが成立したら、以降はランアウト表示に切替え
+        if (isRunout()) { runoutStarted = true; await showRunoutEquity(state, io); }
+      } else {
+        // 念のためのフォールバック(通常は runoutStarted で捕捉済み)
+        runoutStarted = true; await showRunoutEquity(state, io);
+      }
     }
     // このストリートのアグレッサーを次ストリートの判定用に引き継ぐ
     state.prevAggressorSeat = state.curStreetAggressor; // 誰もベットしなければnull(=スタブOK)
@@ -669,6 +681,58 @@ async function botAct(state, p, ctx, legal, io) {
     p.rangeNote = "BBディフェンス";
   }
   return act;
+}
+
+/* ---------- オールイン時の各ハンドの勝率(ランアウト) ---------- */
+// players: 降りていない参加者(.cards 2枚)。board: 現在の共有札。
+// 残り札を列挙(≤2枚)またはモンテカルロ(それ以上)で各人の勝率(引き分けは均等割り)を返す。
+function allinEquities(players, board) {
+  const n = players.length;
+  const used = new Set();
+  for (const p of players) for (const c of p.cards) used.add(c);
+  for (const c of board) used.add(c);
+  const remaining = [];
+  for (let c = 0; c < 52; c++) if (!used.has(c)) remaining.push(c);
+  const need = 5 - board.length;
+  const wins = new Array(n).fill(0);
+  let total = 0;
+  const tally = full => {
+    let best = -1, ws = [];
+    for (let i = 0; i < n; i++) {
+      const sc = evaluate7(players[i].cards.concat(full));
+      if (sc > best) { best = sc; ws = [i]; }
+      else if (sc === best) ws.push(i);
+    }
+    const share = 1 / ws.length;
+    for (const wi of ws) wins[wi] += share;
+    total++;
+  };
+  if (need <= 0) tally(board);
+  else if (need === 1) { for (const c of remaining) tally(board.concat(c)); }
+  else if (need === 2) {
+    for (let i = 0; i < remaining.length; i++)
+      for (let j = i + 1; j < remaining.length; j++) tally(board.concat(remaining[i], remaining[j]));
+  } else {
+    const iters = 1200;
+    for (let it = 0; it < iters; it++) {
+      const pool = remaining.slice(), pick = [];
+      for (let k = 0; k < need; k++) { const idx = Math.floor(Math.random() * pool.length); pick.push(pool[idx]); pool[idx] = pool[pool.length - 1]; pool.pop(); }
+      tally(board.concat(pick));
+    }
+  }
+  return players.map((p, i) => ({ player: p, pct: total ? wins[i] / total : 0 }));
+}
+
+// ランアウト中、各参加者に勝率(eqPct)を付与して描画し、ゆっくり見せる
+async function showRunoutEquity(state, io) {
+  const contenders = state.players.filter(p => !p.folded);
+  if (contenders.length < 2) return;
+  for (const p of contenders) p.showCards = true;
+  const eqs = allinEquities(contenders, state.board);
+  for (const e of eqs) e.player.eqPct = e.pct;
+  state.runout = true;
+  io.render(state);
+  await io.delay(1500);   // オールインの勝率を読む時間(速度設定でさらに伸縮)
 }
 
 /* ---------- ハンド解決(ショーダウン・サイドポット) ---------- */

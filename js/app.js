@@ -319,14 +319,25 @@ function render(state) {
     // アクションのドット文字バッジ(RAISE+FOLDの重ね表示、3BET/4BET/5BETは色分け)
     const actEl = el.querySelector(".seat-act");
     const showdownResult = state.street === "showdown" && p.showResult;
+    // オールインのランアウト中は「勝率%」を大きく表示(ターン・リバーで動くのを見せる)
+    const runoutEq = !showdownResult && state.runout && p.eqPct != null && !p.folded;
     const tags = [];
-    if (!showdownResult) {
+    if (!showdownResult && !runoutEq) {
       if (p.tagAgg) tags.push(p.tagAgg);
       if (p.tagPass) tags.push(p.tagPass);
     }
     // 攻撃アクションには投入額を併記(RAISE/3BET/BET/ALL IN等。いくら入れたか一目で)
     const aggAmt = (p.tagAgg && p.streetBet > 0) ? p.streetBet : 0;
-    if (showdownResult) {
+    if (runoutEq) {
+      const pctTxt = Math.round(p.eqPct * 100) + "%";
+      const key = "eq:" + pctTxt;
+      if (actEl.dataset.k !== key) {
+        actEl.dataset.k = key;
+        actEl.className = "seat-act";
+        const cls = p.eqPct >= 0.55 ? "sa-eq-hi" : p.eqPct <= 0.45 ? "sa-eq-lo" : "sa-eq-ev";
+        actEl.innerHTML = `<div class="sa-tag sa-eq ${cls}"><span class="sa-eq-lbl">勝率</span>${pctTxt}</div>`;
+      }
+    } else if (showdownResult) {
       // ショーダウンの勝敗を WIN/LOSE のドット字で大きく表示(速くても見分けられるように)
       const key = "result:" + p.showResult;
       if (actEl.dataset.k !== key) {
