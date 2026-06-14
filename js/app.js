@@ -739,6 +739,32 @@ function sendReport(comment) {
   setTimeout(() => t.classList.add("hidden"), 2400);
 }
 
+/* 講座(GTO講座)への意見・指摘を、判定報告と同じGoogleフォームへ送る。
+ * 回答シートには kind:"lesson_feedback" でタグ付けされ、判定報告と一緒に吸い上げられる。 */
+function sendLessonFeedback(lessonId, lessonTitle, comment) {
+  if (!comment) return false;
+  const payload = {
+    app: "トナメ中盤戦、、ここでGTO!!", kind: "lesson_feedback",
+    time: new Date().toISOString(), lessonId, lessonTitle, comment,
+  };
+  const t = $("toast");
+  try {
+    if (REPORT_ENDPOINT && REPORT_FIELD) {
+      const fd = new FormData();
+      fd.append(REPORT_FIELD, JSON.stringify(payload));
+      fetch(REPORT_ENDPOINT, { method: "POST", mode: "no-cors", body: fd });
+    }
+    t.textContent = "📨 講座へのご意見を送信しました。ありがとう!";
+    t.className = "v-mixed"; Sfx.play("good");
+  } catch (e) {
+    t.textContent = "送信できませんでした。時間をおいて再度お試しください";
+    t.className = "v-minor";
+  }
+  t.classList.remove("hidden");
+  setTimeout(() => t.classList.add("hidden"), 2600);
+  return true;
+}
+
 function copyReport() {
   if (!window.__lastReport) return;
   const text = "【判定報告】以下の局面の判定を検証してください:\n```json\n" +
@@ -1275,7 +1301,15 @@ function renderLearn() {
   const lessonHTML = l => `<div class="lesson ${st.done[l.id] ? 'done' : ''}">
       <div class="lesson-head" data-id="${l.id}"><span class="lesson-title">${st.done[l.id] ? '✅ ' : ''}${l.title}</span><span class="lesson-toggle">▼</span></div>
       <div class="lesson-body hidden" id="lb-${l.id}">${l.body}
-        <button class="lesson-done" data-id="${l.id}">${st.done[l.id] ? '✓ 学習済み(もう一度読む場合はそのまま)' : 'この講座を学習した！'}</button></div>
+        <button class="lesson-done" data-id="${l.id}">${st.done[l.id] ? '✓ 学習済み(もう一度読む場合はそのまま)' : 'この講座を学習した！'}</button>
+        <div class="lesson-fb">
+          <button class="lf-toggle" data-id="${l.id}">💬 この講座に意見・指摘を送る</button>
+          <div class="lf-area hidden" id="lf-${l.id}">
+            <textarea class="lf-text" placeholder="例: 「○○という新しい理論では…」/「この説明は△△の点で誤りでは?」/「もっと具体例が欲しい」など。開発に直接届き、確認して講座を改善します。"></textarea>
+            <button class="lf-send" data-id="${l.id}">この内容で送信</button>
+          </div>
+        </div>
+      </div>
     </div>`;
   const sections = LESSON_CATS.map(c => {
     const ls = LESSONS.filter(l => l.cat === c.key);
@@ -1290,6 +1324,20 @@ function renderLearn() {
   $("learn-body").querySelectorAll(".lesson-done").forEach(btn => btn.onclick = () => {
     const st2 = loadLearn(); st2.done[btn.dataset.id] = true; saveLearn(st2); renderLearn();
     $("lb-" + btn.dataset.id).classList.remove("hidden");
+  });
+  // 意見・指摘の開閉と送信
+  $("learn-body").querySelectorAll(".lf-toggle").forEach(btn => btn.onclick = () => {
+    const a = $("lf-" + btn.dataset.id); a.classList.toggle("hidden");
+    if (!a.classList.contains("hidden")) a.querySelector(".lf-text").focus();
+  });
+  $("learn-body").querySelectorAll(".lf-send").forEach(btn => btn.onclick = () => {
+    const a = $("lf-" + btn.dataset.id), ta = a.querySelector(".lf-text");
+    const txt = ta.value.trim();
+    if (!txt) { ta.focus(); return; }
+    const lesson = LESSONS.find(l => l.id === btn.dataset.id);
+    if (sendLessonFeedback(btn.dataset.id, lesson ? lesson.title : btn.dataset.id, txt)) {
+      ta.value = ""; a.classList.add("hidden");
+    }
   });
 }
 

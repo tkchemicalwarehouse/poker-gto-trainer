@@ -912,6 +912,23 @@ body.mode-phone #blind-corner .bc-blinds { font-size: 16px; }
   margin-top: 12px; padding: 10px 16px; border-radius: 8px; cursor: pointer;
   background: var(--accent); color: #fff; border: none; font-size: 14px; font-weight: 700;
 }
+/* 講座への意見・指摘 */
+.lesson-fb { margin-top: 12px; border-top: 1px dashed #2c3a4d; padding-top: 10px; }
+.lf-toggle {
+  background: none; border: 1px solid #3a4a5e; color: var(--dim);
+  border-radius: 6px; padding: 7px 12px; font-size: 13px; cursor: pointer;
+}
+.lf-toggle:hover { color: var(--text); border-color: var(--accent); }
+.lf-area { margin-top: 10px; }
+.lf-text {
+  width: 100%; box-sizing: border-box; min-height: 80px; resize: vertical;
+  background: #0f1620; color: var(--text); border: 1px solid #34465c;
+  border-radius: 6px; padding: 9px; font-size: 14px; font-family: inherit;
+}
+.lf-send {
+  margin-top: 8px; padding: 9px 16px; border-radius: 6px; cursor: pointer;
+  background: #d98a2b; color: #fff; border: none; font-size: 14px; font-weight: 700;
+}
 .sim-summary { background: var(--panel); border-radius: 10px; padding: 14px; font-size: 14px; line-height: 1.9; margin-top: 14px; }
 .sim-summary b { color: var(--gold); }
 
