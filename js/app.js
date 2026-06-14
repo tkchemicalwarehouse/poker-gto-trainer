@@ -528,7 +528,8 @@ function showActionButtons(legal, ctx, advice) {
     if (ctx && advice) {
       const ask = document.createElement("button");
       ask.className = "ask-teacher";
-      ask.innerHTML = `<span class="ask-ico">🧑‍🏫</span><span class="ask-txt">先生に聞く</span>`;
+      ask.title = "先生に聞く(推奨を表示)";
+      ask.innerHTML = `<span class="ask-ico">🐶</span>`;  // アイコンのみ。デザイン側で犬キャラ画像に差し替え可
       ask.onclick = () => openHint(ctx, advice);
       bar.appendChild(ask);
     }
