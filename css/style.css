@@ -890,6 +890,12 @@ body.mode-phone #blind-corner .bc-blinds { font-size: 16px; }
 
 /* GTO講座 */
 .learn-prog { font-size: 13px; margin-bottom: 12px; }
+.lesson-cat {
+  margin: 18px 0 8px; padding-bottom: 5px; font-size: 14px; color: var(--accent);
+  border-bottom: 1px solid rgba(77,163,255,.3); display: flex; justify-content: space-between; align-items: baseline;
+}
+.lesson-cat:first-of-type { margin-top: 6px; }
+.lesson-cat-prog { font-size: 11px; color: var(--dim); font-weight: 400; }
 .lesson { border: 1px solid #2c3a4d; border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
 .lesson.done { border-color: rgba(70,196,124,.5); }
 .lesson-head {
