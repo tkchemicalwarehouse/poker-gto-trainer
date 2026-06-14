@@ -91,12 +91,36 @@ const Dog = (() => {
   function pawsCanvas(scale) {
     return (typeof Mascot !== "undefined" && Mascot.pixelCanvas) ? Mascot.pixelCanvas(PAWS, PAWS_PAL, scale || 10, false) : null;
   }
-  // 相手犬(プレースホルダ=ドット絵チビ犬・別配色)
+  /* ---- 相手犬 10種(プレースホルダ=チビ犬マップのパレット違い。後で正式イラストに差替) ---- */
+  // パレット: K=輪郭 O=毛(主) W=毛(白/差し) Y=ベスト R=蝶ネクタイ P=舌
+  var OPP_DOGS = [
+    { name: "シバ三郎",   pal: { K: "#2a1f14", O: "#e08a3c", W: "#fff3e2", Y: "#caa24a", R: "#c0392b", P: "#f0907e" } },
+    { name: "ハスケン",   pal: { K: "#222831", O: "#7c8794", W: "#f3f6fa", Y: "#3b7dd8", R: "#1f3a66", P: "#f0907e" } },
+    { name: "クロベエ",   pal: { K: "#15151c", O: "#3a3a46", W: "#caa24a", Y: "#7a2633", R: "#e8c352", P: "#f0907e" } },
+    { name: "ゴル太",     pal: { K: "#3a2a14", O: "#e8b860", W: "#fff6e0", Y: "#2e7d4f", R: "#8a5a2a", P: "#f0907e" } },
+    { name: "ブチ夫",     pal: { K: "#1a1a1a", O: "#eef0f2", W: "#23232c", Y: "#c0392b", R: "#222", P: "#f0907e" } },
+    { name: "プー子",     pal: { K: "#3a2230", O: "#f0d0d8", W: "#fff", Y: "#a06cff", R: "#c2569d", P: "#f0907e" } },
+    { name: "チワ",       pal: { K: "#2a1f14", O: "#d8a86a", W: "#fff3e2", Y: "#e0a020", R: "#c0392b", P: "#f0907e" } },
+    { name: "ブル蔵",     pal: { K: "#241a12", O: "#c8956a", W: "#f3ead8", Y: "#2563ad", R: "#1f3a66", P: "#f0907e" } },
+    { name: "茶々丸",     pal: { K: "#241710", O: "#9c6b3f", W: "#e8d2b0", Y: "#e67e22", R: "#7a2633", P: "#f0907e" } },
+    { name: "パグ兵衛",   pal: { K: "#1a140d", O: "#d8c0a0", W: "#3a2e22", Y: "#c0392b", R: "#1a140d", P: "#f0907e" } },
+  ];
+  var curOpp = OPP_DOGS[0];
+  function pickOpponent() {
+    var i = Math.floor((typeof Math.random === "function" ? Math.random() : 0) * OPP_DOGS.length);
+    curOpp = OPP_DOGS[i] || OPP_DOGS[0];
+    return curOpp;
+  }
+  function oppName() { return curOpp ? curOpp.name : "RIVAL"; }
   function oppCanvas(scale) {
     if (typeof Mascot === "undefined" || !Mascot.pixelCanvas || !Mascot.MAP) return null;
-    var pal = ((Mascot.skins && (Mascot.skins.shiba || Mascot.skins.corgi)) || {}).palette;
-    return Mascot.pixelCanvas(Mascot.MAP, pal, scale || 5, false);
+    return Mascot.pixelCanvas(Mascot.MAP, (curOpp || OPP_DOGS[0]).pal, scale || 5, false);
+  }
+  // 相手の手(POVで相手側にもチビ犬色の手を出したい場合用)
+  function oppPawsCanvas(scale) {
+    var p = (curOpp || OPP_DOGS[0]).pal;
+    return (typeof Mascot !== "undefined" && Mascot.pixelCanvas) ? Mascot.pixelCanvas(PAWS, { K: p.K, O: p.O, W: p.W }, scale || 10, false) : null;
   }
 
-  return { run, sign, victoryImgTag, hasImg, pawsCanvas, oppCanvas };
+  return { run, sign, victoryImgTag, hasImg, pawsCanvas, oppCanvas, oppPawsCanvas, pickOpponent, oppName, oppDogs: OPP_DOGS };
 })();

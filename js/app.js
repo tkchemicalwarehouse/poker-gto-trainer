@@ -243,6 +243,8 @@ function render(state) {
   // ヘッズアップ(残り2人)突入でVS演出を一度だけ
   if (state.fieldLeft === 2 && !huSplashShown && state.street !== "idle") {
     huSplashShown = true;
+    if (typeof Dog !== "undefined" && Dog.pickOpponent) Dog.pickOpponent();  // 相手犬をランダム選出
+    const od0 = $("pov-opp-dog"); if (od0) od0.innerHTML = "";  // 新しい相手犬で再生成
     showHUSplash(state);
   }
   // ヘッズアップは一人称(POV)画面に切替(通常テーブルを隠す)
@@ -997,7 +999,8 @@ function showHUSplash(state) {
     const cv = Mascot.pixelCanvas(Mascot.MAP, pal, 6, false); cv.className = "hu-pix";
     ot.appendChild(cv);
   }
-  ot.insertAdjacentHTML("beforeend", `<div class="hu-tag">${opp.name || "RIVAL"}　${opp.chips != null ? fmtBB(opp.chips) + "BB" : ""}</div>`);
+  const oName = (typeof Dog !== "undefined" && Dog.oppName) ? Dog.oppName() : (opp.name || "RIVAL");
+  ot.insertAdjacentHTML("beforeend", `<div class="hu-tag">${oName}　${opp.chips != null ? fmtBB(opp.chips) + "BB" : ""}</div>`);
   // 中央 VS / 決着戦
   const ct = document.createElement("div"); ct.className = "hu-center";
   ct.innerHTML = `<div class="hu-vs">VS</div><div class="hu-duel">決着戦</div>`;
@@ -1022,7 +1025,8 @@ function renderHUPov(state) {
   // 相手の手札(ショーダウンのみ表向き)
   const showOpp = state.street === "showdown" && opp && opp.showCards;
   $("pov-opp-cards").innerHTML = !opp ? "" : (opp.folded ? "" : (showOpp ? opp.cards.map(c => cardHTML(c, true)).join("") : backHTML(true) + backHTML(true)));
-  $("pov-opp-info").innerHTML = opp ? `${opp.name}　<b>${fmtChips(opp.chips)} (${fmtBB(opp.chips)}BB)</b>` : "";
+  const oName = (typeof Dog !== "undefined" && Dog.oppName) ? Dog.oppName() : (opp ? opp.name : "");
+  $("pov-opp-info").innerHTML = opp ? `${oName}　<b>${fmtChips(opp.chips)} (${fmtBB(opp.chips)}BB)</b>` : "";
   // 場札・ポット・チップ
   const pot = potTotal(state);
   $("pov-board").innerHTML = state.board.map(c => cardHTML(c)).join("");
