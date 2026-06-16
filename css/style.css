@@ -1915,3 +1915,14 @@ body:not(.mode-phone) #hu-pov{height:min(70vh,560px)}
 #hu-pov .pov-hole{display:flex;gap:8px;justify-content:center;position:relative;z-index:2}
 #hu-pov .pov-paws{display:flex;justify-content:center;margin-top:-6px}
 #hu-pov .pov-paws canvas{image-rendering:pixelated}
+
+/* =========================================================
+ * ライバル メダル(チップ画像) — HU相手アイコン & コレクション図鑑
+ * ========================================================= */
+#hu-splash .hu-medal{width:clamp(150px,42vw,230px);height:auto;filter:drop-shadow(0 8px 18px rgba(0,0,0,.6))}
+#hu-pov .pov-medal{width:clamp(118px,32vw,168px);height:auto;filter:drop-shadow(0 6px 12px rgba(0,0,0,.55))}
+.rival-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:6px 0}
+.rival-cell{background:var(--surface-1);border:1px solid var(--hairline);border-radius:var(--radius);padding:10px 8px 8px;text-align:center;box-shadow:var(--shadow-card)}
+.rival-cell img{width:100%;max-width:120px;height:auto;display:block;margin:0 auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,.5))}
+.rival-name{font-size:12.5px;font-weight:700;color:#eef3f8;margin-top:4px}
+.rival-val{font-size:11px;color:var(--gold-2);font-weight:800}

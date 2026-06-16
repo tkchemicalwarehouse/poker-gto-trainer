@@ -994,11 +994,8 @@ function showHUSplash(state) {
   const ov = document.createElement("div"); ov.id = "hu-splash";
   // 相手犬(プレースホルダ=ドット絵・別配色)
   const ot = document.createElement("div"); ot.className = "hu-opp";
-  if (typeof Mascot !== "undefined" && Mascot.pixelCanvas && Mascot.MAP) {
-    const pal = ((Mascot.skins && (Mascot.skins.shiba || Mascot.skins.corgi)) || {}).palette;
-    const cv = Mascot.pixelCanvas(Mascot.MAP, pal, 6, false); cv.className = "hu-pix";
-    ot.appendChild(cv);
-  }
+  const oImg = (typeof Dog !== "undefined" && Dog.oppImg) ? Dog.oppImg() : null;
+  if (oImg) ot.insertAdjacentHTML("beforeend", `<img class="hu-medal" src="${oImg}" alt="">`);
   const oName = (typeof Dog !== "undefined" && Dog.oppName) ? Dog.oppName() : (opp.name || "RIVAL");
   ot.insertAdjacentHTML("beforeend", `<div class="hu-tag">${oName}　${opp.chips != null ? fmtBB(opp.chips) + "BB" : ""}</div>`);
   // 中央 VS / 決着戦
@@ -1019,9 +1016,10 @@ function showHUSplash(state) {
 function renderHUPov(state) {
   const hero = state.players[0];
   const opp = state.players.find(p => !p.isHero && !p.out);
-  // 相手犬(一度だけ生成)
+  // 相手(メダル画像。差し替わった時だけ再設定)
   const od = $("pov-opp-dog");
-  if (od && !od.firstChild && typeof Dog !== "undefined" && Dog.oppCanvas) { const c = Dog.oppCanvas(5); if (c) od.appendChild(c); }
+  const oImg = (typeof Dog !== "undefined" && Dog.oppImg) ? Dog.oppImg() : null;
+  if (od && oImg) { const cur = od.querySelector("img"); if (!cur || cur.getAttribute("src") !== oImg) od.innerHTML = `<img class="pov-medal" src="${oImg}" alt="">`; }
   // 相手の手札(ショーダウンのみ表向き)
   const showOpp = state.street === "showdown" && opp && opp.showCards;
   $("pov-opp-cards").innerHTML = !opp ? "" : (opp.folded ? "" : (showOpp ? opp.cards.map(c => cardHTML(c, true)).join("") : backHTML(true) + backHTML(true)));
@@ -1637,6 +1635,14 @@ function wireCollection() {
   });
 }
 
+// ライバル(チップ/メダル)図鑑 — HUで出会う相手の一覧
+function rivalsGalleryHTML() {
+  if (typeof Dog === "undefined" || !Dog.rivals) return "";
+  return `<div class="rival-grid">` + Dog.rivals().map(r =>
+    `<div class="rival-cell"><img src="${r.img}" alt=""><div class="rival-name">${r.name}</div><div class="rival-val">$${r.value}</div></div>`
+  ).join("") + `</div>`;
+}
+
 function renderUnlocks() {
   const p = computeProgress(), have = new Set(loadUnlocks().ids);
   const got = UNLOCKS.filter(u => have.has(u.id)).length;
@@ -1663,6 +1669,8 @@ function renderUnlocks() {
      <span class="dim">(進捗: ${p.tourneys}挑戦 / ${p.hands}ハンド / ${p.wins}優勝 / 一致率${(p.okRate * 100).toFixed(0)}%)</span></p>
      <h2 class="collection-head">🐕 コレクション(犬舎)</h2>
      ${cosmeticsSectionHTML()}
+     <h2 class="collection-head" style="margin-top:22px">🪙 ライバル(チップ)</h2>
+     ${rivalsGalleryHTML()}
      <h2 class="collection-head" style="margin-top:22px">🏅 称号・実績 <span class="dim" style="font-size:13px">${got}/${UNLOCKS.length}</span></h2>
      <div class="unlock-list">${items}</div>
      <h3 class="unlock-cat">📚 講座の解放</h3><div class="unlock-list">${chapters}</div>`;
