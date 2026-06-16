@@ -1602,7 +1602,7 @@ window.Unlocks = { isUnlocked: id => loadUnlocks().ids.includes(id), refresh: re
 
 // コレクション(犬舎): 装備可能なコスメ。所持=装備切替、未所持=シルエット+条件。
 const COSMO_CATS = [
-  { cat: "dogs",   label: "🐕 仲間(犬)" },
+  { cat: "dogs",   label: "🐕 仲間" },
   { cat: "tables", label: "🟢 テーブル" },
   { cat: "fx",     label: "✨ 演出" },
 ];
@@ -1669,9 +1669,9 @@ function renderUnlocks() {
   $("unlocks-body").innerHTML =
     `<p class="unlock-intro">プレイを続けると仲間(犬)・テーブル・演出が解放されます。所持済みはタップで装備できます。
      <span class="dim">(進捗: ${p.tourneys}挑戦 / ${p.hands}ハンド / ${p.wins}優勝 / 一致率${(p.okRate * 100).toFixed(0)}%)</span></p>
-     <h2 class="collection-head">🐕 コレクション(犬舎)</h2>
+     <h2 class="collection-head">🐕 コレクション</h2>
      ${cosmeticsSectionHTML()}
-     <h2 class="collection-head" style="margin-top:22px">🪙 ライバル(チップ)</h2>
+     <h2 class="collection-head" style="margin-top:22px">🪙 ライバル</h2>
      ${rivalsGalleryHTML()}
      <h2 class="collection-head" style="margin-top:22px">🏅 称号・実績 <span class="dim" style="font-size:13px">${got}/${UNLOCKS.length}</span></h2>
      <div class="unlock-list">${items}</div>
