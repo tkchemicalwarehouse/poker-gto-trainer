@@ -546,7 +546,8 @@ function showActionButtons(legal, ctx, advice) {
       const ask = document.createElement("button");
       ask.className = "ask-teacher";
       ask.title = "先生に聞く(推奨を表示)";
-      ask.innerHTML = `<span class="ask-ico">🐶</span>`;  // アイコンのみ。デザイン側で犬キャラ画像に差し替え可
+      const chip = (typeof Dog !== "undefined" && Dog.advisorChip) ? Dog.advisorChip() : null;
+      ask.innerHTML = chip ? `<img class="ask-chip" src="${chip}" alt="先生">` : `<span class="ask-ico">🐶</span>`;
       ask.onclick = () => openHint(ctx, advice);
       bar.appendChild(ask);
     }
@@ -1616,8 +1617,9 @@ function cosmeticsSectionHTML() {
       const sub = isEq ? '<span class="cosmo-eq">装備中 ✓</span>'
         : open ? '<span class="cosmo-tap">タップで装備</span>'
         : it.goal;
+      const ico = (open && it.img) ? `<img class="cosmo-img" src="${it.img}" alt="">` : (open ? it.icon : "🔒");
       return `<div class="cosmo-item ${cls}" ${open && !isEq ? `data-cat="${cat}" data-id="${it.id}"` : ""}>
-        <div class="cosmo-ico">${open ? it.icon : "🔒"}</div>
+        <div class="cosmo-ico">${ico}</div>
         <div class="cosmo-main"><div class="cosmo-name">${it.name}</div><div class="cosmo-sub">${sub}</div></div>
       </div>`;
     }).join("");

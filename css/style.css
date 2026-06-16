@@ -1003,8 +1003,10 @@ body.mode-phone #blind-corner .bc-blinds { font-size: 16px; }
 }
 .ask-teacher:hover, .ask-teacher:active { transform: scale(1.12); }
 .ask-teacher .ask-ico { font-size: 38px; display: block; }
+.ask-teacher .ask-chip { width: 56px; height: 56px; object-fit: contain; display: block; }
 body.mode-phone .ask-teacher { bottom: 88px; }
 body.mode-phone .ask-teacher .ask-ico { font-size: 32px; }
+body.mode-phone .ask-teacher .ask-chip { width: 48px; height: 48px; }
 /* 信頼度バッジ(誠実さの憲章の可視化)。厳密=緑 / 目安=黄 / どちらでもよい=灰 */
 .conf-badge { display: flex; flex-direction: column; gap: 3px; padding: 7px 10px; border-radius: 8px; margin-bottom: 9px; border: 1px solid; }
 .conf-badge .conf-row { display: flex; align-items: center; gap: 6px; }
@@ -1926,3 +1928,6 @@ body:not(.mode-phone) #hu-pov{height:min(70vh,560px)}
 .rival-cell img{width:100%;max-width:120px;height:auto;display:block;margin:0 auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,.5))}
 .rival-name{font-size:12.5px;font-weight:700;color:#eef3f8;margin-top:4px}
 .rival-val{font-size:11px;color:var(--gold-2);font-weight:800}
+
+/* 犬舎: チップ系キャラはメダル画像をサムネ表示 */
+.cosmo-ico .cosmo-img{width:34px;height:34px;object-fit:contain;display:block}

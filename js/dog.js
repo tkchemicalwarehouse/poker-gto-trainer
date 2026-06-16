@@ -28,13 +28,20 @@ const Dog = (() => {
   var C_LEGA = ["..KO.......KO.....", "..KW.......KW.....", "..KK.......KK....."];
   var C_LEGB = ["....KO...KO.......", "....KW...KW.......", "....KK...KK......."];
 
+  // 装備キャラの配色で走りパレットを作る(O=毛 W=白 M=差し色を上書き)
+  function runPalette() {
+    var rp = (typeof Cosmetics !== "undefined" && Cosmetics.equippedDog && (Cosmetics.equippedDog() || {}).runPal) || null;
+    if (!rp) return CORGI_PAL;
+    return { K: CORGI_PAL.K, N: CORGI_PAL.N, P: CORGI_PAL.P, O: rp.O || CORGI_PAL.O, W: rp.W || CORGI_PAL.W, M: rp.M || CORGI_PAL.M };
+  }
   // 脚2コマを切り替える走りスプライト(canvas2枚をトグル)
   function corgiSprite(scale, speedMs) {
     if (typeof Mascot === "undefined" || !Mascot.pixelCanvas) return null;
+    var PAL = runPalette();
     var FA = C_UP.concat(C_LEGA), FB = C_UP.concat(C_LEGB);
     var box = document.createElement("div"); box.className = "dog-sprite-box";
-    var a = Mascot.pixelCanvas(FA, CORGI_PAL, scale, false);
-    var b = Mascot.pixelCanvas(FB, CORGI_PAL, scale, false);
+    var a = Mascot.pixelCanvas(FA, PAL, scale, false);
+    var b = Mascot.pixelCanvas(FB, PAL, scale, false);
     a.className = "dog-frame"; b.className = "dog-frame"; b.style.display = "none";
     box.appendChild(a); box.appendChild(b);
     var i = 0;
@@ -84,6 +91,12 @@ const Dog = (() => {
     return s ? '<img src="' + s + '" class="dog-victory" alt="">' : "";
   }
 
+  // アドバイスボタン用: 装備キャラがチップ系ならそのチップ画像、そうでなければ null(=🐶のまま)
+  function advisorChip() {
+    var d = eq();
+    return (d && d.chip && d.img) ? d.img : null;
+  }
+
   /* ---- HU POV用 ドット絵: 前景の手(コーギーの手) ---- */
   var PAWS_PAL = { K: "#2a2118", O: "#d98e4a", W: "#fdf6ec" };
   var PAW1 = [".KK.KK.KK.", "KOOKOOKOOK", "KOOOOOOOOK", "KOWWWWWWOK", "KOOOOOOOOK", ".KOOOOOOK.", "..KKKKKK.."];
@@ -108,5 +121,5 @@ const Dog = (() => {
   function oppImg() { return curRival ? curRival.img : null; }
   function rivals() { return RIVALS; }
 
-  return { run, sign, victoryImgTag, hasImg, pawsCanvas, pickOpponent, oppName, oppImg, rivals };
+  return { run, sign, victoryImgTag, hasImg, pawsCanvas, pickOpponent, oppName, oppImg, rivals, advisorChip };
 })();
