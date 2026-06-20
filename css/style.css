@@ -1909,7 +1909,7 @@ body:not(.mode-phone) #hu-pov{height:min(70vh,560px)}
 #hu-pov .pov-info{font-size:12.5px;color:#eef3f8;margin-top:3px}
 #hu-pov .pov-info b{color:var(--gold-2)}
 #hu-pov .pov-edge{width:130%;height:16px;margin:4px 0 2px;background:linear-gradient(#2c2016,#16100a);box-shadow:0 8px 16px rgba(0,0,0,.45);border-radius:50%}
-#hu-pov .pov-felt{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;width:100%}
+#hu-pov .pov-felt{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;width:100%}
 #hu-pov .pov-board{display:flex;gap:5px;justify-content:center;min-height:50px}
 #hu-pov .pov-pot{background:rgba(0,0,0,.4);border:1px solid rgba(231,189,82,.32);border-radius:999px;padding:3px 13px;color:var(--gold-2);font-weight:700;font-size:13px}
 #hu-pov .pov-chips{display:flex;justify-content:center}
@@ -1917,6 +1917,24 @@ body:not(.mode-phone) #hu-pov{height:min(70vh,560px)}
 #hu-pov .pov-hole{display:flex;gap:8px;justify-content:center;position:relative;z-index:2}
 #hu-pov .pov-paws{display:flex;justify-content:center;margin-top:-6px}
 #hu-pov .pov-paws canvas{image-rendering:pixelated}
+/* HU 大きなアクション表示(レイズ額・オールイン・コール等) */
+#hu-pov .pov-act{min-height:30px;display:flex;justify-content:center;align-items:center;margin:3px 0}
+#hu-pov .pov-hero .pov-act{margin-bottom:1px}
+.pa-pill{display:inline-flex;align-items:baseline;gap:8px;padding:5px 16px;border-radius:999px;font-weight:900;letter-spacing:.04em;line-height:1;background:rgba(8,16,12,.62);border:2px solid rgba(255,255,255,.18);box-shadow:0 4px 14px rgba(0,0,0,.5);animation:paPop .22s ease-out}
+.pa-pill .pa-label{font-size:clamp(18px,5vw,26px)}
+.pa-pill .pa-amt{font-size:clamp(15px,4vw,21px);color:var(--gold-2);font-weight:900}
+.pa-pill.raise{color:#ffd75e;border-color:rgba(255,215,94,.6)}
+.pa-pill.jam{color:#ff6b6b;border-color:rgba(255,107,107,.7);text-shadow:0 0 10px rgba(255,80,80,.6);animation:paPop .22s ease-out,paJam 1s ease-in-out infinite .22s}
+.pa-pill.call{color:#7fd4ff;border-color:rgba(127,212,255,.55)}
+.pa-pill.check{color:#cfe6da;border-color:rgba(207,230,218,.4)}
+.pa-pill.fold{color:#9aa3ad;border-color:rgba(154,163,173,.4)}
+@keyframes paPop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+@keyframes paJam{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+/* HU 勝敗(WIN / LOSE) */
+#hu-pov .pov-result{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:5;font-family:Outfit,sans-serif;font-weight:900;font-size:clamp(54px,16vw,108px);letter-spacing:.06em}
+#hu-pov .pov-result:empty{display:none}
+#hu-pov .pov-result.win{color:#ffe27a;text-shadow:0 0 22px rgba(255,210,80,.85),0 4px 10px rgba(0,0,0,.6);animation:paPop .3s ease-out}
+#hu-pov .pov-result.lose{color:#ff7b7b;text-shadow:0 0 18px rgba(255,80,80,.6),0 4px 10px rgba(0,0,0,.6);animation:paPop .3s ease-out}
 
 /* =========================================================
  * ライバル メダル(チップ画像) — HU相手アイコン & コレクション図鑑

@@ -1013,6 +1013,14 @@ function showHUSplash(state) {
   setTimeout(() => { ov.classList.add("out"); setTimeout(() => ov.remove(), 500); }, 2300);
 }
 
+// HUの大きなアクション表示(レイズ額・オールイン・コール等)
+function povActHTML(p) {
+  if (!p || !p.actBanner) return "";
+  const a = p.actBanner;
+  const amt = (a.amt != null) ? `<span class="pa-amt">${fmtBB(a.amt)}BB</span>` : "";
+  return `<span class="pa-pill ${a.tone}"><span class="pa-label">${a.label}</span>${amt}</span>`;
+}
+
 // ヘッズアップ 一人称(POV)画面の中身を更新
 function renderHUPov(state) {
   const hero = state.players[0];
@@ -1021,11 +1029,23 @@ function renderHUPov(state) {
   const od = $("pov-opp-dog");
   const oImg = (typeof Dog !== "undefined" && Dog.oppImg) ? Dog.oppImg() : null;
   if (od && oImg) { const cur = od.querySelector("img"); if (!cur || cur.getAttribute("src") !== oImg) od.innerHTML = `<img class="pov-medal" src="${oImg}" alt="">`; }
-  // 相手の手札(ショーダウンのみ表向き)
-  const showOpp = state.street === "showdown" && opp && opp.showCards;
+  // 相手の手札(オールイン後のランアウト or ショーダウンで表向き)
+  const showOpp = opp && opp.showCards && !opp.folded;
   $("pov-opp-cards").innerHTML = !opp ? "" : (opp.folded ? "" : (showOpp ? opp.cards.map(c => cardHTML(c, true)).join("") : backHTML(true) + backHTML(true)));
   const oName = (typeof Dog !== "undefined" && Dog.oppName) ? Dog.oppName() : (opp ? opp.name : "");
   $("pov-opp-info").innerHTML = opp ? `${oName}　<b>${fmtChips(opp.chips)} (${fmtBB(opp.chips)}BB)</b>` : "";
+  // 大きなアクション表示(相手・自分)
+  $("pov-opp-act").innerHTML = povActHTML(opp);
+  $("pov-hero-act").innerHTML = povActHTML(hero);
+  // 勝敗(ショーダウン): 大きく WIN / LOSE
+  const res = $("pov-result");
+  if (state.street === "showdown" && hero && hero.showResult) {
+    const won = hero.showResult === "win";
+    res.className = "pov-result " + (won ? "win" : "lose");
+    res.textContent = won ? "WIN" : "LOSE";
+  } else {
+    res.className = "pov-result"; res.textContent = "";
+  }
   // 場札・ポット・チップ
   const pot = potTotal(state);
   $("pov-board").innerHTML = state.board.map(c => cardHTML(c)).join("");
