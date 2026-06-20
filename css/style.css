@@ -1931,3 +1931,17 @@ body:not(.mode-phone) #hu-pov{height:min(70vh,560px)}
 
 /* 犬舎: チップ系キャラはメダル画像をサムネ表示 */
 .cosmo-ico .cosmo-img{width:34px;height:34px;object-fit:contain;display:block}
+
+/* =========================================================
+ * 優勝 追加の派手演出(花火/金貨/衝撃波/二重フラッシュ)
+ * ========================================================= */
+.victory-flash.f2{animation:vicFlash .5s ease-out .85s both}
+.vic-shock{position:absolute;left:50%;top:36%;width:30px;height:30px;border-radius:50%;border:6px solid rgba(255,221,110,.9);transform:translate(-50%,-50%);opacity:0;pointer-events:none;animation:vicShock .85s ease-out .1s both}
+@keyframes vicShock{0%{opacity:.9;width:30px;height:30px;border-width:8px}100%{opacity:0;width:130vw;height:130vw;border-width:2px}}
+.vic-fw{position:absolute;width:0;height:0;pointer-events:none}
+.vic-fw i{position:absolute;left:0;top:0;width:7px;height:7px;margin:-3px;border-radius:50%;opacity:0;box-shadow:0 0 6px rgba(255,240,180,.9);animation:vicFw 1s ease-out both}
+@keyframes vicFw{0%{opacity:1;transform:rotate(var(--a)) translateY(0) scale(1)}80%{opacity:1}100%{opacity:0;transform:rotate(var(--a)) translateY(-95px) scale(.4)}}
+.vic-coin{position:absolute;top:-26px;border-radius:50%;pointer-events:none;background:radial-gradient(circle at 35% 30%,#fff3b0,#e8c352 55%,#b8860f);box-shadow:0 0 6px rgba(255,215,94,.7),inset 0 0 0 2px rgba(255,255,255,.4);animation-name:vicCoinFall;animation-timing-function:linear;animation-iteration-count:infinite}
+@keyframes vicCoinFall{from{transform:translateY(-30px) rotateY(0);opacity:1}80%{opacity:1}to{transform:translateY(112vh) rotateY(900deg);opacity:.5}}
+.trophy-rays{animation-duration:5s}
+body[data-fx="min"] .vic-fw,body[data-fx="min"] .vic-coin,body[data-fx="min"] .vic-shock,body[data-fx="min"] .victory-flash.f2{display:none!important}

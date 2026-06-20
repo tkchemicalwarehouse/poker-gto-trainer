@@ -1043,19 +1043,45 @@ function showVictory() {
   Sfx.play("victory");
   const layer = $("confetti-layer");
   layer.innerHTML = "";
-  // 一瞬の白フラッシュ
+  // 二重フラッシュ
   const flash = document.createElement("div"); flash.className = "victory-flash"; layer.appendChild(flash);
+  const flash2 = document.createElement("div"); flash2.className = "victory-flash f2"; layer.appendChild(flash2);
+  // 中央から広がる衝撃波リング
+  const shock = document.createElement("div"); shock.className = "vic-shock"; layer.appendChild(shock);
+  // 花火バースト(放射)
+  const fwc = ["#ffd75e", "#fff3c4", "#ff6b6b", "#6fc0ff", "#a06cff", "#5fd492"];
+  for (let k = 0; k < 6; k++) {
+    const fw = document.createElement("div"); fw.className = "vic-fw";
+    fw.style.left = (12 + Math.random() * 76) + "%"; fw.style.top = (10 + Math.random() * 55) + "%";
+    const delay = (0.3 + k * 0.45).toFixed(2);
+    for (let j = 0; j < 12; j++) {
+      const sp = document.createElement("i");
+      sp.style.setProperty("--a", (j * 30) + "deg");
+      sp.style.background = fwc[(k + j) % fwc.length];
+      sp.style.animationDelay = delay + "s";
+      fw.appendChild(sp);
+    }
+    layer.appendChild(fw);
+  }
   // きらめき(✦)
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 22; i++) {
     const s = document.createElement("div");
     s.className = "vic-sparkle"; s.textContent = "✦";
     s.style.cssText = `left:${Math.random() * 100}%;top:${Math.random() * 86}%;` +
-      `font-size:${10 + Math.random() * 20}px;animation-delay:${(Math.random() * 1.8).toFixed(2)}s;`;
+      `font-size:${10 + Math.random() * 22}px;animation-delay:${(Math.random() * 2).toFixed(2)}s;`;
     layer.appendChild(s);
+  }
+  // 金貨シャワー
+  for (let i = 0; i < 26; i++) {
+    const c = document.createElement("div"); c.className = "vic-coin";
+    const sz = 12 + Math.random() * 12;
+    c.style.cssText = `left:${Math.random() * 100}%;width:${sz}px;height:${sz}px;` +
+      `animation-delay:${(Math.random() * 3).toFixed(2)}s;animation-duration:${(2.6 + Math.random() * 2.4).toFixed(2)}s;`;
+    layer.appendChild(c);
   }
   // 紙吹雪(ゴールド多め・前面)
   const colors = ["#ffd75e", "#e8c352", "#fff3c4", "#ffd75e", "#e8c352", "#e05252", "#46c47c", "#4da3ff", "#c2569d", "#fff"];
-  for (let i = 0; i < 150; i++) {
+  for (let i = 0; i < 200; i++) {
     const c = document.createElement("div");
     c.className = "confetti";
     const sz = 6 + Math.random() * 9;
@@ -1063,7 +1089,7 @@ function showVictory() {
       `left:${Math.random() * 100}%;` +
       `width:${sz}px;height:${sz * (0.4 + Math.random() * 1.2)}px;` +
       `background:${colors[i % colors.length]};` +
-      `animation-delay:${(Math.random() * 2.8).toFixed(2)}s;` +
+      `animation-delay:${(Math.random() * 3).toFixed(2)}s;` +
       `animation-duration:${(2.4 + Math.random() * 2.6).toFixed(2)}s;`;
     layer.appendChild(c);
   }

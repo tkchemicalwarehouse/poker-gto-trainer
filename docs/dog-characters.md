@@ -119,3 +119,41 @@ HU(残り2人)突入で専用の対決画面に切替。横並びは縦スマホ
 **必要アート**: ①自分の手(前景・コーギーの手/装備犬色) ②相手犬(卓の向こうから顔+手, ランダム表示なので複数) ③ディーラー犬(クルピエ)。実カード/チップ額は可変なのでゲーム側描画、手・相手・ディーラーは静止画。
 
 **実装フック**: state.fieldLeft===2(HU成立)で専用レイアウト/スプラッシュへ。既存HU機構(Ranges.huOpen等)はそのまま。規模大なのでアート用意後に着手。
+
+---
+
+## HUライバル＝キャラ化(方向B・2026-06-17決定)
+チップ(メダル)を「対戦相手の体」に使うと“生き物 vs 物体”でしっくり来ない。→ **相手=動物キャラ(顔+手の生き物)**、**チップ=そのキャラを倒すと貰える勲章/トロフィー(図鑑・報酬)**に役割変更。チップ8枚は報酬側で全活用。
+
+**必要アート: 各ライバルのキャラ絵**(チップの世界観を引き継ぐ)。POV用に「卓の向こうから顔+手を出し、手札を持つ」構図・透過・スタイル統一。
+
+**共通スタイル(生成プロンプト先頭)**
+```
+cute but cool mobile game character, [ANIMAL] gambler, anthropomorphic,
+leaning forward over a green poker table toward the viewer, both hands/paws on the table edge
+holding two face-down playing cards, facing camera, confident smug expression,
+soft cel shading, clean bold lineart, vibrant, high detail, 2D anime illustration,
+transparent background
+--no text, watermark, real person, photorealistic, background, full body, poker chip, coin
+```
+**8ライバルのペルソナ(チップ設定を継承)**
+- cat: スチームパンクの山高帽ギャンブラー猫(片眼鏡)「SCRATCH & WIN」
+- bulldog: 鋲付き首輪のタフな番犬「STEADY HOLD」/どっしり
+- owl: 緑の眼の賢い眼鏡ディーラー梟「ALL'S REVEALED」
+- shark: スーツを着た不敵なサメ「OCEAN'S KING」
+- tiger: 王冠の黄金トラ・威厳「GOLDEN TIGER」
+- lion: 王冠の銀のライオン・気高い「SILVER LION」
+- bear: 氷の鎧の白熊・冷酷「ICE BEAR」
+- unicorn: 虹と金の優雅なユニコーン・ラスボス「RAINBOW UNICORN」
+
+**記入例(shark)**
+```
+cute but cool mobile game character, shark gambler in a business suit, anthropomorphic,
+leaning forward over a green poker table toward the viewer, both fins on the table edge
+holding two face-down playing cards, facing camera, confident smug grin, sharp teeth,
+soft cel shading, clean bold lineart, vibrant, high detail, 2D anime illustration,
+transparent background
+--no text, watermark, real person, photorealistic, background, full body, poker chip, coin
+```
+
+**実装(アート到着後)**: rivalに char 画像を追加→HUのVS演出/POVの相手は char を表示。チップは「ライバル」改め「トロフィー/戦利品」図鑑＋撃破報酬に。当面の相手placeholderはチップ or ドット犬のまま。スタイルは「かわいい寄り/クール寄り」要調整(まず1体生成して方向確認)。
