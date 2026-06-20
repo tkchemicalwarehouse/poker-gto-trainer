@@ -382,6 +382,34 @@ function madeHandDesc(ctx) {
   return `あなたの${cardText(pairCard)}が場の${R[pr]}とペア${kicker != null ? `・${R[kicker]}キッカー` : ""}`;
 }
 
+/* ===== 厳密ポーカー理論スニペット(誠実さの憲章: すべて数学的に正しい概念のみ) ===== */
+
+/* ブロッカー/カード除去。AまたはKを持つと相手の最強コンボが減る(向きは厳密)。
+ * magnitudeは語らず、エクイティ計算に織り込み済みであることを明記(二重計上の誤解を防ぐ)。 */
+function blockerNote(label) {
+  if (!label) return "";
+  const a = label[0], b = label[1];
+  const has = r => a === r || b === r;
+  if (has("A")) return "🔑 <b>ブロッカー</b>: あなたが <b>A</b> を持つので、相手の <b>AA・AK</b> のコンボ数が物理的に減ります。相手の最強の継続レンジが薄くなるぶん、押す/受ける判断が有利に働きます。<span class=\"dim\">※この効果は上のエクイティ計算に既に織り込まれています。</span>";
+  if (has("K") && !has("A")) return "🔑 <b>ブロッカー</b>: あなたの <b>K</b> が相手の <b>KK・AK</b> の一部を消します。相手の最強コンボが減るぶん、ジャムのフォールドエクイティが上がります。<span class=\"dim\">※エクイティ計算に織り込み済み。</span>";
+  return "";
+}
+
+/* MDF(最低防御頻度)とα。ベットp(これにbをコール)に対し MDF=p/(p+b)=1−b/(現ポット), α=b/(現ポット)。
+ * potBB は相手のベットを含む現在のポット。レンジ全体の指標であり、個別ハンドの可否(エクイティvsオッズ)とは別物。 */
+function mdfLine(potBB, toCallBB) {
+  if (!(potBB > 0) || !(toCallBB > 0) || toCallBB >= potBB) return "";
+  const mdf = 1 - toCallBB / potBB;   // レンジ全体の最低継続頻度
+  const alpha = toCallBB / potBB;     // ブラフの必要成功率
+  return `<b>MDF(最低防御頻度)— レンジ全体の話:</b> このベットに対し、あなたのレンジ全体で約 <b>${pct0(mdf)}</b> 以上を続けないと、相手は「どんな2枚でも打つ」だけで自動的に得をします(降りすぎ＝搾取)。逆に相手のブラフは <b>${pct0(alpha)}</b> 成功すれば+EV。<span class="dim">※これはレンジ全体の目安。この1手の可否は上の『エクイティ vs ポットオッズ』で決めます(両者は別の話)。</span>`;
+}
+
+/* 混合戦略がなぜ存在するか(無差別点)。憲章②の理論的裏付け。 */
+const MIX_WHY = `<span class="dim">なぜ混ぜる? — いつも同じ行動だと相手に読まれて搾取されます。EVが互角の無差別点では、あえて両方を一定頻度で選ぶ(サイコロを振る)のが、つけ込ませない打ち方。迷わないのもポーカーです。</span>`;
+
+/* FTの鉄則: バブルファクター(押し引き両面の理論)。 */
+const BUBBLE_WHY = `<span class="dim">FTの鉄則: 賞金は逓減するので「失うチップ」＞「得るチップ」の価値(=バブルファクター)。だからコールもジャムも、チップEVだけの時より健全な手に絞るのが基本です。</span>`;
+
 /* 信頼度バッジ(誠実さの憲章の可視化)。
  * 🟢 厳密GTO: オールインの損益が数学的に解けている局面(EQ169ナッシュ/厳密エクイティ)。
  * 🟡 目安   : 相手オープン幅の推定・手書きチャート・ポストフロップ等の近似。状況次第。
@@ -442,7 +470,7 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
         lines.push(`<p>💡 <b>相手のスタックが極端に短い時の鉄則</b>: 実効${bb1(effS)}BBに対してリスクはごく僅か、しかもポットには既に2.5BBのデッドマネー。この状況では<b>ほぼ全ハンドがジャムで+EV</b>です。相手の残りチップを常に確認しましょう。</p>`);
       }
       if (Math.abs(m) <= 0.5) {
-        lines.push(`<p>ちょうど境界線上の<b>混合域</b>です。ジャムもフォールドもEVはほぼ同じ — どちらを選んでもミスではありません。</p>`);
+        lines.push(`<p>ちょうど境界線上の<b>混合域</b>です。ジャムもフォールドもEVはほぼ同じ — どちらを選んでもミスではありません。${MIX_WHY}</p>`);
       } else if (m > 0) {
         const comfort = m >= 4 ? pickVar("jamComfort", [
             "余裕でジャム圏内。迷う必要のないオールインだ",
@@ -470,13 +498,15 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
             "「相手が降りるかも」を勘定しても収支はマイナス。",
           ]) : "") + `</p>`);
       }
+      // ブロッカー(ジャム圏内のみ。Aを持つと相手の最強コンボが減る)
+      if (m > 0) { const bn = blockerNote(hand); if (bn) lines.push(`<p>${bn}</p>`); }
       // FTのICM判定
       if (d._ftSplit && (verdict === "caution" || d._ftFollowed)) {
         lines.push(splitBox(d._ftSplit, d, ctx));   // EVとICMで割れる → 二視点で説明
       } else if (d.icmJamEval) {
         const i = d.icmJamEval;
         const line = `ジャムの賞金期待値 <b>${(i.evJam * 100).toFixed(2)}%</b> vs フォールド <b>${(i.evFold * 100).toFixed(2)}%</b>`;
-        lines.push(`<p>🏆 <b>ICM検証(FT)</b>: ${line} — チップEVと賞金EVが同じ方向(${i.evJam >= i.evFold ? "ジャム" : "フォールド"})を指しています。</p>`);
+        lines.push(`<p>🏆 <b>ICM検証(FT)</b>: ${line} — チップEVと賞金EVが同じ方向(${i.evJam >= i.evFold ? "ジャム" : "フォールド"})を指しています。${BUBBLE_WHY}</p>`);
       }
       lines.push(`<p>この${bb1(ctx.stackBB)}BBでの${ctx.seatName}のナッシュ・ジャムレンジは上位 <b>${d.rangePct.toFixed(1)}%</b>:</p>`);
       // 📐 計算方法(超浅・非有限では破綻するので出さない)
@@ -535,7 +565,7 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
       if (Math.abs(m) <= 0.5) nuance = " — ちょうど境界の混合域です";
       else if (m > 0 && m < 2) nuance = ` — ぎりぎり圏内(余裕${m.toFixed(1)}BB)`;
       else if (m < 0 && m > -2) nuance = ` — 僅かに圏外(あと${(-m).toFixed(1)}BB浅ければジャム)`;
-      lines.push(`<p>${thText}。現在 有効<b>${bb1(ctx.effBB)}BB</b>${nuance}。</p>`);
+      lines.push(`<p>${thText}。現在 有効<b>${bb1(ctx.effBB)}BB</b>${nuance}。${Math.abs(m) <= 0.5 ? MIX_WHY : ""}</p>`);
       if (Number.isFinite(ctx.effBB) && ctx.effBB < 2.5 && ctx.effBB > 0) {
         lines.push(`<p>💡 実効<b>${bb1(ctx.effBB)}BB</b>は実質オールイン級の浅さ。この深さでは細かいEV計算より「ジャムで受ける/降りる」の二択が基本です。</p>`);
       }
@@ -568,6 +598,7 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
     } else if (correct === "fold" && (chosen === "call" || chosen === "jam")) {
       lines.push(`<p>${hand} はリジャムにもコールにも届きません。${ctx.posIdx === POS_BB ? "BBのポットオッズをもってしても継続は-EVです。" : "ポジション外から弱いハンドで参加すると、その後の全ストリートで損をし続けます。"}</p>`);
     }
+    if (correct === "jam") { const bn = blockerNote(hand); if (bn) lines.push(`<p>${bn}</p>`); }
     if (correct === "jam" && chosen === "raise" && ctx.effBB >= 18) {
       lines.push(`<p>💡 <b>あなたのノンオールイン3ベットも正解の一つです。</b>本アプリのゲーム木は浅いスタックの標準に合わせて「ジャムかフォールド」に単純化していますが、有効18BB以上の実際のGTOは約3〜3.5倍の小さい3ベットも混ぜます(4ベットジャムされた時の対応計画はセットで)。</p>`);
     }
@@ -575,7 +606,7 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
     if (d.icmJamEval && !(d._ftSplit && verdict === "caution")) {
       const i = d.icmJamEval;
       const line = `ジャムの賞金期待値 <b>${(i.evJam * 100).toFixed(2)}%</b> vs フォールド <b>${(i.evFold * 100).toFixed(2)}%</b>(プライズプール比)`;
-      lines.push(`<p>🏆 <b>ICM検証(FT)</b>: ${line} — チップEVと賞金EVが同じ方向を指しています。</p>`);
+      lines.push(`<p>🏆 <b>ICM検証(FT)</b>: ${line} — チップEVと賞金EVが同じ方向を指しています。${BUBBLE_WHY}</p>`);
     }
     // 📐 計算方法(超浅・非有限では破綻するので出さない)
     if (calcSane(d.calc)) {
@@ -653,8 +684,11 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
     if (d.icmPremium > 0.005) {
       lines.push(`<p>🏆 <b>ICM補正(ファイナルテーブル)</b>: 賞金圧力により必要勝率が ` +
         `${pct(d.breakeven)} → <b>${pct(d.icmReq)}</b>(+${pct(d.icmPremium)})に上昇。` +
-        `チップで勝てる勝負でも、飛んだ時に失う「賞金の期待値」が大きいため、より強い手でしかコールできません。</p>`);
+        `チップで勝てる勝負でも、飛んだ時に失う「賞金の期待値」が大きいため、より強い手でしかコールできません。` +
+        `特に<b>相手にカバーされている(負ければ飛ぶ)</b>時ほど必要勝率は跳ね上がり、逆に<b>自分が相手をカバーしている</b>時は比較的緩く受けられます — FTで最も差がつく感覚です。</p>`);
     }
+    if (Math.abs(eqMargin) < 0.015) lines.push(`<p>勝率と必要勝率がほぼ同じ<b>無差別点</b>です。${MIX_WHY}</p>`);
+    if (callRight) { const bn = blockerNote(hand); if (bn) lines.push(`<p>${bn}</p>`); }
     if (chosen === "call" && ev < -0.3) lines.push(`<p>「ここまで来たら…」の感情コールは分散ではなくミスです。数字はフォールドと言っています。</p>`);
     if (chosen === "fold" && ev > 0.3) lines.push(`<p>トーナメントの勝者は、この+EVコールを淡々と積み重ねた人です。</p>`);
     // 📐 計算方法
@@ -711,6 +745,10 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
       calcParts.push(
         `<b>ポットオッズ:</b> 必要勝率 = コール額÷(ポット+コール額) = ` +
         `${ctx.toCallBB.toFixed(1)}÷(${ctx.potBB.toFixed(1)}+${ctx.toCallBB.toFixed(1)}) = <b>${pct(d.breakeven)}</b><br>${POT_ODDS_CHEAT}`);
+    }
+    if (ctx.facing === "bet") { const ml = mdfLine(ctx.potBB, ctx.toCallBB); if (ml) calcParts.push(ml); }
+    if (d.outs > 0 && ctx.street !== "river" && d.breakeven !== undefined && d.equity !== undefined && d.equity < d.breakeven) {
+      calcParts.push(`<b>💧 インプライド/リバースインプライドオッズ:</b> 生のポットオッズには僅かに届きませんが、完成した時に相手から<b>追加で取れる</b>チップ(インプライドオッズ)を見込めるなら、コールが正当化される場合があります。逆に、完成しても払ってもらえない・完成しても二番手で大きく負ける手は『リバースインプライド』として割り引いて考えます。`);
     }
     calcParts.push(
       `<b>SPRの使い方:</b> SPR = 残りスタック ÷ ポット = <b>${d.spr.toFixed(1)}</b>。` +
