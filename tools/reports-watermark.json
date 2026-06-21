@@ -1,5 +1,5 @@
 {
-  "lastProcessed": "2026-06-13T08:01:25.536Z",
+  "lastProcessed": "2026-06-21T10:57:58.776Z",
   "note": "GTO判定報告フォームの処理済み基準時刻。これより新しい time の報告だけを次回処理する(非破壊・履歴保持)。",
   "sourceSheetId": "1WyqnjPw-HC2_zJoYxfl6ABzu5QTZpBURXnhmvcC8RLM",
   "sourceSheetUrl": "https://docs.google.com/spreadsheets/d/1WyqnjPw-HC2_zJoYxfl6ABzu5QTZpBURXnhmvcC8RLM/edit",
@@ -7,6 +7,7 @@
   "readMethod": "Drive連携(kimotsuki@tkchemical.info に共有済み)。read_file_content で全件取得→報告データ列のJSONをパース(\\! \\[ \\] のmarkdownエスケープを除去)→ time>lastProcessed を verify-comments.cjs で採点",
   "ownerAccount": "siriusfx819@gmail.com",
   "history": [
-    { "at": "2026-06-14", "count": 14, "result": "バグ3件修正(facingJamコール正規化・少数派ベット緩和・リジャムペア単調化)。commit 6221832" }
+    { "at": "2026-06-14", "count": 14, "result": "バグ3件修正(facingJamコール正規化・少数派ベット緩和・リジャムペア単調化)。commit 6221832" },
+    { "at": "2026-06-21", "count": 9, "result": "書き方/採点の是正6件。C:100%断定廃止→『○○が推奨』, E:ICM文言の結論連動, B:プレミアム(AA/KK)文言, D:ベットサイズ理由の矛盾, A:コール-EV時のフォールド過剰叱責→mixed/minor, F:非ジャム参加(フラット/15BB+非ジャム3ベット)緩和, G:講座③コンボドロー例追加。commits e4d6469/5357316/94e117a/2ceef68/5d4aa34" }
   ]
 }
