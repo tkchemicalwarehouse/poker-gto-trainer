@@ -7,6 +7,7 @@ const VERDICT_INFO = {
   best:    { label: "✓ GTO通り",          cls: "v-best",    score: 10 },
   mixed:   { label: "✓ OK(混合戦略)",     cls: "v-mixed",   score: 10 },
   caution: { label: "⚠ 注意(EVとICMで割れる)", cls: "v-caution", score: 8 },
+  bluff:   { label: "🃏 ナイスブラフ",     cls: "v-bluff",   score: 8 },
   minor:   { label: "△ 僅かなミス",       cls: "v-minor",   score: 4 },
   blunder: { label: "✗ ブランダー",       cls: "v-blunder", score: 0 },
 };
@@ -43,6 +44,12 @@ const COACH_VOICE = {
     "難所だ。チップの理屈と賞金の理屈が逆を向いている。",
     "ミスではない。ただし、なぜ割れるかを理解しておく価値がある。",
     "上級者でも意見が分かれるスポット。両方の視点を持っておこう。",
+  ],
+  bluff: [
+    "🃏 ナイスブラフ。攻めの姿勢は良い。",
+    "良い度胸だ。狙ったブラフはポーカーの華。",
+    "攻めたな。読みが当たれば、これが勝負を決める一手だ。",
+    "悪くない仕掛けだ。あとは「相手が降りるか」の読み次第。",
   ],
   minor: [
     "惜しい。方向は合っているが、詰めが甘い。",
@@ -215,6 +222,17 @@ function gradeDecision(ctx, advice, chosenId, act, opts) {
     // ★ポストフロップの混合戦略補正★ GTOが15%以上の頻度で取る手は均衡上ほぼ同EV=「ミス」ではない。
     // minorではなくmixed(EV損0)とし、過剰減点を避ける(プロが嫌う「正当な混合を叱る」を防止)。
     else if (ctx.phase === "postflop" && verdict === "minor" && f >= 0.15) { verdict = "mixed"; evLoss = 0; }
+  }
+
+  // 🃏 狙ったブラフを尊重する。弱い手でのオーバーベット/リレイズ・オールイン(=フォールドを取りに行く意図)を
+  // 「明確なミス」と断じない。ナイスブラフ + 正直なEV/ICM注意に。ただし嘘はつかない(+EVとは言わない=下の解説で正直に示す)。
+  // 条件: ポストフロップで自分がアグレッサー(相手オールインへのコールではない)/弱い手/推奨外の攻撃/現状ミス判定。
+  if (ctx.phase === "postflop" && (chosen === "jam" || chosen === "raise") &&
+      ctx.facing !== "raiseAllin" && d.cls && d.cls.tier <= 2 &&
+      (verdict === "minor" || verdict === "blunder") && advice.primary !== chosen) {
+    verdict = "bluff";
+    evLoss = 0;          // 読み依存の戦略的選択。caution同様セッション点には響かせない(解説で正直にEV/ICM注意)
+    d.bluff = true;
   }
 
   return { verdict, evLoss, sizing, explanation: (opts && opts.noExplain) ? "" : buildExplanation(ctx, advice, chosen, verdict, sizing) };
@@ -733,7 +751,16 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
       (d.breakeven !== undefined ? `必要勝率: <b>${pct(d.breakeven)}</b>` +
         (d.icmPremium > 0.005 ? ` → ICM補正後 <b>${pct(d.icmReq)}</b>(🏆FT賞金圧力)` : "") + `<br>` : "") +
       `SPR(スタック/ポット比): <b>${d.spr.toFixed(1)}</b></p>`);
-    lines.push(`<p>${postflopReason(ctx, advice, chosen)}</p>`);
+    if (d.bluff) {
+      lines.push(`<div class="bluff-box">` +
+        `<p>🃏 <b>これは「狙ったブラフ」</b>。弱い手でのオールイン/オーバーベットで相手を降ろしに行く — 攻めの姿勢はポーカーの正しい武器です。</p>` +
+        `<p>正直に言うと、相手の<b>レンジ全体</b>に対してはモデル上このプレイは<b>-EV</b>(GTOはここでチェック/フォールド寄り)。` +
+        `ただし<b>「相手は降りる/ナッツは無い」という根拠ある読み</b>があるなら、これは立派な<b>エクスプロイト(搾取)</b> — ポーカーの正解の一つです。</p>` +
+        `<p>鍵は<b>フォールドエクイティ</b>: 相手が降りうる場面でこそ機能します。降りない相手(コールステーション/コミット済み)には通りません。外れた時の代償(下のEV)も込みで選びましょう。</p>` +
+        `</div>`);
+    } else {
+      lines.push(`<p>${postflopReason(ctx, advice, chosen)}</p>`);
+    }
     // 📐 計算方法
     let calcParts = [];
     if (d.outs > 0 && ctx.street !== "river") {

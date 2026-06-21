@@ -395,6 +395,7 @@ body.mode-phone .prebar-row button { font-size: 12px; padding: 8px 3px; min-widt
 .v-best { background: #1f6e44; color: #fff; }
 .v-mixed { background: #2563ad; color: #fff; }
 .v-caution { background: #7a5a1c; color: #fff; }
+.v-bluff { background: #6d3a9e; color: #fff; }
 .v-minor { background: #9a7a1f; color: #fff; }
 .v-blunder { background: #a13343; color: #fff; }
 .v-best-t { color: var(--green); }
@@ -743,6 +744,14 @@ body.mode-phone #blind-corner .bc-blinds { font-size: 16px; }
 .split-box b { color: #eaf1f8; }
 .split-box .pos { color: var(--green); }
 .split-box .neg { color: var(--red); }
+/* 🃏 狙ったブラフの解説枠(攻めを尊重しつつ正直なEV注意) */
+.bluff-box {
+  background: linear-gradient(170deg, #241a33, #1a1622);
+  border: 1px solid #5e3f8a; border-left: 3px solid #a36fe0;
+  border-radius: 8px; padding: 10px 12px; margin: 10px 0;
+  font-size: 13px; line-height: 1.8;
+}
+.bluff-box b { color: #e9ddf6; }
 
 /* 計算方法ボックス(教材) */
 .calc-box {

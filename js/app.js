@@ -519,7 +519,7 @@ async function finalizeHeroAct(ctx, act, fast, advice) {
   const grade = gradeDecision(ctx, advice, gradeIdFor(act, ctx), act);
 
   tally.decisions++;
-  tally[grade.verdict]++;
+  tally[grade.verdict] = (tally[grade.verdict] || 0) + 1; // 未初期化verdict(caution/bluff)でもNaNにしない
   tally.evLost += grade.evLoss;
   if (!tally.perHand[G.handNo]) tally.perHand[G.handNo] = [];
   tally.perHand[G.handNo].push({ verdict: grade.verdict, evLoss: grade.evLoss, action: act.id, phase: ctx.phase });
@@ -528,7 +528,8 @@ async function finalizeHeroAct(ctx, act, fast, advice) {
 
   const mode = coachMode();
   const isOK = grade.verdict === "best" || grade.verdict === "mixed" || grade.verdict === "caution";
-  Sfx.play(isOK ? "good" : "bad");
+  // ブラフは「叱る」音を出さない(攻めを尊重)。ただしパネルは表示して正直なEV注意を読ませる。
+  Sfx.play(isOK || grade.verdict === "bluff" ? "good" : "bad");
   if (mode !== "off") {
     // 予約実行(fast)かつOK判定なら、止めずにトーストのみで最速進行。ミスは予約でも必ず止めて教える
     if (isOK && (mode !== "always" || fast)) showToast(grade.verdict);
