@@ -1999,6 +1999,8 @@ body.mode-phone #hu-pov .pov-paws{margin-top:-4px}
  * ========================================================= */
 #hu-splash .hu-medal{width:clamp(150px,42vw,230px);height:auto;filter:drop-shadow(0 8px 18px rgba(0,0,0,.6))}
 #hu-pov .pov-medal{width:clamp(118px,32vw,168px);height:auto;filter:drop-shadow(0 6px 12px rgba(0,0,0,.55))}
+/* 補充動物(イラスト無し)のドット絵アバター */
+#hu-splash .hu-pix,#hu-pov .pov-opp-pix{image-rendering:pixelated;display:block;margin:0 auto;filter:drop-shadow(0 6px 10px rgba(0,0,0,.55))}
 .rival-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:6px 0}
 .rival-cell{background:var(--surface-1);border:1px solid var(--hairline);border-radius:var(--radius);padding:10px 8px 8px;text-align:center;box-shadow:var(--shadow-card)}
 .rival-cell img{width:100%;max-width:120px;height:auto;display:block;margin:0 auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,.5))}

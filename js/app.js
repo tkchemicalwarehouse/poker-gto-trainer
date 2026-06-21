@@ -243,8 +243,10 @@ function render(state) {
   // ヘッズアップ(残り2人)突入でVS演出を一度だけ
   if (state.fieldLeft === 2 && !huSplashShown && state.street !== "idle") {
     huSplashShown = true;
-    if (typeof Dog !== "undefined" && Dog.pickOpponent) Dog.pickOpponent();  // 相手犬をランダム選出
-    const od0 = $("pov-opp-dog"); if (od0) od0.innerHTML = "";  // 新しい相手犬で再生成
+    // 相手 = 実際にヘッズアップまで残ったボットのキャラ(ランダムではない)
+    const oppBot = state.players.find(p => !p.isHero && !p.out);
+    if (typeof Dog !== "undefined" && Dog.setOpponent && oppBot && oppBot.char) Dog.setOpponent(oppBot.char);
+    const od0 = $("pov-opp-dog"); if (od0) { od0.innerHTML = ""; delete od0.dataset.k; }  // 相手アバターを再生成
     showHUSplash(state);
   }
   // ヘッズアップは一人称(POV)画面に切替(通常テーブルを隠す)
@@ -1008,6 +1010,7 @@ function showHUSplash(state) {
   const ot = document.createElement("div"); ot.className = "hu-opp";
   const oImg = (typeof Dog !== "undefined" && Dog.oppImg) ? Dog.oppImg() : null;
   if (oImg) ot.insertAdjacentHTML("beforeend", `<img class="hu-medal" src="${oImg}" alt="">`);
+  else if (typeof Dog !== "undefined" && Dog.oppSprite) { const c = Dog.oppSprite(10); if (c) { c.className = "hu-pix"; ot.appendChild(c); } }
   const oName = (typeof Dog !== "undefined" && Dog.oppName) ? Dog.oppName() : (opp.name || "RIVAL");
   ot.insertAdjacentHTML("beforeend", `<div class="hu-tag">${oName}　${opp.chips != null ? fmtBB(opp.chips) + "BB" : ""}</div>`);
   // 中央 VS / 決着戦
@@ -1036,10 +1039,17 @@ function povActHTML(p) {
 function renderHUPov(state) {
   const hero = state.players[0];
   const opp = state.players.find(p => !p.isHero && !p.out);
-  // 相手(メダル画像。差し替わった時だけ再設定)
+  // 相手アバター(イラストがあるキャラは画像、無い補充動物はドット絵)。差し替わった時だけ再生成
   const od = $("pov-opp-dog");
-  const oImg = (typeof Dog !== "undefined" && Dog.oppImg) ? Dog.oppImg() : null;
-  if (od && oImg) { const cur = od.querySelector("img"); if (!cur || cur.getAttribute("src") !== oImg) od.innerHTML = `<img class="pov-medal" src="${oImg}" alt="">`; }
+  if (od && typeof Dog !== "undefined") {
+    const oImg = Dog.oppImg ? Dog.oppImg() : null;
+    const key = oImg ? ("img:" + oImg) : ("spr:" + (Dog.oppName ? Dog.oppName() : ""));
+    if (od.dataset.k !== key) {
+      od.dataset.k = key;
+      if (oImg) od.innerHTML = `<img class="pov-medal" src="${oImg}" alt="">`;
+      else { od.innerHTML = ""; const c = Dog.oppSprite && Dog.oppSprite(document.body.classList.contains("mode-phone") ? 7 : 9); if (c) { c.className = "pov-opp-pix"; od.appendChild(c); } }
+    }
+  }
   // 相手の手札(オールイン後のランアウト or ショーダウンで表向き)
   // setCardsで変化時のみ差し替え(毎renderで再注入すると配牌アニメが再発火し点滅・消失する)
   const showOpp = opp && opp.showCards && !opp.folded;

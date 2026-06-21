@@ -43,9 +43,14 @@ function randomStack() {
 }
 
 function makeBot(seat) {
-  const name = BOT_NAMES[botNameCounter % BOT_NAMES.length] + (botNameCounter >= BOT_NAMES.length ? "②" : "");
+  // ボットの正体(キャラ)を名簿から取得。最初の8体=8キャラ(猫/犬/虎/獅/鮫/梟/熊/馬)、以降=動物1文字で補充
+  let ch;
+  if (typeof Dog !== "undefined" && Dog.botIdentity) ch = Dog.botIdentity(botNameCounter);
+  else ch = { id: null, name: BOT_NAMES[botNameCounter % BOT_NAMES.length] + (botNameCounter >= BOT_NAMES.length ? "②" : ""), kind: "generic" };
   botNameCounter++;
-  return makePlayer(seat, name, false, randomStack());
+  const p = makePlayer(seat, ch.name, false, randomStack());
+  p.char = ch;   // {id, name, kind, fam?, pal?} — HUでこのキャラを表示
+  return p;
 }
 
 function makePlayer(seat, name, isHero, chips) {
@@ -55,6 +60,7 @@ function makePlayer(seat, name, isHero, chips) {
     streetBet: 0, committed: 0, hasActed: false, hadAggression: false,
     assumedRange: null, rangeNote: "",
     showCards: false, tagAgg: null, tagPass: null,
+    char: null,
   };
 }
 
@@ -588,6 +594,18 @@ function buildCtx(state, p, currentBet, street) {
       maxBehindBB = Math.max(maxBehindBB, toBB(q.chips + q.streetBet));
     }
     const effJamBB = Math.min(toBB(p.chips + p.streetBet), maxBehindBB || toBB(p.startChips));
+    // マルチウェイ・オールイン: 短いスタックが実際に勝てるのは満額ポットでなく「サイドポット分」のみ。
+    // 自分が勝てるポット = デッド + Σ各プレイヤー min(その人の総拠出, 自分がコール(オールイン)した時の総拠出)
+    let winnablePot = pot;
+    if (facing === "jam" || facing === "rejamOverMyOpen") {
+      const heroTotal = p.committed + toCall;
+      let wp = state.deadPot || 0;
+      for (const q of state.players) {
+        if (q.out) continue;   // 退席のみ除外。フォールドした人の拠出もデッドマネーとしてポットに残る
+        wp += Math.min(q === p ? heroTotal : q.committed, heroTotal);
+      }
+      winnablePot = Math.min(pot + toCall, wp); // 勝てる額は自分のコール後の総額(pot+toCall)が上限。potだけだとtoCall分過小になりbeが過大化する
+    }
     return {
       phase: "preflop",
       heroCards: p.cards, heroLabel: handLabelOf(p.cards[0], p.cards[1]),
@@ -599,7 +617,7 @@ function buildCtx(state, p, currentBet, street) {
       openSizeBB: state.preflopOpen ? state.preflopOpen.sizeBB : 0,
       jamRange, jamCount,
       playersBehind: facing === "jam" ? countBehindForJam(state, p) : 0,
-      potBB: toBB(pot), toCallBB: toBB(toCall),
+      potBB: toBB(pot), toCallBB: toBB(toCall), winnablePotBB: toBB(winnablePot),
       fast: state.fastMode,
       seatName: posNameOf(state, p.seat),
     };

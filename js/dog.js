@@ -119,14 +119,29 @@ const Dog = (() => {
   var HORSE_LA = ["..KO......KO....", "..KW......KW....", "..KK......KK...."];
   var HORSE_LB = ["...KO...KO......", "...KW...KW......", "...KK...KK......"];
 
+  // 兎(汎用補充キャラ用) — 長い耳
+  var RAB_UP = [
+    "...K.......K.....",
+    "..KOK.....KOK....",
+    "..KOK.....KOK....",
+    "..KOKKKKKKKOOK...",
+    ".KOOOOOOOOOOWOK..",
+    ".KOOOOOOOOOOONK..",
+    ".KOOOOOOOOOOOKK..",
+    ".KWWWWWWWWWWWK..."
+  ];
+  var RAB_LA = ["..KO........KO....", "..KK........KK...."];
+  var RAB_LB = ["....KO....KO......", "....KK....KK......"];
+
   var FAM = {
-    dog:   { body: DOG_UP,   la: DOG_LA,   lb: DOG_LB },
-    cat:   { body: CAT_UP,   la: CAT_LA,   lb: CAT_LB },
-    lion:  { body: LION_UP,  la: CAT_LA,   lb: CAT_LB },
-    owl:   { body: OWL_UP,   la: OWL_LA,   lb: OWL_LB },
-    shark: { body: SHARK_UP, la: SHARK_LA, lb: SHARK_LB },
-    bear:  { body: BEAR_UP,  la: BEAR_LA,  lb: BEAR_LB },
-    horse: { body: HORSE_UP, la: HORSE_LA, lb: HORSE_LB }
+    dog:    { body: DOG_UP,   la: DOG_LA,   lb: DOG_LB },
+    cat:    { body: CAT_UP,   la: CAT_LA,   lb: CAT_LB },
+    lion:   { body: LION_UP,  la: CAT_LA,   lb: CAT_LB },
+    owl:    { body: OWL_UP,   la: OWL_LA,   lb: OWL_LB },
+    shark:  { body: SHARK_UP, la: SHARK_LA, lb: SHARK_LB },
+    bear:   { body: BEAR_UP,  la: BEAR_LA,  lb: BEAR_LB },
+    horse:  { body: HORSE_UP, la: HORSE_LA, lb: HORSE_LB },
+    rabbit: { body: RAB_UP,   la: RAB_LA,   lb: RAB_LB }
   };
 
   // 前足(HU POV前景の手) 種別
@@ -227,7 +242,73 @@ const Dog = (() => {
     var map = PAWS[SPECIES[speciesId()].paw] || PAWS.mammal;
     return Mascot.pixelCanvas(map, palFor(), scale || 10, false);
   }
-  /* ---- ライバル(メダル/チップ画像。プレースホルダ4種・後で追加/差替可) ---- */
+  /* ---- ボット名簿 ----
+   * CAST = 最初から卓に座る8キャラ(1文字動物名・専用イラスト/ドット絵あり)
+   * GENERIC = 補充用(動物1文字・イラスト無し→ドット絵で表示)。fam/palでドット絵を着色 */
+  var CAST = [
+    { id: "cat",     name: "猫" },
+    { id: "bulldog", name: "犬" },
+    { id: "tiger",   name: "虎" },
+    { id: "lion",    name: "獅" },
+    { id: "shark",   name: "鮫" },
+    { id: "owl",     name: "梟" },
+    { id: "bear",    name: "熊" },
+    { id: "unicorn", name: "馬" }
+  ];
+  var GENERIC = [
+    { id: "g_usagi",   name: "兎", fam: "rabbit", pal: { O: "#e6e6ee", W: "#ffffff", M: "#f0a6c4" } },
+    { id: "g_kitsune", name: "狐", fam: "dog",    pal: { O: "#e07a34", W: "#fff0e0", M: "#a8431a" } },
+    { id: "g_ookami",  name: "狼", fam: "dog",    pal: { O: "#8a8f98", W: "#dde2e8", M: "#33373f" } },
+    { id: "g_shika",   name: "鹿", fam: "horse",  pal: { O: "#b07a44", W: "#f0e0c4", M: "#6e4420" } },
+    { id: "g_buta",    name: "豚", fam: "bear",   pal: { O: "#e8a0b2", W: "#ffd8e2", M: "#c06078" } },
+    { id: "g_hitsuji", name: "羊", fam: "bear",   pal: { O: "#ece6da", W: "#ffffff", M: "#c8b6a0" } },
+    { id: "g_ushi",    name: "牛", fam: "bear",   pal: { O: "#5a5a60", W: "#ffffff", M: "#1c1c22" } },
+    { id: "g_saru",    name: "猿", fam: "cat",    pal: { O: "#9a6a3c", W: "#e2c4a2", M: "#5a3a1c" } },
+    { id: "g_washi",   name: "鷲", fam: "owl",    pal: { O: "#6a4a2c", W: "#e2d2b2", M: "#3a2a16" } },
+    { id: "g_kaeru",   name: "蛙", fam: "cat",    pal: { O: "#4caa52", W: "#c2f0c2", M: "#2a7a32" } },
+    { id: "g_kame",    name: "亀", fam: "bear",   pal: { O: "#4c8a5c", W: "#c2e0c2", M: "#2a5a3c" } },
+    { id: "g_nezumi",  name: "鼠", fam: "cat",    pal: { O: "#9a9aa2", W: "#dadae0", M: "#5c5c66" } }
+  ];
+  // i番目のボットの正体を返す(0..7=CAST、以降=GENERIC循環。2周目以降は②)
+  function botIdentity(i) {
+    if (i < CAST.length) return { id: CAST[i].id, name: CAST[i].name, kind: "char" };
+    var k = i - CAST.length, g = GENERIC[k % GENERIC.length], rep = Math.floor(k / GENERIC.length);
+    return { id: g.id, name: g.name + (rep > 0 ? "②" : ""), kind: "generic", fam: g.fam, pal: g.pal };
+  }
+
+  // キャラ(ボット)の配色・体型を解決
+  function imgForId(id) {
+    if (typeof Cosmetics === "undefined" || !Cosmetics.CATALOG) return null;
+    var d = Cosmetics.CATALOG.dogs.find(function (x) { return x.id === id; });
+    return d ? d.img : null;
+  }
+  function palForChar(ch) {
+    if (ch && ch.pal) return { K: BASE_PAL.K, N: BASE_PAL.N, P: BASE_PAL.P, O: ch.pal.O, W: ch.pal.W, M: ch.pal.M };
+    if (ch && ch.id && typeof Cosmetics !== "undefined" && Cosmetics.CATALOG) {
+      var d = Cosmetics.CATALOG.dogs.find(function (x) { return x.id === ch.id; });
+      if (d && d.runPal) return { K: BASE_PAL.K, N: BASE_PAL.N, P: BASE_PAL.P, O: d.runPal.O, W: d.runPal.W, M: d.runPal.M };
+    }
+    return palFor();
+  }
+  function famForChar(ch) {
+    var key = (ch && ch.fam) || (ch && ch.id && SPECIES[ch.id] && SPECIES[ch.id].fam) || "dog";
+    return FAM[key] || FAM.dog;
+  }
+
+  /* ---- HUの相手 = 実際にヘッズアップまで残ったボットのキャラ ---- */
+  var curOpp = { id: "cat", name: "猫", kind: "char" };
+  function setOpponent(ch) { if (ch) curOpp = ch; }
+  function pickOpponent() { curOpp = { id: CAST[0].id, name: CAST[0].name, kind: "char" }; return curOpp; } // 後方互換(通常はsetOpponentを使用)
+  function oppName() { return curOpp ? curOpp.name : "RIVAL"; }
+  function oppImg() { return (curOpp && curOpp.kind === "char") ? imgForId(curOpp.id) : null; } // イラストがある時だけ。generic は null
+  // generic(イラスト無し)用: 相手のドット絵(静止1コマ・左向き)
+  function oppSprite(scale) {
+    if (typeof Mascot === "undefined" || !Mascot.pixelCanvas || !curOpp) return null;
+    var fam = famForChar(curOpp);
+    return Mascot.pixelCanvas(fam.body.concat(fam.la), palForChar(curOpp), scale || 8, true);
+  }
+
+  /* ---- 戦利品図鑑(コレクション)用のチップ画像。HU相手とは別管理 ---- */
   var RIVALS = [
     { name: "トリックキャット", img: "img/rivals/cat.webp", value: 1 },
     { name: "ガチホ・ブル",     img: "img/rivals/bulldog.webp", value: 5 },
@@ -238,11 +319,7 @@ const Dog = (() => {
     { name: "アイスベア",       img: "img/rivals/bear.webp", value: 4000 },
     { name: "レインボーユニコーン", img: "img/rivals/unicorn.webp", value: 10000 },
   ];
-  var curRival = RIVALS[0];
-  function pickOpponent() { curRival = RIVALS[Math.floor(Math.random() * RIVALS.length)] || RIVALS[0]; return curRival; }
-  function oppName() { return curRival ? curRival.name : "RIVAL"; }
-  function oppImg() { return curRival ? curRival.img : null; }
   function rivals() { return RIVALS; }
 
-  return { run, sign, victoryImgTag, hasImg, pawsCanvas, pickOpponent, oppName, oppImg, rivals, advisorChip, charSprite };
+  return { run, sign, victoryImgTag, hasImg, pawsCanvas, botIdentity, setOpponent, pickOpponent, oppName, oppImg, oppSprite, rivals, advisorChip, charSprite };
 })();
