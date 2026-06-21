@@ -11,10 +11,18 @@ const Dog = (() => {
   function src() { var d = eq(); return d && d.img ? d.img : null; }
   function hasImg() { return !!src(); }
 
-  /* ---- ジャックコギ 走りドット絵(横向き・右へ走る) ----
-   * K=輪郭 O=毛(タン) W=白 N=鼻 P=舌 M=マゼンタの背中マント */
-  var CORGI_PAL = { K: "#2a2118", O: "#d98e4a", W: "#fdf6ec", N: "#1a140d", P: "#f0807e", M: "#c0246b" };
-  var C_UP = [
+  /* ---- 走りドット絵: キャラ種別ごとの専用スプライト(横向き・右へ走る) ----
+   * K=輪郭 O=主毛色 W=白/明色 M=差し色(マント/たてがみ/縞) N=鼻(濃) P=舌/肉球(桃)
+   * 体型(シルエット)は種別ごとに固定。配色は cosmetics の runPal(O/W/M) を流用。 */
+  var BASE_PAL = { K: "#241a14", N: "#15100a", P: "#f0807e" };
+  function palFor() {
+    var rp = (typeof Cosmetics !== "undefined" && Cosmetics.equippedDog && (Cosmetics.equippedDog() || {}).runPal) || null;
+    rp = rp || { O: "#d98e4a", W: "#fdf6ec", M: "#c0246b" };
+    return { K: BASE_PAL.K, N: BASE_PAL.N, P: BASE_PAL.P, O: rp.O, W: rp.W, M: rp.M };
+  }
+
+  // 犬(コーギー/ブル)
+  var DOG_UP = [
     "..........KK......",
     "...K......KOOK....",
     "..KOK....KOOOOK...",
@@ -25,20 +33,136 @@ const Dog = (() => {
     ".KOOOOOOMMOOOOKK..",
     ".KWWWWWWWWWWWWK..."
   ];
-  var C_LEGA = ["..KO.......KO.....", "..KW.......KW.....", "..KK.......KK....."];
-  var C_LEGB = ["....KO...KO.......", "....KW...KW.......", "....KK...KK......."];
+  var DOG_LA = ["..KO.......KO.....", "..KW.......KW.....", "..KK.......KK....."];
+  var DOG_LB = ["....KO...KO.......", "....KW...KW.......", "....KK...KK......."];
 
-  // 装備キャラの配色で走りパレットを作る(O=毛 W=白 M=差し色を上書き)
-  function runPalette() {
-    var rp = (typeof Cosmetics !== "undefined" && Cosmetics.equippedDog && (Cosmetics.equippedDog() || {}).runPal) || null;
-    if (!rp) return CORGI_PAL;
-    return { K: CORGI_PAL.K, N: CORGI_PAL.N, P: CORGI_PAL.P, O: rp.O || CORGI_PAL.O, W: rp.W || CORGI_PAL.W, M: rp.M || CORGI_PAL.M };
-  }
-  // 脚2コマを切り替える走りスプライト(canvas2枚をトグル)
-  function corgiSprite(scale, speedMs) {
+  // 猫(トリックキャット/タイガー) — 尖り耳・しなやか胴・尻尾
+  var CAT_UP = [
+    "...............K..",
+    ".K............KOK.",
+    ".KMK....KKKKKKOOK.",
+    ".KMOKKKKOOOOOWOOK.",
+    ".KOOOOOOOOOOOOONK.",
+    ".KOOOOOOOOOOOOOPK.",
+    ".KOOOOOOOOOOOOOK..",
+    ".KWWWWWWWWWWWWK..."
+  ];
+  var CAT_LA = ["..KO........KO....", "..KK........KK...."];
+  var CAT_LB = ["....KO....KO......", "....KK....KK......"];
+
+  // ライオン — 猫体型＋たてがみ(M)
+  var LION_UP = [
+    "..............K...",
+    ".K.........MMMMK..",
+    ".K..K.....MMMOOMK.",
+    ".KOOKKKKKMMOOWOOK.",
+    ".KOOOOOOOMMOOOONK.",
+    ".KOOOOOOOMMOOOOPK.",
+    ".KOOOOOOOOMMOOK...",
+    ".KWWWWWWWWWWWK...."
+  ];
+
+  // ふくろう(オウル) — 丸胴・羽角(M)・大きな目
+  var OWL_UP = [
+    "..K.......K..",
+    ".KMK.....KMK.",
+    ".KOOKKKKKOOK.",
+    ".KOWOKKKOWOK.",
+    ".KOOONKNOOK..",
+    ".KOOOOOOOOK..",
+    ".KOWWWWWWOK..",
+    ".KOWWWWWWOK..",
+    "..KOOOOOOK..."
+  ];
+  var OWL_LA = ["..KOK.KOK....", "..K.K.K.K...."];
+  var OWL_LB = ["...KOKOK.....", "...K.K.K....."];
+
+  // サメ(オーシャンキング) — 背びれ・尾びれ・歯
+  var SHARK_UP = [
+    "....K..........",
+    "...KKK.KKKK....",
+    ".KMKOKKOOOOK...",
+    ".KMOOOOOOOOOK..",
+    ".KOOOOOOOWWNK..",
+    ".KOOOOOOWWWWK..",
+    ".KOOOOOOOOOK...",
+    "...KKOOKK......"
+  ];
+  var SHARK_LA = ["....KOOK.......", ".....KK........"];
+  var SHARK_LB = [".....KOOK......", "......KK......."];
+
+  // 熊(アイスベア) — ずんぐり・丸耳
+  var BEAR_UP = [
+    "..KK.....KK..",
+    ".KOOK...KOOK.",
+    ".KOOOKKKOOOK.",
+    ".KOOOOOOOWOK.",
+    ".KOOOOOOOONK.",
+    ".KOWWWWWWOOK.",
+    ".KOWWWWWWWOK.",
+    ".KOOOOOOOOOK."
+  ];
+  var BEAR_LA = ["..KOOK..KOOK.", "..KKKK..KKKK."];
+  var BEAR_LB = [".KOOK....KOOK", ".KKKK....KKKK"];
+
+  // ユニコーン(馬) — 角(W)・たてがみ(M)・蹄
+  var HORSE_UP = [
+    ".............WK..",
+    "............WWK..",
+    ".M.........KOOK..",
+    ".MM.......KOOWOK.",
+    ".MMOKKKKKKOOOONK.",
+    ".MOOOOOOOOOOOOK..",
+    ".KOOOOOOOOOOOK...",
+    ".KOOOOOOOOOOK...."
+  ];
+  var HORSE_LA = ["..KO......KO....", "..KW......KW....", "..KK......KK...."];
+  var HORSE_LB = ["...KO...KO......", "...KW...KW......", "...KK...KK......"];
+
+  var FAM = {
+    dog:   { body: DOG_UP,   la: DOG_LA,   lb: DOG_LB },
+    cat:   { body: CAT_UP,   la: CAT_LA,   lb: CAT_LB },
+    lion:  { body: LION_UP,  la: CAT_LA,   lb: CAT_LB },
+    owl:   { body: OWL_UP,   la: OWL_LA,   lb: OWL_LB },
+    shark: { body: SHARK_UP, la: SHARK_LA, lb: SHARK_LB },
+    bear:  { body: BEAR_UP,  la: BEAR_LA,  lb: BEAR_LB },
+    horse: { body: HORSE_UP, la: HORSE_LA, lb: HORSE_LB }
+  };
+
+  // 前足(HU POV前景の手) 種別
+  var PAW_MAMMAL = [".KK.KK.KK.", "KOOKOOKOOK", "KOOOOOOOOK", "KOWWWWWWOK", "KOOOOOOOOK", ".KOOOOOOK.", "..KKKKKK.."];
+  var PAW_TALON  = [".K.K.K.K..", ".KOKOKOK..", ".KOOOOOK..", ".KOOOOOK..", "..KOOOK...", "..KKKKK..."];
+  var PAW_FIN    = ["...KK....", "..KOOK...", ".KOOOOK..", "KOOOOOOK.", "KOOOOOOK.", ".KOOOOK..", "..KKKK..."];
+  var PAW_HOOF   = [".KOOK.", ".KOOK.", ".KOOK.", ".KWWK.", ".KWWK.", ".KKKK."];
+  function dbl(map, gap) { gap = gap || "...."; return map.map(function (r) { return r + gap + r; }); }
+  var PAWS = {
+    mammal: dbl(PAW_MAMMAL),
+    talon:  dbl(PAW_TALON, "..."),
+    fin:    dbl(PAW_FIN, "..."),
+    hoof:   dbl(PAW_HOOF, "...")
+  };
+
+  // 装備キャラ → 種別マッピング
+  var SPECIES = {
+    jack:    { fam: "dog",   paw: "mammal" },
+    bulldog: { fam: "dog",   paw: "mammal" },
+    cat:     { fam: "cat",   paw: "mammal" },
+    tiger:   { fam: "cat",   paw: "mammal" },
+    lion:    { fam: "lion",  paw: "mammal" },
+    owl:     { fam: "owl",   paw: "talon" },
+    shark:   { fam: "shark", paw: "fin" },
+    bear:    { fam: "bear",  paw: "mammal" },
+    unicorn: { fam: "horse", paw: "hoof" }
+  };
+  function speciesId() { var d = eq(); return (d && SPECIES[d.id]) ? d.id : "jack"; }
+  function famNow() { return FAM[SPECIES[speciesId()].fam] || FAM.dog; }
+
+  // 脚2コマを切り替える走りスプライト(canvas2枚をトグル) — 装備キャラの種別で体型が変わる
+  function charSprite(scale, speedMs) {
     if (typeof Mascot === "undefined" || !Mascot.pixelCanvas) return null;
-    var PAL = runPalette();
-    var FA = C_UP.concat(C_LEGA), FB = C_UP.concat(C_LEGB);
+    var PAL = palFor();
+    var fam = famNow();
+    var FA = fam.body.concat(fam.la), FB = fam.body.concat(fam.lb);
     var box = document.createElement("div"); box.className = "dog-sprite-box";
     var a = Mascot.pixelCanvas(FA, PAL, scale, false);
     var b = Mascot.pixelCanvas(FB, PAL, scale, false);
@@ -53,7 +177,7 @@ const Dog = (() => {
   // 画面を走り抜ける(旗・吹き出し対応) = ドット絵で脚を動かす
   function run(opts) {
     opts = opts || {};
-    var box = corgiSprite(scaleNow(), 110);
+    var box = charSprite(scaleNow(), 110);
     if (!box) { if (typeof Mascot !== "undefined" && Mascot.run) Mascot.run(opts); return; }
     var wrap = document.createElement("div"); wrap.className = "dog-run";
     if (opts.flagText) {
@@ -73,7 +197,7 @@ const Dog = (() => {
 
   // 看板ウォーク(BUBBLE / FINAL TABLE) = ドット絵でゆっくり歩く
   function sign(lines) {
-    var box = corgiSprite(scaleNow(), 220);
+    var box = charSprite(scaleNow(), 220);
     if (!box) { if (typeof Mascot !== "undefined" && Mascot.bunnyWalk) Mascot.bunnyWalk(lines); return; }
     var wrap = document.createElement("div"); wrap.className = "dog-run dog-walk";
     var sg = document.createElement("div"); sg.className = "bunny-sign";
@@ -97,12 +221,11 @@ const Dog = (() => {
     return (d && d.chip && d.img) ? d.img : null;
   }
 
-  /* ---- HU POV用 ドット絵: 前景の手(コーギーの手) ---- */
-  var PAWS_PAL = { K: "#2a2118", O: "#d98e4a", W: "#fdf6ec" };
-  var PAW1 = [".KK.KK.KK.", "KOOKOOKOOK", "KOOOOOOOOK", "KOWWWWWWOK", "KOOOOOOOOK", ".KOOOOOOK.", "..KKKKKK.."];
-  var PAWS = PAW1.map(function (r) { return r + "...." + r; });
+  /* ---- HU POV用 ドット絵: 前景の手(装備キャラの種別ごと: 肉球/talon/fin/hoof) ---- */
   function pawsCanvas(scale) {
-    return (typeof Mascot !== "undefined" && Mascot.pixelCanvas) ? Mascot.pixelCanvas(PAWS, PAWS_PAL, scale || 10, false) : null;
+    if (typeof Mascot === "undefined" || !Mascot.pixelCanvas) return null;
+    var map = PAWS[SPECIES[speciesId()].paw] || PAWS.mammal;
+    return Mascot.pixelCanvas(map, palFor(), scale || 10, false);
   }
   /* ---- ライバル(メダル/チップ画像。プレースホルダ4種・後で追加/差替可) ---- */
   var RIVALS = [
@@ -121,5 +244,5 @@ const Dog = (() => {
   function oppImg() { return curRival ? curRival.img : null; }
   function rivals() { return RIVALS; }
 
-  return { run, sign, victoryImgTag, hasImg, pawsCanvas, pickOpponent, oppName, oppImg, rivals, advisorChip };
+  return { run, sign, victoryImgTag, hasImg, pawsCanvas, pickOpponent, oppName, oppImg, rivals, advisorChip, charSprite };
 })();
