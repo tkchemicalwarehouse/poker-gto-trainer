@@ -222,6 +222,17 @@ button.cta:hover { background: linear-gradient(170deg, #ffe085, #e8b52e 55%, #c7
 .pos-badge.pb-sb { background: #2e86c1; color: #fff; box-shadow: 0 0 6px rgba(46,134,193,.6); }
 .pos-badge.pb-bb { background: #d35400; color: #fff; box-shadow: 0 0 6px rgba(211,84,0,.6); }
 .seat-stack { font-size: 11px; color: var(--gold); }
+/* オールイン中の「賭けている額(=負けると飛ぶ額)」表示 */
+.allin-badge {
+  display: inline-block; background: linear-gradient(180deg, #e0444f, #b5252f); color: #fff;
+  font-weight: 800; font-size: .82em; letter-spacing: .04em; padding: 1px 6px; border-radius: 5px;
+  box-shadow: 0 0 6px rgba(224,68,79,.55); vertical-align: middle;
+}
+.seat-risk { font-size: .82em; color: var(--dim); }
+.hc-allin {
+  font-weight: 900; font-size: 13px; letter-spacing: .08em; color: #ff6b75;
+  text-shadow: 0 0 8px rgba(255,107,117,.6);
+}
 .seat-stack .bb { color: var(--dim); }
 .seat-cards { display: flex; gap: 3px; justify-content: center; margin: 3px 0; min-height: 44px; }
 /* フォールド後の自分の手札(ハンド終了まで薄く表示) */

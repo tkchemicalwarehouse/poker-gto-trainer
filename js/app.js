@@ -1046,7 +1046,10 @@ function renderHUPov(state) {
   const oppKey = !opp ? "none" : (opp.folded ? "fold" : (showOpp ? "o" + opp.cards.join(",") : "back"));
   setCards($("pov-opp-cards"), oppKey, !opp ? "" : (opp.folded ? "" : (showOpp ? opp.cards.map(c => cardHTML(c, true)).join("") : backHTML(true) + backHTML(true))));
   const oName = (typeof Dog !== "undefined" && Dog.oppName) ? Dog.oppName() : (opp ? opp.name : "");
-  $("pov-opp-info").innerHTML = opp ? `${oName}　<b>${fmtChips(opp.chips)} (${fmtBB(opp.chips)}BB)</b>` : "";
+  const oppAllIn = opp && opp.allIn && state.street !== "idle";
+  $("pov-opp-info").innerHTML = opp
+    ? `${oName}　<b>${oppAllIn ? `<span class="allin-badge">ALL-IN</span> ${fmtBB(opp.committed)}BBが勝負` : `${fmtChips(opp.chips)} (${fmtBB(opp.chips)}BB)`}</b>`
+    : "";
   // 大きなアクション表示(相手・自分)
   $("pov-opp-act").innerHTML = povActHTML(opp);
   $("pov-hero-act").innerHTML = povActHTML(hero);
@@ -1066,7 +1069,8 @@ function renderHUPov(state) {
   $("pov-chips").innerHTML = chipStackHTML(pot, false, 8);
   // 自分の手札・スタック
   setCards($("pov-hole"), (hero.cards && hero.cards.length) ? "h" + hero.cards.join(",") : "none", (hero.cards && hero.cards.length) ? hero.cards.map(c => cardHTML(c)).join("") : "");
-  $("pov-hero-info").innerHTML = `<b style="color:#5fd492">YOU</b>　<b>${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)</b>`;
+  const heroAllIn = hero.allIn && state.street !== "idle";
+  $("pov-hero-info").innerHTML = `<b style="color:#5fd492">YOU</b>　<b>${heroAllIn ? `<span class="allin-badge">ALL-IN</span> ${fmtBB(hero.committed)}BBが勝負` : `${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)`}</b>`;
   // 前景の手(一度だけ生成)
   const pw = $("pov-paws");
   if (pw && !pw.firstChild && typeof Dog !== "undefined" && Dog.pawsCanvas) { const c = Dog.pawsCanvas(document.body.classList.contains("mode-phone") ? 10 : 12); if (c) pw.appendChild(c); }
