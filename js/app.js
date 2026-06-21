@@ -299,7 +299,7 @@ function render(state) {
       hc.dataset.t = htxt;
       hc.innerHTML = hAllIn
         ? `<div class="hc-allin">ALL-IN</div>` +
-          `<div class="hc-bb ${sgClsH}-t">${fmtBB(hero.committed)}<span>BB が勝負</span></div>` +
+          `<div class="hc-bb ${sgClsH}-t">${fmtBB(hero.committed)}<span>BB</span></div>` +
           `<div class="hc-chips">${fmtChips(hero.committed)}</div>`
         : `<div class="hc-bb ${sgClsH}-t">${fmtBB(hero.chips)}<span>BB</span></div>` +
           `<div class="hc-chips">${fmtChips(hero.chips)}</div>`;
@@ -335,7 +335,7 @@ function render(state) {
     const bb = allIn ? toBB(p.committed) : toBB(p.chips);
     const sgCls = bb < 10 ? "sg-danger" : bb < 20 ? "sg-warn" : bb < 35 ? "sg-ok" : "sg-big";
     el.querySelector(".seat-stack").innerHTML = allIn
-      ? `<span class="allin-badge">ALL-IN</span> <span class="bb ${sgCls}-t">${fmtBB(p.committed)}BB</span> <span class="seat-risk">が勝負</span>`
+      ? `<span class="allin-badge">ALL-IN</span> <span class="bb ${sgCls}-t">${fmtBB(p.committed)}BB</span>`
       : `${fmtChips(p.chips)} <span class="bb ${sgCls}-t">(${fmtBB(p.chips)}BB)</span>`;
     const fill = el.querySelector(".sg-fill");
     fill.className = "sg-fill " + sgCls;
@@ -1048,7 +1048,7 @@ function renderHUPov(state) {
   const oName = (typeof Dog !== "undefined" && Dog.oppName) ? Dog.oppName() : (opp ? opp.name : "");
   const oppAllIn = opp && opp.allIn && state.street !== "idle";
   $("pov-opp-info").innerHTML = opp
-    ? `${oName}　<b>${oppAllIn ? `<span class="allin-badge">ALL-IN</span> ${fmtBB(opp.committed)}BBが勝負` : `${fmtChips(opp.chips)} (${fmtBB(opp.chips)}BB)`}</b>`
+    ? `${oName}　<b>${oppAllIn ? `<span class="allin-badge">ALL-IN</span> ${fmtBB(opp.committed)}BB` : `${fmtChips(opp.chips)} (${fmtBB(opp.chips)}BB)`}</b>`
     : "";
   // 大きなアクション表示(相手・自分)
   $("pov-opp-act").innerHTML = povActHTML(opp);
@@ -1070,7 +1070,7 @@ function renderHUPov(state) {
   // 自分の手札・スタック
   setCards($("pov-hole"), (hero.cards && hero.cards.length) ? "h" + hero.cards.join(",") : "none", (hero.cards && hero.cards.length) ? hero.cards.map(c => cardHTML(c)).join("") : "");
   const heroAllIn = hero.allIn && state.street !== "idle";
-  $("pov-hero-info").innerHTML = `<b style="color:#5fd492">YOU</b>　<b>${heroAllIn ? `<span class="allin-badge">ALL-IN</span> ${fmtBB(hero.committed)}BBが勝負` : `${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)`}</b>`;
+  $("pov-hero-info").innerHTML = `<b style="color:#5fd492">YOU</b>　<b>${heroAllIn ? `<span class="allin-badge">ALL-IN</span> ${fmtBB(hero.committed)}BB` : `${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)`}</b>`;
   // 前景の手(一度だけ生成)
   const pw = $("pov-paws");
   if (pw && !pw.firstChild && typeof Dog !== "undefined" && Dog.pawsCanvas) { const c = Dog.pawsCanvas(document.body.classList.contains("mode-phone") ? 10 : 12); if (c) pw.appendChild(c); }
