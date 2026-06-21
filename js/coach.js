@@ -462,6 +462,10 @@ function foldEquityPct(ctx, chosen) {
   return totW > 0 ? foldW / totW : null;
 }
 
+/* AA/KKは別格のプレミアム。「○BBでジャム」のような限界ハンド的な書き方をしない。 */
+function isPremium(label) { return label === "AA" || label === "KK"; }
+const PREMIUM_NOTE = `<span class="dim">この手は<b>AA/KK級のプレミアム</b>=別格。レイズ・3ベット・オールインのどれも正解で、ミニレイズで誘ってからスタックを入れ切るのも有効です。下のレンジ%表記は便宜上のもので、この手は常に積極的に戦います。</span>`;
+
 /* 混合戦略がなぜ存在するか(無差別点)。憲章②の理論的裏付け。 */
 const MIX_WHY = `<span class="dim">なぜ混ぜる? — いつも同じ行動だと相手に読まれて搾取されます。EVが互角の無差別点では、あえて両方を一定頻度で選ぶ(サイコロを振る)のが、つけ込ませない打ち方。迷わないのもポーカーです。</span>`;
 
@@ -617,7 +621,10 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
     const openerDesc = d.hu ? "<b>ヘッズアップ</b>のSBオープン(超ワイドレンジ)" : `${d.openerClass}ポジションからのオープン`;
     lines.push(`<p>${openerDesc}に対する有効${bb0(ctx.effBB)}BBの戦略: リジャム上位 <b>${d.rejamPct.toFixed(1)}%</b>` +
       (d.callRange ? ` / コール <b>${d.callPct.toFixed(1)}%</b>` : " / コールなし(ジャムかフォールド)") + `。</p>`);
-    if (d.nashRejam && d.threshold !== null) {
+    if (isPremium(hand)) {
+      // AA/KKは「○BBでジャム」「ぎりぎり圏内」のような限界ハンド扱いをしない
+      lines.push(`<p>${PREMIUM_NOTE}</p>`);
+    } else if (d.nashRejam && d.threshold !== null) {
       const th = d.threshold, m = d.marginBB;
       const thText = th <= 0 ? `${hand} はどの有効スタックでもリジャムしません`
         : th >= 25 ? `${hand} は有効25BB以上でもリジャムできます`
