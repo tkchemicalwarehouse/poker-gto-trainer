@@ -425,6 +425,38 @@ function mdfLine(potBB, toCallBB) {
   return `<b>MDF(最低防御頻度)— レンジ全体の話:</b> このベットに対し、あなたのレンジ全体で約 <b>${pct0(mdf)}</b> 以上を続けないと、相手は「どんな2枚でも打つ」だけで自動的に得をします(降りすぎ＝搾取)。逆に相手のブラフは <b>${pct0(alpha)}</b> 成功すれば+EV。<span class="dim">※これはレンジ全体の目安。この1手の可否は上の『エクイティ vs ポットオッズ』で決めます(両者は別の話)。</span>`;
 }
 
+/* フォールドエクイティ(実数): このベット/レイズで相手のレンジの何%が降りるか。
+ * 相手の持ちうるレンジをボード上でコンボ展開し、ベットサイズ別の継続基準でフォールド率を出す。
+ * モデル推定(相手は強い手・強ドローで継続、サイズが大きいほど降りる)。厳密GTOではないので「約」表記。 */
+function foldEquityPct(ctx, chosen) {
+  if (!ctx || !ctx.board || ctx.board.length < 3 || !ctx.oppRange) return null;
+  if (typeof rangeToCombos !== "function" || typeof classifyHand !== "function") return null;
+  const facingBet = ctx.facing === "bet";
+  let combos;
+  if (facingBet && typeof filterRangeOnBoard === "function") {
+    combos = filterRangeOnBoard(ctx.oppRange, ctx.board, "bet", ctx.heroCards); // 相手のベットレンジ(これにレイズで挑む)
+  } else {
+    combos = rangeToCombos(ctx.oppRange, (ctx.heroCards || []).concat(ctx.board));
+  }
+  if (!combos || !combos.length) return null;
+  const huge = chosen === "jam" || chosen === "raise";     // オールイン/オーバーベット級
+  const big = huge || chosen === "bet66";                  // 2/3ポット級
+  let foldW = 0, totW = 0;
+  for (const cb of combos) {
+    const w = cb.w || 1; totW += w;
+    const cls = classifyHand([cb.c1, cb.c2], ctx.board);
+    const strongDraw = cls.draws.flushDraw || cls.draws.oesd;
+    const anyDraw = strongDraw || cls.draws.gutshot;
+    let cont; // 継続(降りない)か
+    if (facingBet) cont = cls.tier >= 4 || (cls.tier >= 3 && strongDraw); // レイズには強い手のみ継続
+    else if (huge) cont = cls.tier >= 3 || strongDraw;                    // オールイン: 強made/強ドローのみ
+    else if (big) cont = cls.tier >= 2 || strongDraw;                     // 2/3ポット
+    else cont = cls.tier >= 2 || anyDraw;                                 // 小ベット: 何かあれば継続
+    if (!cont) foldW += w;
+  }
+  return totW > 0 ? foldW / totW : null;
+}
+
 /* 混合戦略がなぜ存在するか(無差別点)。憲章②の理論的裏付け。 */
 const MIX_WHY = `<span class="dim">なぜ混ぜる? — いつも同じ行動だと相手に読まれて搾取されます。EVが互角の無差別点では、あえて両方を一定頻度で選ぶ(サイコロを振る)のが、つけ込ませない打ち方。迷わないのもポーカーです。</span>`;
 
@@ -743,6 +775,8 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
   }
   else if (d.kind === "postflop") {
     const c = d.cls;
+    const isAggro = chosen === "bet33" || chosen === "bet66" || chosen === "jam" || chosen === "raise";
+    const fe = isAggro ? foldEquityPct(ctx, chosen) : null; // このベットで相手の何%が降りるか
     const made = madeHandDesc(ctx);
     // 単一ペア系のラベルのときだけ補足(ツーペア等に付けると矛盾表記になるので除外)
     const showMade = made && /ペア/.test(c.label) && !/ツーペア/.test(c.label);
@@ -756,13 +790,24 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
         `<p>🃏 <b>これは「狙ったブラフ」</b>。弱い手でのオールイン/オーバーベットで相手を降ろしに行く — 攻めの姿勢はポーカーの正しい武器です。</p>` +
         `<p>正直に言うと、相手の<b>レンジ全体</b>に対してはモデル上このプレイは<b>-EV</b>(GTOはここでチェック/フォールド寄り)。` +
         `ただし<b>「相手は降りる/ナッツは無い」という根拠ある読み</b>があるなら、これは立派な<b>エクスプロイト(搾取)</b> — ポーカーの正解の一つです。</p>` +
-        `<p>鍵は<b>フォールドエクイティ</b>: 相手が降りうる場面でこそ機能します。降りない相手(コールステーション/コミット済み)には通りません。外れた時の代償(下のEV)も込みで選びましょう。</p>` +
+        `<p>鍵は<b>フォールドエクイティ</b>: ` +
+        (fe != null
+          ? `相手の持ちうるレンジに対し、このプレイで<b>約${pct0(fe)}が降りる</b>と推定されます(モデル推定)。${fe >= 0.5 ? "半分以上を降ろせるなら、ブラフは十分に機能します。" : fe >= 0.3 ? "そこそこ降ろせます。あとはコールされた時の負けと天秤にかけて。" : "降ろせる率は低め — この相手/ボードではブラフは通りにくいかもしれません。"}`
+          : `相手が降りうる場面でこそ機能します。`) +
+        `降りない相手(コールステーション/コミット済み)には通りません。外れた時の代償(下のEV)も込みで選びましょう。</p>` +
         `</div>`);
     } else {
       lines.push(`<p>${postflopReason(ctx, advice, chosen)}</p>`);
     }
     // 📐 計算方法
     let calcParts = [];
+    if (fe != null) {
+      calcParts.push(
+        `<b>🛡️ フォールドエクイティ(このベットで何%降ろせるか):</b><br>` +
+        `相手の持ちうるレンジをこのボードで展開し、${chosen === "jam" || chosen === "raise" ? "オールイン/レイズ" : chosen === "bet66" ? "2/3ポット" : "小さめ"}に対して降りる割合を推定 ≈ <b>約${pct0(fe)}</b>。<br>` +
+        `<span class="dim">ブラフの損益 ≒ (降ろせる率 × 今のポット) −(降ろせない率 × コールされて負ける額)。` +
+        `<b>ベットが大きいほど降ろせる率は上がる</b>が、外れた時の代償も増える。だから「相手が降りやすいボード/相手」を選ぶのが肝心。</span>`);
+    }
     if (d.outs > 0 && ctx.street !== "river") {
       const mult = ctx.street === "flop" ? 4 : 2;
       calcParts.push(
