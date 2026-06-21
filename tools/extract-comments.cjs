@@ -132,4 +132,5 @@ function makeHeroAct() {
   fs.writeFileSync(path.join(__dirname, "comments-full.txt"), full.join("\n"), "utf8");
   fs.writeFileSync(path.join(__dirname, "extract-comments-result.json"), JSON.stringify({ count: records.length, distinct: arr.length, totalFlagged, records }, null, 1), "utf8");
   console.log(`ミス ${records.length}件 / 型 ${arr.length}種 / 全文ユニーク ${uniq.length}件 / チグハグ候補 ${totalFlagged}件\n→ comments-report.txt(型別) / comments-full.txt(1件ずつ全文)`);
+  try { require("./record-verification.cjs").recordVerification({ tool: "extract-comments", checks: 0, hands, note: "コメント整合性抽出" }); } catch (e) {}
 })().catch(e => { console.error(e); process.exitCode = 1; });

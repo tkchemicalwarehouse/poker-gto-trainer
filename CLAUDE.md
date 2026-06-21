@@ -39,7 +39,11 @@ MTT中盤戦(5〜30BB)＋ヘッズアップの GTO 学習アプリ。静的 HTML
   相手の作業中差分(犬キャラ dog.js/cosmetics.js/mascot.js, index.html 等)は触らない。
 - **回帰テスト**: `node tools/validate-reference.cjs`(外部数値35件)。HU検証は `node tools/validate-hu.cjs`。
 - レンジ生成: `tools/gen-*.cjs`(equity→nash→rejam→openraise)。HU研究: `tools/gen-hu.cjs`(深部は近似・本番未配線)。
-- **検証台帳の更新義務**: 大規模監査/網羅検証/ソルバー実行をしたら、`js/verification-ledger.js` の
-  `entries` に**実際に回した分の実数**を追記する(ホームの「累計カウンタ」が伸びる)。憲章遵守 =
-  実数のみ・概算は `approx:true` と「約」表記。見せかけで増やさない。`node tools/mega-validate.cjs` が回数の目安を出す。
+- **検証カウンタは自動計測**(ホームの「累計カウンタ」): 監査/検証ツール(mega-validate / validate-reference /
+  selfplay-audit / deviation-audit / extract-comments)は末尾で `tools/record-verification.cjs` を呼び、
+  **実際に回した実数**を `tools/verification-log.json`(証跡)に追記 → `js/verification-auto.js` を自動再生成。
+  カウンタ(`verification-ledger.js`)が手書き台帳 + 自動計測を合算。**手で数えない**(忘れ/水増し防止)。
+  → 監査を回したら生成された `js/verification-auto.js` と `verification-log.json` をコミットするだけ。
+  憲章遵守 = ツールが実際に数えた判断数/ハンド数/チェック数のみ。新規ツールにも `recordVerification({tool,checks,hands})` を入れる。
+  手書き台帳(`verification-ledger.js` の `entries`)は「ソルバー求解(eq)」と過去の基準値用。新規ソルブ時のみ追記。
 - HU精度向上フェーズ1の手順は `tools/HRC-SOLVE-SPEC.md`。

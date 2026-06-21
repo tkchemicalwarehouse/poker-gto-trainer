@@ -132,5 +132,6 @@ async function checkPreflop() {
   console.log(`・合計の均衡計算(EV評価)回数: 約 ${(totalSolveOps / 1e9).toFixed(2)}×10⁹ ≈ ${(totalSolveOps / 1e8).toFixed(0)}億回`);
   console.log(`\n結論: 違反 ${viol} 件。${viol === 0 ? "全不変条件パス。" : "要修正。"}`);
   console.log(`正直な宣伝の指針 → 「ハンドをN億回プレイ」ではなく「均衡計算を約${(totalSolveOps / 1e8).toFixed(0)}億回行って解いた戦略を、全169手×全スタックで網羅検証」が真実に即す。`);
+  if (viol === 0) try { require("./record-verification.cjs").recordVerification({ tool: "mega-validate", checks, hands: 0, note: "網羅検証(全169手×全スタックの不変条件)" }); } catch (e) {}
   process.exitCode = viol === 0 ? 0 : 1;
 })().catch(e => { console.error(e); process.exitCode = 1; });

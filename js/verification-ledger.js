@@ -34,6 +34,10 @@ const VERIFICATION_LEDGER = {
   function totals() {
     let eq = 0, checks = 0, hands = 0;
     for (const e of VERIFICATION_LEDGER.entries) { eq += e.eq || 0; checks += e.checks || 0; hands += e.hands || 0; }
+    // 自動計測(監査ツール実行で record-verification.cjs が積み上げた実測値)を加算
+    if (typeof VERIFICATION_AUTO !== "undefined" && VERIFICATION_AUTO) {
+      eq += VERIFICATION_AUTO.eq || 0; checks += VERIFICATION_AUTO.checks || 0; hands += VERIFICATION_AUTO.hands || 0;
+    }
     return { eq, checks, hands, grand: eq + checks + hands };
   }
   const T = totals();

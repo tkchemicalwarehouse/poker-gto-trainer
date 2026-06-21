@@ -148,4 +148,5 @@ function pushSuspect(type, ctx, advice, chosen, f, g) {
       highFreqSeen: S.highFreqSeen, falsePos: S.falsePos, evByBand: S.evByBand }, buckets: buck
   }, null, 1));
   console.log(`\n→ tools/deviation-audit-result.json に保存`);
+  try { require("./record-verification.cjs").recordVerification({ tool: "deviation-audit", checks: S.decisions, hands: S.hands, note: "逸脱監査(③推奨どおり→ミス/②高頻度→ミスの整合性)" }); } catch (e) {}
 })().catch(e => { console.error(e); process.exitCode = 1; });

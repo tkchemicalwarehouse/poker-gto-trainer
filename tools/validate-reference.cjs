@@ -80,4 +80,5 @@ const eq72 = V.eqVsRangeTable("72o", V.nashRangeAt(0, 10));
 range("72o の対UTG10BBジャムレンジ勝率", eq72 * 100, 25, 38);
 
 console.log(`\n=== 照合結果: 合格 ${pass} / 不合格 ${fail} / 範囲外警告 ${warn} ===`);
+try { require("./record-verification.cjs").recordVerification({ tool: "validate-reference", checks: pass + fail + warn, hands: 0, note: "外部数値リファレンス照合" }); } catch (e) {}
 if (fail > 0) process.exitCode = 1;

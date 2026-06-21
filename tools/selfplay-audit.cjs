@@ -157,4 +157,5 @@ const RULES = [
     for (const ex of hits.filter(Boolean).slice(0, 6)) console.log(`    例: ${ex}`);
   }
   console.log(`\n合計 ${anomalies} 件の異常候補。0件が理想。★が出たら該当ルールを精査して修正。`);
+  try { require("./record-verification.cjs").recordVerification({ tool: "selfplay-audit", checks: A.decisions.length, hands: totalHands, note: "セルフプレイ異常検知" }); } catch (e) {}
 })().catch(e => { console.error(e); process.exitCode = 1; });
