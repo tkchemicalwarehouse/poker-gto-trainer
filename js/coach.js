@@ -196,6 +196,15 @@ function gradeDecision(ctx, advice, chosenId, act, opts) {
       verdict = "minor";
       postNote = `強い役のチェック(スロープレイ)自体は時に有効ですが、中盤戦の浅いスタックでは<b>ベットでバリューを取り、早めにスタックを入れ切る</b>方が基本的に得です。チェックは相手に無料でカードを与え、本来取れたチップを逃します。`;
     }
+    // (3) フォールドが大ミス扱いされる問題: そもそもコールが-EV(エクイティ<必要勝率)なら、
+    //     降りは正当な選択。唯一の上位手が薄いブラフレイズである場合も多く、大ミスにはしない。
+    if (chosen === "fold" && (verdict === "blunder" || verdict === "minor") &&
+        d.equity != null && d.breakeven != null && d.equity < d.breakeven) {
+      verdict = (advice.primary === "raise" || advice.primary === "jam") ? "mixed" : "minor";
+      postNote = `この手は<b>エクイティ(${pct(d.equity)})が必要勝率(${pct(d.breakeven)})に届かない</b>ため、コールでは利益が出ません。` +
+        `GTOはここで少頻度の<b>ブラフレイズ</b>(相手を降ろす狙い)を混ぜますが、それは読み次第の上級手。` +
+        `<b>フォールドは安全で正当な選択</b>で、ミスではありません。`;
+    }
   }
 
   // ポストフロップのサイズ違い/スロープレイは控えめなEV損失に
