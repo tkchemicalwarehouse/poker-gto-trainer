@@ -458,6 +458,7 @@ const gameIO = {
   log: logMsg,
   heroAct: heroActUI,
   sound: n => Sfx.play(n),
+  voice: t => Sfx.say(t),
 };
 
 function autoAction(legal) {

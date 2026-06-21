@@ -440,6 +440,9 @@ function legalActions(state, p, currentBet, street) {
 function applyAction(state, p, action, currentBet, street, io) {
   const pos = posNameOf(state, p.seat);
   const tag = `${p.name}(${pos})`;
+  // ヘッズアップ(残り2人)のオールインだけ音声で「オールイン」と宣言
+  const isHU = state.players.filter(q => !q.out).length === 2;
+  const sayAllIn = () => { if (isHU && io.voice) io.voice("オールイン"); };
   if (action.id === "fold") {
     p.folded = true;
     p.tagPass = "FOLD"; // tagAgg(RAISE/3BET等)は残したまま重ね表示
@@ -466,6 +469,7 @@ function applyAction(state, p, action, currentBet, street, io) {
       : { label: "コール", amt: toCall, tone: "call" };
     io.log(`${tag}: コール ${fmtChips(toCall)}${p.allIn ? " (オールイン)" : ""}`, "call");
     if (io.sound) io.sound("chip");
+    if (p.allIn) sayAllIn();
     return;
   }
   // ベット/レイズ/ジャム
@@ -479,6 +483,7 @@ function applyAction(state, p, action, currentBet, street, io) {
   if (action.id === "jam" || p.allIn) {
     p.tagAgg = "ALL IN";
     p.actBanner = { label: "オールイン", amt: target, tone: "jam" };
+    sayAllIn();
   } else if (street === "preflop") {
     p.tagAgg = state.preflopBetLevel <= 2 ? "RAISE" : `${state.preflopBetLevel}BET`;
     p.actBanner = { label: state.preflopBetLevel <= 2 ? "レイズ" : `${state.preflopBetLevel}ベット`, amt: target, tone: "raise" };

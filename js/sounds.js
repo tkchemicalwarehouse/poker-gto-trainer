@@ -104,9 +104,24 @@ const Sfx = (() => {
       if (muted) return;
       try { if (lib[name]) lib[name](); } catch (e) { }
     },
+    // 音声読み上げ(Web Speech)。ヘッズアップのオールイン宣言などに使用
+    say(text) {
+      if (muted) return;
+      try {
+        const ss = window.speechSynthesis; if (!ss) return;
+        ss.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = "ja-JP"; u.rate = 1.0; u.pitch = 1.0; u.volume = 1.0;
+        const vs = ss.getVoices ? ss.getVoices() : [];
+        const jv = vs.find(v => /ja(-|_)?JP|Japanese|日本/i.test(v.lang + " " + v.name));
+        if (jv) u.voice = jv;
+        ss.speak(u);
+      } catch (e) { }
+    },
     toggle() {
       muted = !muted;
       try { localStorage.setItem("pgt_muted", muted ? "1" : "0"); } catch (e) { }
+      try { if (muted && window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { }
       return muted;
     },
     isMuted() { return muted; },
