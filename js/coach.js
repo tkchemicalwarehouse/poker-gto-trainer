@@ -316,12 +316,17 @@ function actionJP(id) {
 }
 
 function freqsText(freqs) {
-  const parts = [];
-  const keys = Object.keys(freqs).sort((a, b) => freqs[b] - freqs[a]);
-  for (const k of keys) {
-    if (freqs[k] >= 0.03) parts.push(`${actionJP(k)} ${(freqs[k] * 100).toFixed(0)}%`);
-  }
-  return parts.join(" / ");
+  const keys = Object.keys(freqs).filter(k => freqs[k] >= 0.03).sort((a, b) => freqs[b] - freqs[a]);
+  if (!keys.length) return "—";
+  // ★ポーカーに「100%の正解」は無い★ 単一アクションがほぼ純粋でも、絶対的な「100%」表記は避け「推奨」と書く。
+  // (「フォールド100%」と「コール27%(レンジ全体)」が並んで矛盾に見える問題の解消も兼ねる)
+  if (keys.length === 1 || freqs[keys[0]] >= 0.97) return `${actionJP(keys[0])}が推奨`;
+  return keys.map(k => `${actionJP(k)} ${(freqs[k] * 100).toFixed(0)}%`).join(" / ");
+}
+// 助言が混合(2択以上が一定頻度)かどうか
+function isMixedAdvice(freqs) {
+  const vals = Object.values(freqs).filter(v => v >= 0.03);
+  return vals.length >= 2 && Math.max.apply(null, Object.values(freqs)) < 0.97;
 }
 
 function pct(x) { return (x * 100).toFixed(1) + "%"; }
@@ -495,8 +500,11 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
   }
   lines.push(`<div class="ex-head"><b>${hand}</b> @ ${ctx.seatName} ` +
     (ctx.phase === "preflop" ? `(${bb1(ctx.stackBB)}BB)` : `【${streetJP(ctx.street)}】`) + `</div>`);
+  // 純粋アクションは freqsText が「○○が推奨」と返すので、hint時の「先生の推奨」は混合時のみ付ける(推奨の二重表記を避ける)
   lines.push(`<div class="ex-gto">GTO戦略: <b>${freqsText(advice.freqs)}</b>` +
-    (hint ? ` ／ 先生の推奨: <b>${actionJP(advice.primary)}</b>` : ` — あなた: <b>${actionJP(chosen)}</b>`) + `</div>`);
+    (hint
+      ? (isMixedAdvice(advice.freqs) ? ` ／ 主な推奨: <b>${actionJP(advice.primary)}</b>` : ``)
+      : ` — あなた: <b>${actionJP(chosen)}</b>`) + `</div>`);
 
   // サイズ/方針の指摘(アクション選択は妥当だが改善点がある場合)
   if (sizing && sizing.note) {
@@ -735,10 +743,12 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
       `必要勝率(ポットオッズ): <b>${pct(d.breakeven)}</b>` +
       (d.margin > 0.02 && !d.icmPremium ? ` + 後続/マルチ補正 ${pct(d.margin)}` : "") + `</p>`);
     if (d.icmPremium > 0.005) {
-      lines.push(`<p>🏆 <b>ICM補正(ファイナルテーブル)</b>: 賞金圧力により必要勝率が ` +
-        `${pct(d.breakeven)} → <b>${pct(d.icmReq)}</b>(+${pct(d.icmPremium)})に上昇。` +
-        `チップで勝てる勝負でも、飛んだ時に失う「賞金の期待値」が大きいため、より強い手でしかコールできません。` +
-        `特に<b>相手にカバーされている(負ければ飛ぶ)</b>時ほど必要勝率は跳ね上がり、逆に<b>自分が相手をカバーしている</b>時は比較的緩く受けられます — FTで最も差がつく感覚です。</p>`);
+      // ★結論連動★ コールが正解の局面で「フォールドせよ」と読める強い文を出さない(逆も同様)
+      const icmText = callRight
+        ? `賞金圧力(ICM)で必要勝率は <b>${pct(d.breakeven)} → ${pct(d.icmReq)}</b> に上がりますが、この手のエクイティ <b>${pct(d.equity)}</b> はそれを上回ります。だから賞金の観点を踏まえても<b>コールで問題ありません</b>。`
+        : `賞金期待値(ICM)から計算すると、必要勝率が <b>${pct(d.breakeven)} → ${pct(d.icmReq)}</b>(+${pct(d.icmPremium)})に上がります。この手のエクイティ <b>${pct(d.equity)}</b> では届かないため、チップ単体なら受けられても、<b>フォールドの選択肢も検討すべき</b>です(飛んだ時に失う賞金が大きいため)。`;
+      lines.push(`<p>🏆 <b>ICM補正(ファイナルテーブル)</b>: ${icmText}` +
+        `<br><span class="dim">一般則: <b>相手にカバーされている(負ければ飛ぶ)</b>時ほど必要勝率は上がり、<b>自分が相手をカバーしている</b>時は比較的緩く受けられます — FTで最も差がつく感覚です。</span></p>`);
     }
     if (Math.abs(eqMargin) < 0.015) lines.push(`<p>勝率と必要勝率がほぼ同じ<b>無差別点</b>です。${MIX_WHY}</p>`);
     if (callRight) { const bn = blockerNote(hand); if (bn) lines.push(`<p>${bn}</p>`); }
