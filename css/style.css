@@ -812,7 +812,7 @@ body.mode-phone #blind-corner .bc-blinds { font-size: 16px; }
 #victory-modal { background: rgba(4, 6, 10, .9); overflow: hidden; }
 .victory-inner {
   position: relative; text-align: center; max-width: 560px; width: 92vw;
-  max-height: 92vh; overflow-y: auto; padding: 30px 24px;
+  max-height: 92vh; overflow-y: auto; overflow-x: hidden; padding: 30px 24px;
   background: linear-gradient(170deg, rgba(35,30,12,.96), rgba(15,18,24,.97));
   border: 2px solid var(--gold); border-radius: 18px;
   box-shadow: 0 0 60px rgba(232,195,82,.45), 0 20px 60px rgba(0,0,0,.7);
@@ -1843,7 +1843,7 @@ body.mode-phone .dog-sprite { height: 112px; }
 }
 /* カード背後で回るゴッドレイ */
 .victory-inner::before {
-  content: ""; position: absolute; left: 50%; top: -12%; width: 170%; height: 170%;
+  content: ""; position: absolute; left: 50%; top: 0; width: 170%; height: 100%;
   transform: translateX(-50%); pointer-events: none; z-index: 0;
   background: repeating-conic-gradient(from 0deg, rgba(255,221,110,.12) 0 6deg, transparent 6deg 16deg);
   -webkit-mask-image: radial-gradient(circle at 50% 30%, #000, transparent 60%);
@@ -1851,6 +1851,8 @@ body.mode-phone .dog-sprite { height: 112px; }
   animation: raysSpin 16s linear infinite;
 }
 .victory-inner > * { position: relative; z-index: 1; }
+/* 上記 >* に上書きされて relative 化すると光線がフローに入り、上部に巨大な空白＋横スクロールが出る。絶対配置に戻す */
+.victory-inner > .trophy-rays { position: absolute; z-index: 0; }
 
 /* 紙吹雪・きらめき・フラッシュを最前面に(カードの裏に隠れない) */
 #confetti-layer { z-index: 5; }
