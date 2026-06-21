@@ -39,4 +39,7 @@ MTT中盤戦(5〜30BB)＋ヘッズアップの GTO 学習アプリ。静的 HTML
   相手の作業中差分(犬キャラ dog.js/cosmetics.js/mascot.js, index.html 等)は触らない。
 - **回帰テスト**: `node tools/validate-reference.cjs`(外部数値35件)。HU検証は `node tools/validate-hu.cjs`。
 - レンジ生成: `tools/gen-*.cjs`(equity→nash→rejam→openraise)。HU研究: `tools/gen-hu.cjs`(深部は近似・本番未配線)。
+- **検証台帳の更新義務**: 大規模監査/網羅検証/ソルバー実行をしたら、`js/verification-ledger.js` の
+  `entries` に**実際に回した分の実数**を追記する(ホームの「累計カウンタ」が伸びる)。憲章遵守 =
+  実数のみ・概算は `approx:true` と「約」表記。見せかけで増やさない。`node tools/mega-validate.cjs` が回数の目安を出す。
 - HU精度向上フェーズ1の手順は `tools/HRC-SOLVE-SPEC.md`。
