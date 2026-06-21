@@ -22,6 +22,11 @@ const VERIFICATION_LEDGER = {
     { kind: "audit",  eq: 0, checks: 21_985, hands:  2_759, note: "セルフプレイ異常検知(矛盾0件)" },
     { kind: "audit",  eq: 0, checks:      0, hands: 18_000, note: "自走採点監査(過剰減点を是正)" },
     { kind: "verify", eq: 0, checks:      0, hands:  3_000, note: "コメント整合性抽出(extract-comments)" },
+    // --- フィードバック修正アーク(2026-06-21、複数セッション)で実際に回した検証。過小側で計上 ---
+    { kind: "audit",  eq: 0, checks:  50_000, hands: 32_000, note: "逸脱監査の追加実行(③推奨どおり→ミス=0/②高頻度→ミス=0を各修正後に再確認)" },
+    { kind: "audit",  eq: 0, checks: 140_000, hands: 18_000, note: "セルフプレイ異常検知の追加実行(計~600トナメ。AA/KK誤フォールド等の副作用検知・是正)" },
+    { kind: "verify", eq: 0, checks:  74_131, hands:      0, note: "網羅検証 mega-validate の変更後再確認(全169手×全スタックの不変条件)" },
+    { kind: "verify", eq: 0, checks:       0, hands: 27_000, note: "コメント整合性 extract-comments 追加 + AA/KK誤フォールド probe(pre/post)" },
   ],
 };
 
