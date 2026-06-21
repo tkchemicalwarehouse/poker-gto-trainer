@@ -171,7 +171,7 @@ function gradeDecision(ctx, advice, chosenId, act, opts) {
       verdict = (freqs[chosen] || 0) >= 0.35 ? "mixed" : "minor";
       if (verdict === "minor") {
         const want = (freqs.bet66 || 0) > (freqs.bet33 || 0) ? "大きめ(66%)" : "小さめ(33%)";
-        postNote = `ベットする判断は正解。ただしサイズはGTO的には${want}が主体です。中盤戦の小さいスタックでは、強い役は早くスタックを入れ切り、弱い手は安く諦める設計が効きます。`;
+        postNote = `ベットする判断自体は妥当。ただしサイズはGTO的には${want}が主体です。中盤戦の小さいスタックでは、強い役は早くスタックを入れ切り、弱い手は安く諦める設計が効きます。`;
       }
     }
     // (1b) GTOは少頻度ながらベットも取る局面(主体はチェック) → ベットは少数派ラインで「ミス」ではない
@@ -212,6 +212,9 @@ function gradeDecision(ctx, advice, chosenId, act, opts) {
     if (verdict === "blunder" && f >= 0.25) { verdict = "mixed"; evLoss = 0; }
     else if (verdict === "blunder" && f >= 0.10) { verdict = "minor"; evLoss = Math.min(evLoss, 0.4); }
     else if (verdict === "minor" && f >= 0.30) { verdict = "mixed"; evLoss = 0; }
+    // ★ポストフロップの混合戦略補正★ GTOが15%以上の頻度で取る手は均衡上ほぼ同EV=「ミス」ではない。
+    // minorではなくmixed(EV損0)とし、過剰減点を避ける(プロが嫌う「正当な混合を叱る」を防止)。
+    else if (ctx.phase === "postflop" && verdict === "minor" && f >= 0.15) { verdict = "mixed"; evLoss = 0; }
   }
 
   return { verdict, evLoss, sizing, explanation: (opts && opts.noExplain) ? "" : buildExplanation(ctx, advice, chosen, verdict, sizing) };
@@ -770,17 +773,40 @@ function postflopReason(ctx, advice, chosen) {
         "チェックしてもポットは逃げません — 相手が打てばレイズ/コールの選択肢が生まれ、チェックバックされれば無料でカードが見られます。");
   }
   if (ctx.facing === "none") {
-    if (t >= 4) return "強い役はベットでバリューを取ります。浅いSPRではポットを膨らませてスタックを入れ切る設計が重要です。";
-    if (t === 3) return "中程度の強さは「小さくベット」と「チェック」の混合です。ベットしすぎると強いハンドにしか出てこられず、チェックしすぎるとフリーカードを与えます。";
-    if (c.draws.flushDraw || c.draws.oesd) return "強いドローはセミブラフの好機です。降ろせれば即利益、コールされても完成すれば大きく勝てる二重の勝ち筋があります。";
-    if (d.dryBoard && ctx.role === "pfr") return "ドライなボードはプリフロップレイザーのレンジが有利なので、小さいベットを高頻度で打てます(レンジベット)。";
-    return "弱いハンド・濡れたボードではチェックが基本です。エクイティのないブラフは浅いスタックでは特に割に合いません。";
+    // ★解説は必ず推奨(primary)と一致させる★ ベット推奨ならベットの理由、チェック推奨ならチェックの理由。
+    const isBet = primary === "bet33" || primary === "bet66" || primary === "jam";
+    const river = ctx.street === "river";
+    // ボード性質の語を正確に(d.dryBoardは strategy と共有。非ドライ時はペア/モノトーンを区別)
+    let boardWord = "ウェット(動的)な";
+    if (ctx.board && ctx.board.length >= 3) {
+      const branks = ctx.board.map(x => x >> 2), bsuits = ctx.board.map(x => x & 3);
+      const sc = [0, 0, 0, 0]; bsuits.forEach(s => sc[s]++);
+      const paired = new Set(branks).size < branks.length;
+      const mono = Math.max(sc[0], sc[1], sc[2], sc[3]) >= 3;
+      boardWord = d.dryBoard ? "ドライ(静的)な" : paired ? "ペア(静的)な" : mono ? "モノトーン(超ウェット)な" : "ウェット(動的)な";
+    } else if (d.dryBoard) boardWord = "ドライ(静的)な";
+    const liveDraw = (c.draws.flushDraw || c.draws.oesd) && !river; // リバーにドローは無い
+    if (!isBet) {
+      // 推奨=チェック
+      if (t >= 5) return "モンスターですが、ここは<b>チェック</b>を選ぶ頻度です(相手のブラフを誘う/後のストリートで安全に価値を取る)。常に最大ベットが正解ではありません。";
+      if (liveDraw) return "強いドローですが、ここは<b>チェック</b>に回す頻度。毎回打つと読まれるので、チェックして無料でカードを見たり、相手に打たせてレイズで戦う枝を混ぜます。";
+      if (t === 3) return `中程度の強さ。${boardWord}ボードでは無理にポットを膨らませず、<b>チェック</b>で安いショーダウンを目指すのが基本です。`;
+      return `エクイティの薄い手は、${boardWord}ボードでも<b>チェック</b>が基本。勝てない手で打ち続けるのは浅いスタックでは特に損(ブラフは相手が降りて初めて利益が出る)。`;
+    }
+    // 推奨=ベット
+    if (t >= 4) return `強い役は${boardWord}ボードで<b>ベット</b>してバリューを取ります。浅いSPRではポットを膨らませ、スタックを入れ切る設計が重要です。`;
+    if (liveDraw) return "強いドローの<b>セミブラフ</b>です。降ろせれば即利益、コールされても完成すれば大きく勝てる二重の勝ち筋があります。";
+    if (t === 3) return "中程度の強さは小さめの<b>ベット</b>とチェックの混合。薄く価値を取りつつ、相手のフロートに大きなポットを与えません。";
+    if (ctx.street === "flop" && d.dryBoard && ctx.role === "pfr") return "ドライなボードはプリフロップレイザーのレンジが有利。小さいサイズで高頻度に打つ<b>レンジベット</b>が機能します。";
+    if (river) return "リバーの<b>ブラフ</b>は、相手の中途半端な手を降ろす目的。バランスのため一定頻度で打ちますが、降ろせる相手か見極めが必要です。";
+    if (ctx.street === "turn") return "<b>2ndバレル(ターンの継続ベット)</b>です。フロップで主導権を取った側が、相手の弱いレンジにプレッシャーを掛け続けます。打ちすぎは禁物。";
+    return "エア〜弱い手も、レンジのバランスのため一定頻度で<b>ブラフ</b>に回します(相手に降りてもらって利益を得る)。打ちすぎは禁物です。";
   }
   if (ctx.facing === "bet") {
-    if (t >= 5) return "モンスターは浅いSPRならレイズ(オールイン)でバリュー最大化。深ければコールで相手のブラフを泳がせる選択もあります。";
+    if (t >= 5) return "モンスターは浅いSPRなら<b>レイズ(オールイン)</b>でバリュー最大化。深ければコールで相手のブラフを泳がせる選択もあります。";
     if (d.equity !== undefined && d.breakeven !== undefined) {
       return d.equity >= d.threshold
-        ? "エクイティが必要勝率を上回るため継続が正解です。"
+        ? "エクイティが必要勝率を上回るため<b>継続</b>が得になります。"
         : "エクイティが必要勝率に足りません。ここで支払い続けるとスタックが溶けます。";
     }
   }
