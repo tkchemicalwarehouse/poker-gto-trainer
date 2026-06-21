@@ -1009,7 +1009,7 @@ function showHUSplash(state) {
   // 相手犬(プレースホルダ=ドット絵・別配色)
   const ot = document.createElement("div"); ot.className = "hu-opp";
   const oImg = (typeof Dog !== "undefined" && Dog.oppImg) ? Dog.oppImg() : null;
-  if (oImg) ot.insertAdjacentHTML("beforeend", `<img class="hu-medal" src="${oImg}" alt="">`);
+  if (oImg) ot.insertAdjacentHTML("beforeend", `<div class="hu-face" style="background-image:url('${oImg}');${faceTune(typeof Dog !== "undefined" && Dog.oppId && Dog.oppId())}"></div>`);  // 顔だけ丸く切り抜き
   else if (typeof Dog !== "undefined" && Dog.oppSprite) { const c = Dog.oppSprite(10); if (c) { c.className = "hu-pix"; ot.appendChild(c); } }
   const oName = (typeof Dog !== "undefined" && Dog.oppName) ? Dog.oppName() : (opp.name || "RIVAL");
   ot.insertAdjacentHTML("beforeend", `<div class="hu-tag">${oName}　${opp.chips != null ? fmtBB(opp.chips) + "BB" : ""}</div>`);
@@ -1026,6 +1026,13 @@ function showHUSplash(state) {
   if (typeof Sfx !== "undefined") { try { Sfx.play("win"); } catch (e) { } }
   setTimeout(() => { ov.classList.add("out"); setTimeout(() => ov.remove(), 500); }, 2300);
 }
+
+// 顔切り抜きのキャラ別微調整(縦長イラストはズーム控えめ)。既定はCSS(.pov-face/.hu-face)
+const FACE_TUNE = {
+  bear: "background-size:150%;background-position:50% 2%",
+  unicorn: "background-size:165%;background-position:50% 5%",
+};
+function faceTune(id) { return FACE_TUNE[id] || ""; }
 
 // HUの大きなアクション表示(レイズ額・オールイン・コール等)
 function povActHTML(p) {
@@ -1046,7 +1053,7 @@ function renderHUPov(state) {
     const key = oImg ? ("img:" + oImg) : ("spr:" + (Dog.oppName ? Dog.oppName() : ""));
     if (od.dataset.k !== key) {
       od.dataset.k = key;
-      if (oImg) od.innerHTML = `<img class="pov-medal" src="${oImg}" alt="">`;
+      if (oImg) od.innerHTML = `<div class="pov-face" style="background-image:url('${oImg}');${faceTune(Dog.oppId && Dog.oppId())}"></div>`;  // 全身画像から顔だけ丸く切り抜き
       else { od.innerHTML = ""; const c = Dog.oppSprite && Dog.oppSprite(document.body.classList.contains("mode-phone") ? 7 : 9); if (c) { c.className = "pov-opp-pix"; od.appendChild(c); } }
     }
   }

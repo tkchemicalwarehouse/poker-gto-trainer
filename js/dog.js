@@ -285,25 +285,61 @@ const Dog = (() => {
     { id: "bear",    name: "熊" },
     { id: "unicorn", name: "馬" }
   ];
+  // 補充動物(37種)。主要8キャラと合わせて計45種。fam=ドット絵の体型, pal=配色
   var GENERIC = [
     { id: "g_usagi",   name: "兎", fam: "rabbit", pal: { O: "#e6e6ee", W: "#ffffff", M: "#f0a6c4" } },
     { id: "g_kitsune", name: "狐", fam: "fox",    pal: { O: "#e07a34", W: "#fff0e0", M: "#c85a22" } },
     { id: "g_ookami",  name: "狼", fam: "wolf",   pal: { O: "#8a8f98", W: "#dde2e8", M: "#3a3f48" } },
+    { id: "g_tanuki",  name: "狸", fam: "wolf",   pal: { O: "#9c7a4e", W: "#e8d8b8", M: "#4a3420" } },
+    { id: "g_koma",    name: "狛", fam: "wolf",   pal: { O: "#b8bcc4", W: "#eef0f4", M: "#6a6e76" } },
     { id: "g_shika",   name: "鹿", fam: "horse",  pal: { O: "#b07a44", W: "#f0e0c4", M: "#6e4420" } },
+    { id: "g_roba",    name: "驢", fam: "horse",  pal: { O: "#9a9aa0", W: "#d8d8de", M: "#5c5c64" } },
+    { id: "g_rakuda",  name: "駱", fam: "horse",  pal: { O: "#cda86a", W: "#efe0c0", M: "#8a6a38" } },
+    { id: "g_koma2",   name: "駒", fam: "horse",  pal: { O: "#6e4a30", W: "#e8d0b0", M: "#3a2614" } },
+    { id: "g_kirin",   name: "麒", fam: "horse",  pal: { O: "#e8c860", W: "#fff4c0", M: "#c08a20" } },
     { id: "g_buta",    name: "豚", fam: "bear",   pal: { O: "#e8a0b2", W: "#ffd8e2", M: "#c06078" } },
     { id: "g_hitsuji", name: "羊", fam: "bear",   pal: { O: "#ece6da", W: "#ffffff", M: "#c8b6a0" } },
     { id: "g_ushi",    name: "牛", fam: "bear",   pal: { O: "#5a5a60", W: "#ffffff", M: "#1c1c22" } },
-    { id: "g_saru",    name: "猿", fam: "cat",    pal: { O: "#9a6a3c", W: "#e2c4a2", M: "#5a3a1c" } },
-    { id: "g_washi",   name: "鷲", fam: "owl",    pal: { O: "#6a4a2c", W: "#e2d2b2", M: "#3a2a16" } },
-    { id: "g_kaeru",   name: "蛙", fam: "cat",    pal: { O: "#4caa52", W: "#c2f0c2", M: "#2a7a32" } },
+    { id: "g_inoshi",  name: "猪", fam: "bear",   pal: { O: "#6e5238", W: "#c8a878", M: "#3a2a18" } },
+    { id: "g_zou",     name: "象", fam: "bear",   pal: { O: "#9aa0a8", W: "#cfd4da", M: "#5c626a" } },
+    { id: "g_sai",     name: "犀", fam: "bear",   pal: { O: "#8a8e94", W: "#c0c4ca", M: "#4a4e54" } },
     { id: "g_kame",    name: "亀", fam: "bear",   pal: { O: "#4c8a5c", W: "#c2e0c2", M: "#2a5a3c" } },
-    { id: "g_nezumi",  name: "鼠", fam: "cat",    pal: { O: "#9a9aa2", W: "#dadae0", M: "#5c5c66" } }
+    { id: "g_baku",    name: "獏", fam: "bear",   pal: { O: "#3a3a44", W: "#e8e8ee", M: "#1a1a22" } },
+    { id: "g_saru",    name: "猿", fam: "cat",    pal: { O: "#9a6a3c", W: "#e2c4a2", M: "#5a3a1c" } },
+    { id: "g_nezumi",  name: "鼠", fam: "cat",    pal: { O: "#9a9aa2", W: "#dadae0", M: "#5c5c66" } },
+    { id: "g_kaeru",   name: "蛙", fam: "cat",    pal: { O: "#4caa52", W: "#c2f0c2", M: "#2a7a32" } },
+    { id: "g_hyou",    name: "豹", fam: "cat",    pal: { O: "#d8a838", W: "#f0dca0", M: "#3a2a14" } },
+    { id: "g_ten",     name: "貂", fam: "cat",    pal: { O: "#a4683a", W: "#e0c0a0", M: "#5a3418" } },
+    { id: "g_tsubame", name: "燕", fam: "owl",    pal: { O: "#2a3a52", W: "#e8e0d0", M: "#c0392b" } },
+    { id: "g_washi",   name: "鷲", fam: "owl",    pal: { O: "#6a4a2c", W: "#e2d2b2", M: "#3a2a16" } },
+    { id: "g_taka",    name: "鷹", fam: "owl",    pal: { O: "#7a5630", W: "#e8d8b8", M: "#4a3018" } },
+    { id: "g_kamo",    name: "鴨", fam: "owl",    pal: { O: "#3a6a4a", W: "#d8e4c0", M: "#2a4a32" } },
+    { id: "g_niwatori",name: "鶏", fam: "owl",    pal: { O: "#d8d2c4", W: "#ffffff", M: "#d4373e" } },
+    { id: "g_karasu",  name: "鴉", fam: "owl",    pal: { O: "#2a2a32", W: "#5a5a64", M: "#14141a" } },
+    { id: "g_hato",    name: "鳩", fam: "owl",    pal: { O: "#9a9aa4", W: "#d8d8e0", M: "#6a6a74" } },
+    { id: "g_suzume",  name: "雀", fam: "owl",    pal: { O: "#a08050", W: "#e8d8b8", M: "#5a4428" } },
+    { id: "g_tsuru",   name: "鶴", fam: "owl",    pal: { O: "#eef0f4", W: "#ffffff", M: "#d4373e" } },
+    { id: "g_sagi",    name: "鷺", fam: "owl",    pal: { O: "#e4e8ee", W: "#ffffff", M: "#9aa0a8" } },
+    { id: "g_kujira",  name: "鯨", fam: "shark",  pal: { O: "#5a6a8a", W: "#c0c8d8", M: "#2a3a5a" } },
+    { id: "g_koi",     name: "鯉", fam: "shark",  pal: { O: "#d87a30", W: "#f0d0a0", M: "#a04a10" } },
+    { id: "g_maguro",  name: "鮪", fam: "shark",  pal: { O: "#3a6a9a", W: "#c0d8e8", M: "#1a3a5a" } },
+    { id: "g_wani",    name: "鰐", fam: "shark",  pal: { O: "#5a7a4a", W: "#c0d8a0", M: "#2a4a2a" } },
+    { id: "g_shachi",  name: "鯱", fam: "shark",  pal: { O: "#2a2a30", W: "#ffffff", M: "#14141a" } }
   ];
-  // i番目のボットの正体を返す(0..7=CAST、以降=GENERIC循環。2周目以降は②)
+  // 全45種(主要8 + 補充37)を1つのプールにして、トーナメントごとにシャッフル → 均等な出現率
+  function buildPool() {
+    return CAST.map(function (c) { return { id: c.id, name: c.name, kind: "char" }; })
+      .concat(GENERIC.map(function (g) { return { id: g.id, name: g.name, kind: "generic", fam: g.fam, pal: g.pal }; }));
+  }
+  function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  var POOL_N = CAST.length + GENERIC.length; // 45
+  var bag = [];
+  // i番目のボットの正体。i%45==0で再シャッフル(重複なしで一巡)、一巡したら②付き
   function botIdentity(i) {
-    if (i < CAST.length) return { id: CAST[i].id, name: CAST[i].name, kind: "char" };
-    var k = i - CAST.length, g = GENERIC[k % GENERIC.length], rep = Math.floor(k / GENERIC.length);
-    return { id: g.id, name: g.name + (rep > 0 ? "②" : ""), kind: "generic", fam: g.fam, pal: g.pal };
+    if (i % POOL_N === 0) bag = shuffle(buildPool());
+    var e = bag[i % POOL_N] || buildPool()[0];
+    var rep = Math.floor(i / POOL_N);
+    return { id: e.id, name: e.name + (rep > 0 ? "②" : ""), kind: e.kind, fam: e.fam, pal: e.pal };
   }
 
   // キャラ(ボット)の配色・体型を解決
@@ -328,6 +364,7 @@ const Dog = (() => {
   /* ---- HUの相手 = 実際にヘッズアップまで残ったボットのキャラ ---- */
   var curOpp = { id: "cat", name: "猫", kind: "char" };
   function setOpponent(ch) { if (ch) curOpp = ch; }
+  function oppId() { return curOpp ? curOpp.id : null; }
   function pickOpponent() { curOpp = { id: CAST[0].id, name: CAST[0].name, kind: "char" }; return curOpp; } // 後方互換(通常はsetOpponentを使用)
   function oppName() { return curOpp ? curOpp.name : "RIVAL"; }
   function oppImg() { return (curOpp && curOpp.kind === "char") ? imgForId(curOpp.id) : null; } // イラストがある時だけ。generic は null
@@ -351,5 +388,5 @@ const Dog = (() => {
   ];
   function rivals() { return RIVALS; }
 
-  return { run, sign, victoryImgTag, hasImg, pawsCanvas, botIdentity, setOpponent, pickOpponent, oppName, oppImg, oppSprite, rivals, advisorChip, charSprite };
+  return { run, sign, victoryImgTag, hasImg, pawsCanvas, botIdentity, setOpponent, oppId, pickOpponent, oppName, oppImg, oppSprite, rivals, advisorChip, charSprite };
 })();
