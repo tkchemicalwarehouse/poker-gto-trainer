@@ -18,7 +18,7 @@ const Cosmetics = (() => {
     // 仲間(プレイヤーキャラ)。先頭=既定。img=カットイン/優勝用、runPal=走りドット絵の配色、chip=true でアドバイスボタンに画像表示。
     dogs: [
       { id: "jack",    name: "ジャックコギ",       icon: "🐕", img: "img/dogs/jack-corgi.webp", line: "いざ、勝負。", runPal: { O: "#d98e4a", W: "#fdf6ec", M: "#c0246b" }, cond: () => true,        goal: "最初の相棒" },
-      { id: "cat",     name: "トリックキャット",   icon: "🐱", img: "img/rivals/cat.webp",     chip: true, runPal: { O: "#9c5a2e", W: "#dca878", M: "#6e3a1f" }, cond: p => p.wins >= 10,  goal: "通算10勝で仲間に" },
+      { id: "cat",     name: "トリックキャット",   icon: "🐱", img: "img/dogs/trickcat.webp",  chip: true, runPal: { O: "#9c5a2e", W: "#dca878", M: "#6e3a1f" }, cond: p => p.wins >= 10,  goal: "通算10勝で仲間に" },
       { id: "bulldog", name: "ガチホ・ブル",       icon: "🐶", img: "img/rivals/bulldog.webp", chip: true, runPal: { O: "#4a6a8a", W: "#cdd8e4", M: "#243a52" }, cond: p => p.wins >= 20,  goal: "通算20勝で仲間に" },
       { id: "owl",     name: "オール・オウル",     icon: "🦉", img: "img/rivals/owl.webp",     chip: true, runPal: { O: "#4a4a52", W: "#c0c4c8", M: "#2a8f6a" }, cond: p => p.wins >= 30,  goal: "通算30勝で仲間に" },
       { id: "shark",   name: "オーシャンキング",   icon: "🦈", img: "img/rivals/shark.webp",   chip: true, runPal: { O: "#6a7a8a", W: "#d0d8e0", M: "#2a5ea8" }, cond: p => p.wins >= 40,  goal: "通算40勝で仲間に" },
