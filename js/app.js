@@ -289,14 +289,20 @@ function render(state) {
   if (hc) {
     const coachOpen = !$("coach-panel").classList.contains("hidden");
     hc.classList.toggle("hidden", coachOpen || state.street === "idle" || hero.out);
-    const hbb = +fmtBB(hero.chips);
+    // オールイン中は残り0なので「賭けている額(=負けると飛ぶ額)」を大きく表示
+    const hAllIn = hero.allIn && state.street !== "idle";
+    const hShow = hAllIn ? hero.committed : hero.chips;
+    const hbb = +fmtBB(hShow);
     const sgClsH = hbb < 10 ? "sg-danger" : hbb < 20 ? "sg-warn" : hbb < 35 ? "sg-ok" : "sg-big";
-    const htxt = hero.chips + "|" + sgClsH;
+    const htxt = hShow + "|" + sgClsH + "|" + (hAllIn ? "ai" : "");
     if (hc.dataset.t !== htxt) {
       hc.dataset.t = htxt;
-      hc.innerHTML =
-        `<div class="hc-bb ${sgClsH}-t">${fmtBB(hero.chips)}<span>BB</span></div>` +
-        `<div class="hc-chips">${fmtChips(hero.chips)}</div>`;
+      hc.innerHTML = hAllIn
+        ? `<div class="hc-allin">ALL-IN</div>` +
+          `<div class="hc-bb ${sgClsH}-t">${fmtBB(hero.committed)}<span>BB が勝負</span></div>` +
+          `<div class="hc-chips">${fmtChips(hero.committed)}</div>`
+        : `<div class="hc-bb ${sgClsH}-t">${fmtBB(hero.chips)}<span>BB</span></div>` +
+          `<div class="hc-chips">${fmtChips(hero.chips)}</div>`;
     }
   }
 
@@ -324,10 +330,13 @@ function render(state) {
     el.querySelector(".seat-name").innerHTML =
       `${p.name}<span class="pos-badge ${badgeCls}">${pos}</span>`;
     // スタックゲージ: BB量を色で表現(赤<10 / 黄10-20 / 緑20-35 / 青35+)
-    const bb = toBB(p.chips);
+    // オールイン中は残り0なので、代わりに「賭けている額(=負けると飛ぶ額)」を表示する
+    const allIn = p.allIn && state.street !== "idle";
+    const bb = allIn ? toBB(p.committed) : toBB(p.chips);
     const sgCls = bb < 10 ? "sg-danger" : bb < 20 ? "sg-warn" : bb < 35 ? "sg-ok" : "sg-big";
-    el.querySelector(".seat-stack").innerHTML =
-      `${fmtChips(p.chips)} <span class="bb ${sgCls}-t">(${fmtBB(p.chips)}BB)</span>`;
+    el.querySelector(".seat-stack").innerHTML = allIn
+      ? `<span class="allin-badge">ALL-IN</span> <span class="bb ${sgCls}-t">${fmtBB(p.committed)}BB</span> <span class="seat-risk">が勝負</span>`
+      : `${fmtChips(p.chips)} <span class="bb ${sgCls}-t">(${fmtBB(p.chips)}BB)</span>`;
     const fill = el.querySelector(".sg-fill");
     fill.className = "sg-fill " + sgCls;
     fill.style.width = Math.min(100, bb / 40 * 100) + "%";
