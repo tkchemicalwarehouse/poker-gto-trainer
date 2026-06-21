@@ -133,6 +133,34 @@ const Dog = (() => {
   var RAB_LA = ["..KO........KO....", "..KK........KK...."];
   var RAB_LB = ["....KO....KO......", "....KK....KK......"];
 
+  // 狐 — 尖り耳・スリム胴・白い先の房尾(尾先=W)
+  var FOX_UP = [
+    "............K.K..",
+    ".W.........KOKOK.",
+    ".WW.......KOOOOK.",
+    ".WMWKKKKKKOOOWOK.",
+    ".WMOOOOOOOOOOONK.",
+    ".KMOOOOOOOOOOOPK.",
+    ".KOOOOOOOOOOOK...",
+    ".KWWWWWWWWWWK...."
+  ];
+  var FOX_LA = ["..KO........KO....", "..KK........KK...."];
+  var FOX_LB = ["....KO....KO......", "....KK....KK......"];
+
+  // 狼 — 大柄・尖り耳・背に暗いサドル(M)・房尾
+  var WOLF_UP = [
+    "...........K.K...",
+    "..K.......KOKOK..",
+    ".KOK.....KOOOOOK.",
+    ".KOOKKKKKMMOOWOK.",
+    ".KOOOOOMMMMOOONK.",
+    ".KOOOOOOMMMOOOPK.",
+    ".KOOOOOOOOOOOOK..",
+    ".KWWWWWWWWWWWK..."
+  ];
+  var WOLF_LA = ["..KO.........KO...", "..KK.........KK..."];
+  var WOLF_LB = ["....KO.....KO.....", "....KK.....KK....."];
+
   var FAM = {
     dog:    { body: DOG_UP,   la: DOG_LA,   lb: DOG_LB },
     cat:    { body: CAT_UP,   la: CAT_LA,   lb: CAT_LB },
@@ -141,7 +169,9 @@ const Dog = (() => {
     shark:  { body: SHARK_UP, la: SHARK_LA, lb: SHARK_LB },
     bear:   { body: BEAR_UP,  la: BEAR_LA,  lb: BEAR_LB },
     horse:  { body: HORSE_UP, la: HORSE_LA, lb: HORSE_LB },
-    rabbit: { body: RAB_UP,   la: RAB_LA,   lb: RAB_LB }
+    rabbit: { body: RAB_UP,   la: RAB_LA,   lb: RAB_LB },
+    fox:    { body: FOX_UP,   la: FOX_LA,   lb: FOX_LB },
+    wolf:   { body: WOLF_UP,  la: WOLF_LA,  lb: WOLF_LB }
   };
 
   // 前足(HU POV前景の手) 種別
@@ -257,8 +287,8 @@ const Dog = (() => {
   ];
   var GENERIC = [
     { id: "g_usagi",   name: "兎", fam: "rabbit", pal: { O: "#e6e6ee", W: "#ffffff", M: "#f0a6c4" } },
-    { id: "g_kitsune", name: "狐", fam: "dog",    pal: { O: "#e07a34", W: "#fff0e0", M: "#a8431a" } },
-    { id: "g_ookami",  name: "狼", fam: "dog",    pal: { O: "#8a8f98", W: "#dde2e8", M: "#33373f" } },
+    { id: "g_kitsune", name: "狐", fam: "fox",    pal: { O: "#e07a34", W: "#fff0e0", M: "#c85a22" } },
+    { id: "g_ookami",  name: "狼", fam: "wolf",   pal: { O: "#8a8f98", W: "#dde2e8", M: "#3a3f48" } },
     { id: "g_shika",   name: "鹿", fam: "horse",  pal: { O: "#b07a44", W: "#f0e0c4", M: "#6e4420" } },
     { id: "g_buta",    name: "豚", fam: "bear",   pal: { O: "#e8a0b2", W: "#ffd8e2", M: "#c06078" } },
     { id: "g_hitsuji", name: "羊", fam: "bear",   pal: { O: "#ece6da", W: "#ffffff", M: "#c8b6a0" } },
