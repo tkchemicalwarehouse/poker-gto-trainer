@@ -1032,8 +1032,10 @@ function renderHUPov(state) {
   const oImg = (typeof Dog !== "undefined" && Dog.oppImg) ? Dog.oppImg() : null;
   if (od && oImg) { const cur = od.querySelector("img"); if (!cur || cur.getAttribute("src") !== oImg) od.innerHTML = `<img class="pov-medal" src="${oImg}" alt="">`; }
   // 相手の手札(オールイン後のランアウト or ショーダウンで表向き)
+  // setCardsで変化時のみ差し替え(毎renderで再注入すると配牌アニメが再発火し点滅・消失する)
   const showOpp = opp && opp.showCards && !opp.folded;
-  $("pov-opp-cards").innerHTML = !opp ? "" : (opp.folded ? "" : (showOpp ? opp.cards.map(c => cardHTML(c, true)).join("") : backHTML(true) + backHTML(true)));
+  const oppKey = !opp ? "none" : (opp.folded ? "fold" : (showOpp ? "o" + opp.cards.join(",") : "back"));
+  setCards($("pov-opp-cards"), oppKey, !opp ? "" : (opp.folded ? "" : (showOpp ? opp.cards.map(c => cardHTML(c, true)).join("") : backHTML(true) + backHTML(true))));
   const oName = (typeof Dog !== "undefined" && Dog.oppName) ? Dog.oppName() : (opp ? opp.name : "");
   $("pov-opp-info").innerHTML = opp ? `${oName}　<b>${fmtChips(opp.chips)} (${fmtBB(opp.chips)}BB)</b>` : "";
   // 大きなアクション表示(相手・自分)
@@ -1050,11 +1052,11 @@ function renderHUPov(state) {
   }
   // 場札・ポット・チップ
   const pot = potTotal(state);
-  $("pov-board").innerHTML = state.board.map(c => cardHTML(c)).join("");
+  setCards($("pov-board"), "b" + state.board.join(","), state.board.map(c => cardHTML(c)).join(""));
   $("pov-pot").innerHTML = `ポット ${fmtChips(pot)} (${fmtBB(pot)}BB)`;
   $("pov-chips").innerHTML = chipStackHTML(pot, false, 8);
   // 自分の手札・スタック
-  $("pov-hole").innerHTML = (hero.cards && hero.cards.length) ? hero.cards.map(c => cardHTML(c)).join("") : "";
+  setCards($("pov-hole"), (hero.cards && hero.cards.length) ? "h" + hero.cards.join(",") : "none", (hero.cards && hero.cards.length) ? hero.cards.map(c => cardHTML(c)).join("") : "");
   $("pov-hero-info").innerHTML = `<b style="color:#5fd492">YOU</b>　<b>${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)</b>`;
   // 前景の手(一度だけ生成)
   const pw = $("pov-paws");
