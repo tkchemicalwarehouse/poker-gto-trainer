@@ -1,7 +1,7 @@
 "use strict";
 /* ============================================================
  * 検証台帳(Verification Ledger)
- * Claudeが【実際に】行った「均衡計算・整合性検証・シミュレーション」の累積実数。
+ * AIが【実際に】行った「均衡計算・整合性検証・シミュレーション」の累積実数。
  *
  * ★誠実さの憲章★ 見せかけで勝手に増やさない。本物の作業量だけを数える。
  *   - eq    : 均衡求解(ソルバー)内部のEV評価回数。analyticな概算は approx:true で明示。
@@ -52,7 +52,7 @@ const VERIFICATION_LEDGER = {
     const host = document.getElementById("verify-counter");
     if (!host) return;
     host.innerHTML =
-      `<div class="vfc-head"><span class="vfc-ico">🤖</span><span>Claudeの計算・検証 <b>累計</b></span></div>` +
+      `<div class="vfc-head"><span class="vfc-ico">🤖</span><span>AIの計算・検証 <b>累計</b></span></div>` +
       `<div class="vfc-grand" id="vfc-grand">0</div>` +
       `<div class="vfc-grand-cap">回 = 均衡計算 + 整合性検証 + シミュレーション</div>` +
       `<div class="vfc-grid">` +
@@ -60,7 +60,7 @@ const VERIFICATION_LEDGER = {
         `<div class="vfc-cell"><div class="vfc-n" id="vfc-checks">0</div><div class="vfc-l">整合性検証</div></div>` +
         `<div class="vfc-cell"><div class="vfc-n" id="vfc-hands">0</div><div class="vfc-l">シミュレーション<span class="vfc-approx">hands</span></div></div>` +
       `</div>` +
-      `<div class="vfc-note">Claudeが<b>実際に</b>行った計算の実数(均衡計算は計算量からの概算=「約」)。見せかけで増やさず、アプリ改善・検証のたびに増加。最終更新 ${VERIFICATION_LEDGER.updated}</div>`;
+      `<div class="vfc-note">AIが<b>実際に</b>行った計算の実数(均衡計算は計算量からの概算=「約」)。見せかけで増やさず、アプリ改善・検証のたびに増加。最終更新 ${VERIFICATION_LEDGER.updated}</div>`;
     // 入場時のカウントアップ演出(=描画上の演出であり、リアルタイム計算を主張するものではない)
     animateNum(document.getElementById("vfc-grand"), T.grand, 1700);
     animateNum(document.getElementById("vfc-eq"), T.eq, 1700);
