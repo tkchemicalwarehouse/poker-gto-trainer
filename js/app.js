@@ -1742,8 +1742,9 @@ window.addEventListener("DOMContentLoaded", () => {
     const hb = localStorage.getItem("pgt_herobb");
     if (hb) $("hero-bb").value = hb;
   } catch (e) { }
-  // ホームの対決シーン(KIM DWAN vs NGUYEN)
-  if (typeof Scene !== "undefined") Scene.mount($("scene-home"));
+  // ホームの対決シーン(プレビュー枠は撤去済み。要素があれば従来どおりマウント)
+  const _sceneHome = $("scene-home");
+  if (typeof Scene !== "undefined" && _sceneHome) Scene.mount(_sceneHome);
   $("btn-mute").textContent = Sfx.isMuted() ? "🔇" : "🔊";
   $("btn-mute").onclick = () => { $("btn-mute").textContent = Sfx.toggle() ? "🔇" : "🔊"; };
   $("coach-report").onclick = copyReport;

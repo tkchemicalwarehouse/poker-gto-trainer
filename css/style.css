@@ -1925,16 +1925,18 @@ body[data-fx="min"] #hu-splash{animation:none}
  * ヘッズアップ 一人称(POV)プレイ画面
  * 上=相手犬(卓の向こう)/中=場札+ポット+チップ/下=自分の手(コーギー)
  * ========================================================= */
-#hu-pov{position:relative;display:flex;flex-direction:column;align-items:center;width:min(96vw,560px);margin:8px auto;padding:10px 10px 6px;border-radius:18px;overflow:hidden;background:radial-gradient(ellipse at 50% 50%,#1f7a52 0%,#15573a 60%,#0e3a26 100%);box-shadow:inset 0 0 60px rgba(0,0,0,.45),0 12px 34px rgba(0,0,0,.5)}
-body.mode-phone #hu-pov{flex:1;width:96vw;margin:6px auto}
-body:not(.mode-phone) #hu-pov{height:min(70vh,560px)}
+#hu-pov{position:relative;display:flex;flex-direction:column;align-items:center;width:min(96vw,560px);margin:8px auto;padding:8px 10px 6px;border-radius:18px;overflow:hidden;background:radial-gradient(ellipse at 50% 50%,#1f7a52 0%,#15573a 60%,#0e3a26 100%);box-shadow:inset 0 0 60px rgba(0,0,0,.45),0 12px 34px rgba(0,0,0,.5)}
+/* 1画面に収める: 縦に伸びる余白(felt)だけが縮み、ページ自体はスクロールさせない */
+body.mode-phone #hu-pov{flex:1 1 0;min-height:0;width:96vw;margin:4px auto;padding:6px 8px 4px}
+body:not(.mode-phone) #hu-pov{height:min(72vh,560px)}
+#hu-pov .pov-opp,#hu-pov .pov-hero,#hu-pov .pov-edge{flex:0 0 auto}
 #hu-pov .pov-opp{text-align:center}
 #hu-pov .pov-opp-dog canvas{image-rendering:pixelated;display:block;margin:0 auto;filter:drop-shadow(0 6px 8px rgba(0,0,0,.5))}
 #hu-pov .pov-opp-cards{display:flex;gap:5px;justify-content:center;margin-top:2px;min-height:36px}
 #hu-pov .pov-info{font-size:12.5px;color:#eef3f8;margin-top:3px}
 #hu-pov .pov-info b{color:var(--gold-2)}
-#hu-pov .pov-edge{width:130%;height:16px;margin:4px 0 2px;background:linear-gradient(#2c2016,#16100a);box-shadow:0 8px 16px rgba(0,0,0,.45);border-radius:50%}
-#hu-pov .pov-felt{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;width:100%}
+#hu-pov .pov-edge{width:130%;height:14px;margin:3px 0 2px;background:linear-gradient(#2c2016,#16100a);box-shadow:0 8px 16px rgba(0,0,0,.45);border-radius:50%}
+#hu-pov .pov-felt{position:relative;flex:1 1 0;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;width:100%;overflow:hidden}
 #hu-pov .pov-board{display:flex;gap:5px;justify-content:center;min-height:50px}
 #hu-pov .pov-pot{background:rgba(0,0,0,.4);border:1px solid rgba(231,189,82,.32);border-radius:999px;padding:3px 13px;color:var(--gold-2);font-weight:700;font-size:13px}
 #hu-pov .pov-chips{display:flex;justify-content:center}
@@ -1942,6 +1944,16 @@ body:not(.mode-phone) #hu-pov{height:min(70vh,560px)}
 #hu-pov .pov-hole{display:flex;gap:8px;justify-content:center;position:relative;z-index:2}
 #hu-pov .pov-paws{display:flex;justify-content:center;margin-top:-6px}
 #hu-pov .pov-paws canvas{image-rendering:pixelated}
+/* カード/メダル/前足を高さ相対サイズにして短い画面でも収める */
+#hu-pov .card{width:clamp(30px,7.4vh,42px);height:clamp(42px,10.4vh,58px);font-size:clamp(12px,3vh,16px)}
+#hu-pov .pov-paws canvas{height:clamp(52px,13vh,120px);width:auto}
+body.mode-phone #hu-pov .pov-medal{width:clamp(70px,15vh,140px)}
+body.mode-phone #hu-pov .pov-opp-dog canvas{height:clamp(60px,14vh,120px);width:auto}
+body.mode-phone #hu-pov .pov-opp-cards,body.mode-phone #hu-pov .pov-board{min-height:0;gap:4px}
+body.mode-phone #hu-pov .pov-info{font-size:11.5px;margin-top:2px}
+body.mode-phone #hu-pov .pov-act{min-height:0;margin:1px 0}
+body.mode-phone #hu-pov .pa-pill{padding:3px 12px}
+body.mode-phone #hu-pov .pov-paws{margin-top:-4px}
 /* HU 大きなアクション表示(レイズ額・オールイン・コール等) */
 #hu-pov .pov-act{min-height:30px;display:flex;justify-content:center;align-items:center;margin:3px 0}
 #hu-pov .pov-hero .pov-act{margin-bottom:1px}
