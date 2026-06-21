@@ -110,11 +110,13 @@ function gradeDecision(ctx, advice, chosenId, act, opts) {
     const m = Math.abs(d.marginBB);
     verdict = m < 2.5 ? "minor" : "blunder";
   }
-  // 有効18BB以上でのノンオールイン3ベットは正解の一つとして許容
-  // (本アプリのゲーム木はジャムに単純化しているが、実GTOは小さい3ベットも混ぜる)
-  if (d.kind === "facingOpen" && advice.primary === "jam" && chosen === "raise" && ctx.effBB >= 18 &&
+  // F: ジャム推奨に対する非ジャムの参加(本アプリのゲーム木はジャムに単純化。実GTOは別の線も混ぜる)。
+  //   ・有効15BB以上のノンオールイン3ベット(raise)= 正解の一つ(mixed)。
+  //   ・推奨ジャムの手をフラット(call)= 「参加はしている」線の違い。大ミスではなく minor。
+  if (d.kind === "facingOpen" && advice.primary === "jam" &&
       (verdict === "minor" || verdict === "blunder")) {
-    verdict = "mixed";
+    if (chosen === "raise" && ctx.effBB >= 15) verdict = "mixed";
+    else if (chosen === "call") verdict = "minor";
   }
   // ===== EVとICMが割れたら「ミス」でなく「注意」。両方が違うと言った時だけ「ミス」 =====
   // (ユーザー方針: チップEVの理屈とICMの理屈を統合して1つの正解にしない)
@@ -679,8 +681,8 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
       lines.push(`<p>${hand} はリジャムにもコールにも届きません。${ctx.posIdx === POS_BB ? "BBのポットオッズをもってしても継続は-EVです。" : "ポジション外から弱いハンドで参加すると、その後の全ストリートで損をし続けます。"}</p>`);
     }
     if (correct === "jam") { const bn = blockerNote(hand); if (bn) lines.push(`<p>${bn}</p>`); }
-    if (correct === "jam" && chosen === "raise" && ctx.effBB >= 18) {
-      lines.push(`<p>💡 <b>あなたのノンオールイン3ベットも正解の一つです。</b>本アプリのゲーム木は浅いスタックの標準に合わせて「ジャムかフォールド」に単純化していますが、有効18BB以上の実際のGTOは約3〜3.5倍の小さい3ベットも混ぜます(4ベットジャムされた時の対応計画はセットで)。</p>`);
+    if (correct === "jam" && chosen === "raise" && ctx.effBB >= 15) {
+      lines.push(`<p>💡 <b>あなたのノンオールイン3ベットも正解の一つです。</b>本アプリのゲーム木は浅いスタックの標準に合わせて「ジャムかフォールド」に単純化していますが、有効15BB以上の実際のGTOは約3〜3.5倍の小さい3ベットも混ぜます(4ベットジャムされた時の対応計画はセットで)。</p>`);
     }
     // FTのICM判定(両者一致時のみ。割れる場合は上の splitBox で既に説明済み)
     if (d.icmJamEval && !(d._ftSplit && verdict === "caution")) {
