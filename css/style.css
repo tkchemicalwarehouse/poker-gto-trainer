@@ -408,7 +408,7 @@ body.mode-phone .prebar-row button { font-size: 12px; padding: 8px 3px; min-widt
 .v-caution { background: #7a5a1c; color: #fff; }
 .v-bluff { background: #6d3a9e; color: #fff; }
 .v-minor { background: #9a7a1f; color: #fff; }
-.v-blunder { background: #a13343; color: #fff; }
+.v-blunder { background: #3f5278; color: #fff; } /* 「重点検証」= 怒りの赤ではなく落ち着いた検証色(スレートブルー) */
 .v-best-t { color: var(--green); }
 .v-mixed-t { color: var(--accent); }
 .v-minor-t { color: var(--gold); }

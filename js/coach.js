@@ -3,13 +3,14 @@
  * ========================================================= */
 "use strict";
 
+// ★トーンの方針★ 採点者ではなく「検証パートナー」。怒る/警告ではなく「ここで検証・学ぶ」枠で示す。
 const VERDICT_INFO = {
-  best:    { label: "✓ GTO通り",          cls: "v-best",    score: 10 },
-  mixed:   { label: "✓ OK(混合戦略)",     cls: "v-mixed",   score: 10 },
-  caution: { label: "⚠ 注意(EVとICMで割れる)", cls: "v-caution", score: 8 },
-  bluff:   { label: "🃏 ナイスブラフ",     cls: "v-bluff",   score: 8 },
-  minor:   { label: "△ 僅かなミス",       cls: "v-minor",   score: 4 },
-  blunder: { label: "✗ ブランダー",       cls: "v-blunder", score: 0 },
+  best:    { label: "✓ GTO一致",            cls: "v-best",    score: 10 },
+  mixed:   { label: "✓ OK(混合戦略)",       cls: "v-mixed",   score: 10 },
+  caution: { label: "⚖️ 検証ポイント(EVとICMで割れる)", cls: "v-caution", score: 8 },
+  bluff:   { label: "🃏 ナイスブラフ",       cls: "v-bluff",   score: 8 },
+  minor:   { label: "💡 ここで一歩(僅差)",   cls: "v-minor",   score: 4 },
+  blunder: { label: "🔍 重点検証ポイント",   cls: "v-blunder", score: 0 },
 };
 
 /* ---------- 語彙の多様化(同じ表現を連続で出さない) ---------- */
@@ -52,18 +53,18 @@ const COACH_VOICE = {
     "悪くない仕掛けだ。あとは「相手が降りるか」の読み次第。",
   ],
   minor: [
-    "惜しい。方向は合っているが、詰めが甘い。",
-    "悪くないが、ベストではない。理由を見ておこう。",
-    "小さな漏れだ。塵も積もれば、になる前に直そう。",
-    "大事故ではない。だが上手い人はここを取りこぼさない。",
-    "方針は正解。あと一歩の精度だ。",
+    "あと一歩。方向は合っている — 詰めどころを下で見ておこう。",
+    "ベストにわずかに届かず。理由が分かれば精度が上がる。",
+    "小さな差。ここを拾えると一段伸びる。",
+    "方針は良い。あとは精度だけ — さっと検証しておこう。",
+    "ニアミス。次に活かせる学びがある局面だ。",
   ],
   blunder: [
-    "ここは見過ごせない。なぜダメか、しっかり残そう。",
-    "止まれ。これは長期で確実に削られる選択だ。",
-    "痛い一手。でも、ここで気づけば財産になる。",
-    "明確なミス。感情ではなく数字で決めよう。",
-    "これは高くつく。理由を理解すれば二度と踏まない。",
+    "ここはじっくり検証する価値のある一手。数字で見てみよう。",
+    "差が大きく出た局面。理由が分かれば次に確実に活きる。",
+    "学びの多いスポット。なぜそうなるか、下で確認しよう。",
+    "ここは要チェック。感覚と計算のズレを埋める好機だ。",
+    "重要な分岐点。落ち着いて根拠を見ておこう。",
   ],
 };
 
@@ -559,9 +560,9 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
           m >= 1.5 ? `ジャム圏内(余裕${m.toFixed(1)}BB)` : `ぎりぎりジャム圏内(余裕${m.toFixed(1)}BB)`;
         lines.push(`<p>${comfort}。` +
           (chosen === "fold" ? pickVar("foldMiss", [
-            "ここで降りると、ブラインド+アンティの<b>2.5BB</b>を毎周みすみす献上することになる。",
-            "降りるたびに<b>2.5BB</b>の置きチップを相手にプレゼントしている計算だ。",
-            "フォールドは「確実に取れる2.5BB」を捨てる行為。浅い卓では命取りになる。",
+            "フォールドだと、ポットの<b>2.5BB</b>(ブラインド+アンティ)を取りにいかない計算になります。",
+            "ジャムはこの<b>2.5BB</b>を狙う一手。フォールドはその分の期待値を見送る形です。",
+            "浅い卓では、この<b>2.5BB</b>を拾えるかが積み重なって差になります。",
           ]) : "") + `</p>`);
       } else {
         const sever = -m >= 4 ? pickVar("jamOut", [
@@ -677,7 +678,7 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
     } else if (correct === "jam" && chosen === "call") {
       lines.push(`<p>コールよりリジャム推奨です。有効${bb0(ctx.effBB)}BBではポストフロップの技術介入余地が小さく、フォールドエクイティを取れるジャムの方がEVが高くなります。</p>`);
     } else if (correct === "call" && chosen === "fold") {
-      lines.push(`<p>必要勝率は約<b>${pct(ctx.toCallBB / (ctx.potBB + ctx.toCallBB))}</b>と安く、${hand} はコールレンジ内。ここを全部降りるとブラインドの搾取に対して無防備になります。</p>`);
+      lines.push(`<p>必要勝率は約<b>${pct(ctx.toCallBB / (ctx.potBB + ctx.toCallBB))}</b>と安く、${hand} はコールレンジ内です。理論上はここでコールして守る方が、長期の期待値は高くなる計算です。</p>`);
     } else if (correct === "call" && chosen === "jam") {
       lines.push(`<p>${hand} はジャムするには弱く、捨てるには強い「コール向き」のハンドです。ジャムだと相手の継続レンジ(上位${d.rejamPct.toFixed(0)}%級)に対して分が悪くなります。</p>`);
     } else if (correct === "fold" && (chosen === "call" || chosen === "jam")) {
@@ -732,32 +733,32 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
     const eqs = `勝率<b>${pct(d.equity)}</b> ${callRight ? "≥" : "＜"} 必要<b>${pct(thr)}</b>`;
     let headline;
     if (hint) {
-      // 決定前ヒント: 採点ではなく中立に推奨を提示
+      // 決定前ヒント: 中立に推奨を提示
       headline = callRight
-        ? `推奨は<b>コール</b>。${eqs} なので受けるのが+EVです。`
-        : `推奨は<b>フォールド</b>。${eqs} なので降りるのが正解です。`;
+        ? `理論上は<b>コール</b>が+EV。${eqs} の計算です。`
+        : `理論上は<b>フォールド</b>が+EV。${eqs} の計算です。`;
     } else if (callRight) {
-      // コールが正解
+      // 計算上はコールが+EV
       if (matched) headline = pickVar("callRightYes", [
-          `ナイスコール。${eqs}で、受けて正解。`,
-          `その通り、ここはコール。${eqs}。`,
-          `よく受けた。エクイティが必要勝率を上回っている(${eqs})。`,
+          `計算どおりコール。エクイティが必要勝率を上回っています(${eqs})。`,
+          `その判断でOK。${eqs} で受けるのが+EVです。`,
+          `ナイス。${eqs} でコールが+EVの局面です。`,
         ]);
       else headline = pickVar("callRightNo", [
-          `もったいない。本当は<b>コール</b>が正解だった(${eqs})。降りると取れる利益を逃す。`,
-          `ここはコールすべきだった。${eqs}で、フォールドは損。`,
+          `理論上は<b>コール</b>が+EVの局面です(${eqs})。フォールドでも損はしませんが、長期ではこの+EV分を見送る形になります。`,
+          `計算上は${eqs}でコールが+EV。ここは受けに回ると期待値が高い局面です。`,
         ]);
     } else {
-      // フォールドが正解
+      // 計算上はフォールドが+EV
       if (matched) headline = pickVar("foldRightYes", [
-          `ナイスフォールド。${eqs}だから、降りて正解。`,
-          `正しく降りた。${eqs}で、コールは損だった。`,
-          `その判断でいい。エクイティが必要勝率に届かない(${eqs})。`,
+          `計算どおりフォールド。${eqs} なので降りるのが+EVです。`,
+          `その判断でOK。エクイティが必要勝率に届かない計算です(${eqs})。`,
+          `ナイス。${eqs} でフォールドが+EVの局面です。`,
         ]);
       else headline = pickVar("foldRightNo", [
-          `ここは<b>フォールド</b>が正解。${eqs}で、コールは長期で損になる。`,
-          `降りるべきだった。${eqs} — 受けるとEVを失う。`,
-          `この手は捨て場。${eqs}でコールは割に合わない。`,
+          `理論上は<b>フォールド</b>が+EVの局面です(${eqs})。コールのEVは長期ではマイナスの計算になります。`,
+          `計算上は${eqs}で、コールの期待値は長期でマイナス。フォールドが+EVです。`,
+          `この手はエクイティが必要勝率に届かず(${eqs})、コールは期待値マイナスの計算です。`,
         ]);
     }
     lines.push(`<p>${headline}</p>`);
@@ -776,8 +777,8 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
     }
     if (Math.abs(eqMargin) < 0.015) lines.push(`<p>勝率と必要勝率がほぼ同じ<b>無差別点</b>です。${MIX_WHY}</p>`);
     if (callRight) { const bn = blockerNote(hand); if (bn) lines.push(`<p>${bn}</p>`); }
-    if (chosen === "call" && ev < -0.3) lines.push(`<p>「ここまで来たら…」の感情コールは分散ではなくミスです。数字はフォールドと言っています。</p>`);
-    if (chosen === "fold" && ev > 0.3) lines.push(`<p>トーナメントの勝者は、この+EVコールを淡々と積み重ねた人です。</p>`);
+    if (chosen === "call" && ev < -0.3) lines.push(`<p>「ここまで来たら」という気持ちは自然ですが、この局面の計算上はフォールドが+EV。気持ちと数字を切り分けて見るのが上達のコツです。</p>`);
+    if (chosen === "fold" && ev > 0.3) lines.push(`<p>この+EVコールを淡々と積み重ねられるかが、長期の成績を分けます。</p>`);
     // 📐 計算方法
     const potC = ctx.potBB, callC = ctx.toCallBB;
     lines.push(calcBox("📐 コール判断の計算方法(3ステップ)",
@@ -913,7 +914,7 @@ function postflopReason(ctx, advice, chosen) {
     if (d.equity !== undefined && d.breakeven !== undefined) {
       return d.equity >= d.threshold
         ? "エクイティが必要勝率を上回るため<b>継続</b>が得になります。"
-        : "エクイティが必要勝率に足りません。ここで支払い続けるとスタックが溶けます。";
+        : "エクイティが必要勝率に届かないため、理論上はここで降りる方が長期の期待値は高い計算です。";
     }
   }
   if (ctx.facing === "raiseAllin") {

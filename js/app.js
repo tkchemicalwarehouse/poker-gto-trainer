@@ -935,8 +935,8 @@ async function resumeTournament() {
 function tallySummaryHTML() {
   const okRate = tally.decisions > 0 ? ((tally.best + tally.mixed) / tally.decisions * 100) : 100;
   return `<p>判断数: <b>${tally.decisions}</b>　GTO一致率: <b>${okRate.toFixed(1)}%</b><br>
-    内訳 — ✓GTO通り ${tally.best} / ✓混合 ${tally.mixed} / △僅差 ${tally.minor} / ✗ブランダー ${tally.blunder}<br>
-    ミスによる累計EV損失: <b>${tally.evLost.toFixed(2)} BB</b></p>`;
+    内訳 — ✓GTO一致 ${tally.best} / ✓混合 ${tally.mixed} / 💡僅差 ${tally.minor} / 🔍重点検証 ${tally.blunder}<br>
+    検証ポイントの累計EV差: <b>${tally.evLost.toFixed(2)} BB</b></p>`;
 }
 
 function recordTournament(result, place) {
@@ -1290,7 +1290,7 @@ function renderStats() {
       <div class="stat-card"><div class="num">🏆${wins}</div><div class="lbl">優勝回数</div></div>
       <div class="stat-card"><div class="num">${avgHands.toFixed(1)}</div><div class="lbl">平均生存ハンド</div></div>
       <div class="stat-card"><div class="num">${dec ? (ok / dec * 100).toFixed(1) : "—"}%</div><div class="lbl">GTO一致率</div></div>
-      <div class="stat-card"><div class="num">${blunders}</div><div class="lbl">ブランダー数</div></div>
+      <div class="stat-card"><div class="num">${blunders}</div><div class="lbl">重点検証</div></div>
       <div class="stat-card"><div class="num">${evLost.toFixed(1)}BB</div><div class="lbl">累計EV損失(推定)</div></div>
       <div class="stat-card"><div class="num">${busts.length ? (varBusts / busts.length * 100).toFixed(0) : "—"}%</div><div class="lbl">分散によるバスト率</div></div>
     </div>
@@ -1353,7 +1353,7 @@ function renderDrill() {
 function showQuiz() {
   const s = drillState, body = $("drill-body");
   if (!s.spots.length) {
-    body.innerHTML = `<p>復習する弱点がまだありません 🎉<br>実戦でミス(△僅差・✗ブランダー)が出ると、その局面がここに溜まり、間隔反復で復習できます。<br>成績画面の「🎯 あなたの弱点TOP3」と連動しています。</p>`;
+    body.innerHTML = `<p>復習する検証ポイントがまだありません 🎉<br>実戦で検証ポイント(💡僅差・🔍重点検証)が出ると、その局面がここに溜まり、間隔反復で復習できます。<br>成績画面の「🎯 あなたの弱点TOP3」と連動しています。</p>`;
     return;
   }
   if (s.i >= s.spots.length) {
