@@ -635,6 +635,9 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
     const openerDesc = d.hu ? "<b>ヘッズアップ</b>のSBオープン(超ワイドレンジ)" : `${d.openerClass}ポジションからのオープン`;
     lines.push(`<p>${openerDesc}に対する有効${bb0(ctx.effBB)}BBの戦略: リジャム上位 <b>${d.rejamPct.toFixed(1)}%</b>` +
       (d.callRange ? ` / コール <b>${d.callPct.toFixed(1)}%</b>` : " / コールなし(ジャムかフォールド)") + `。</p>`);
+    if (d.smallThreeBet) {
+      lines.push(`<p>💡 この深さでは<b>「レイズ」=小さい3ベット(刻む)</b>を頻度で混ぜます — オールインせず<b>フォールド余地を残す</b>線です。AA/KK/AK/AQは入れ切り(ジャム)寄り、JJ等のバリューは刻み寄り。<span class="dim">(ツリー単純化下のモデル近似。頻度はランダムに混ぜるのが正解)</span></p>`);
+    }
     if (isPremium(hand)) {
       // AA/KKは「○BBでジャム」「ぎりぎり圏内」のような限界ハンド扱いをしない
       lines.push(`<p>${PREMIUM_NOTE}</p>`);

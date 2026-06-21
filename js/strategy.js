@@ -255,6 +255,18 @@ function icmJamEval(icmCtx, pFoldAll, eqVsCall) {
  * }
  * 戻り値: { freqs: {fold,call,raise,jam}, primary, data }
  * ========================================================= */
+/* 深いスタックでの「小さい3ベット(刻む)」頻度配分(ヒューリスティック近似・本物のCFRではない)。
+ * 戻り: 攻撃(ジャム)頻度のうち、オールインせず刻む小3ベットに回す割合(0..1)。
+ * effBB<16 は刻む余地が乏しくジャム/フォールド主体=0。ナット/ポラー(AA/KK/AK/AQ系)は主にジャム、
+ * それ以外の参加手(JJ以下・スーテッドブロードウェイ等)は深いほど主に刻む=フォールド余地を残す。 */
+function smallThreeBetShare(label, effBB) {
+  if (!(effBB >= 16)) return 0;
+  const depth = Math.min(1, (effBB - 15) / 15);            // 16BB→0.07, 20→0.33, 30→1.0
+  const nutPolar = (label === "AA" || label === "KK" || label === "AKs" || label === "AKo" || label === "AQs" || label === "AQo");
+  if (nutPolar) return 0.20 + 0.15 * depth;                 // 主にジャム(AK/AAは入れ切り志向)
+  return Math.min(0.88, 0.55 + 0.35 * depth);               // それ以外は主に小3ベット(フォールド余地)
+}
+
 async function preflopAdvice(ctx) {
   const label = ctx.heroLabel;
   const freqs = { fold: 0, call: 0, raise: 0, jam: 0 };
@@ -386,6 +398,16 @@ async function preflopAdvice(ctx) {
       if (jamDecided === "mix") { freqs.jam = 0.5; freqs.fold = 0.5; }
       else if (jamDecided) freqs.jam = 1;
       else freqs.fold = 1;
+    }
+    // 深いスタックでは「小さい3ベット(刻む)」を頻度で混ぜる。ジャム一択をやめ、フォールド余地を残す線。
+    // AA/KK/AK/AQはジャム寄り、JJ等のバリューは刻み寄り。※ツリー単純化下のヒューリスティック近似。
+    if (freqs.jam > 0 && ctx.effBB >= 16) {
+      const share = smallThreeBetShare(label, ctx.effBB);
+      if (share > 0.02) {
+        freqs.raise = (freqs.raise || 0) + freqs.jam * share;
+        freqs.jam = freqs.jam * (1 - share);
+        data.smallThreeBet = true;
+      }
     }
     return { freqs, primary: maxFreqAction(freqs), data };
   }

@@ -682,7 +682,17 @@ async function botAct(state, p, ctx, legal, io) {
   let id = sampleAction(advice.freqs);
   // 戦略のアクションを合法アクションへマッピング
   const ids = legal.map(a => a.id);
-  if (id === "raise" && !ids.includes("raise")) id = ids.includes("jam") ? "jam" : "call";
+  if (id === "raise" && !ids.includes("raise")) {
+    // 小さい3ベット(刻む): raiseTo を約3倍・オールイン未満(フォールド余地を残す)で実行
+    const rt = legal.find(a => a.id === "raiseTo");
+    if (rt && ctx.phase === "preflop") {
+      const openTotal = Math.max(LIVE.bb, ...state.players.map(q => q.streetBet || 0));
+      const cap = rt.maxTarget - LIVE.bb;                       // これ以上はオールイン扱い
+      let t = Math.max(rt.minTarget, Math.min(Math.round(openTotal * 3), cap));
+      if (t < cap) return { id: "raiseTo", target: t, minTarget: rt.minTarget, maxTarget: rt.maxTarget, label: "3ベット" };
+    }
+    id = ids.includes("jam") ? "jam" : "call";                  // 刻む余地なし→ジャム
+  }
   if (id === "bet33" && !ids.includes("bet33")) id = ids.includes("jam") ? "jam" : "check";
   if (id === "bet66" && !ids.includes("bet66")) id = ids.includes("bet33") ? "bet33" : (ids.includes("jam") ? "jam" : "check");
   if (id === "jam" && !ids.includes("jam")) id = ids.includes("call") ? "call" : "check";
