@@ -1,5 +1,5 @@
 {
-  "lastProcessed": "2026-06-21T10:57:58.776Z",
+  "lastProcessed": "2026-06-21T14:06:43.819Z",
   "note": "GTO判定報告フォームの処理済み基準時刻。これより新しい time の報告だけを次回処理する(非破壊・履歴保持)。",
   "sourceSheetId": "1WyqnjPw-HC2_zJoYxfl6ABzu5QTZpBURXnhmvcC8RLM",
   "sourceSheetUrl": "https://docs.google.com/spreadsheets/d/1WyqnjPw-HC2_zJoYxfl6ABzu5QTZpBURXnhmvcC8RLM/edit",
@@ -8,6 +8,7 @@
   "ownerAccount": "siriusfx819@gmail.com",
   "history": [
     { "at": "2026-06-14", "count": 14, "result": "バグ3件修正(facingJamコール正規化・少数派ベット緩和・リジャムペア単調化)。commit 6221832" },
-    { "at": "2026-06-21", "count": 9, "result": "書き方/採点の是正6件。C:100%断定廃止→『○○が推奨』, E:ICM文言の結論連動, B:プレミアム(AA/KK)文言, D:ベットサイズ理由の矛盾, A:コール-EV時のフォールド過剰叱責→mixed/minor, F:非ジャム参加(フラット/15BB+非ジャム3ベット)緩和, G:講座③コンボドロー例追加。commits e4d6469/5357316/94e117a/2ceef68/5d4aa34" }
+    { "at": "2026-06-21", "count": 9, "result": "書き方/採点の是正6件。C:100%断定廃止→『○○が推奨』, E:ICM文言の結論連動, B:プレミアム(AA/KK)文言, D:ベットサイズ理由の矛盾, A:コール-EV時のフォールド過剰叱責→mixed/minor, F:非ジャム参加(フラット/15BB+非ジャム3ベット)緩和, G:講座③コンボドロー例追加。commits e4d6469/5357316/94e117a/2ceef68/5d4aa34" },
+    { "at": "2026-06-21(夜・友人再プレイ)", "count": 9, "result": "友人セッション再検証。QQ/AQの小3ベット2件は小3ベット導入(03bfffb)で既に解決済(友人は旧版でプレイ)。新規3件を修正: #2 KK等のopenJamミニレイズ→mixed(押し引きマージン再評価がミニレイズを誤escalate),#1 小3ベット閾値16→14(JJ@14.5対応),#3 BBの深い良価格フラット(76o)→minor+インプライド注記。KKフォールド等の真のミスはblunder維持。" }
   ]
 }

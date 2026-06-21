@@ -100,10 +100,18 @@ function gradeDecision(ctx, advice, chosenId, act, opts) {
       if (Math.abs(pct - d.rangePct) < 5) verdict = "minor";
     }
   }
-  // ナッシュ閾値からの距離でミスの重さを決める
-  if (d.kind === "openJam" && d.nash && (verdict === "minor" || verdict === "blunder")) {
+  // ナッシュ閾値からの距離でミスの重さを決める(押し引き=jam/foldの誤りのみ。ミニレイズ等の線違いは対象外)
+  if (d.kind === "openJam" && d.nash && (verdict === "minor" || verdict === "blunder") &&
+      chosen !== "raise" && chosen !== "raiseTo") {
     const m = Math.abs(d.marginBB);
     verdict = m < 2.5 ? "minor" : "blunder";
+  }
+  // openJam: ジャム圏の手をミニレイズ/3ベットで参加するのは「線の違い」で大ミスではない。
+  // 深い実スタック(短い相手にだけ晒される effLimited)やプレミアムは、刻んで相手のジャムを誘うのも自然=mixed。
+  if (d.kind === "openJam" && (chosen === "raise" || chosen === "raiseTo") &&
+      rangeHas(d.range, ctx.heroLabel) && (verdict === "minor" || verdict === "blunder")) {
+    verdict = (isPremium(ctx.heroLabel) || d.effLimited || ctx.stackBB >= 20) ? "mixed" : "minor";
+    d.openMinRaiseOk = true;
   }
   // リジャム閾値も同様(ジャムの有無を間違えた場合のみ)
   if (d.kind === "facingOpen" && d.nashRejam && (verdict === "minor" || verdict === "blunder") &&
@@ -116,8 +124,16 @@ function gradeDecision(ctx, advice, chosenId, act, opts) {
   //   ・推奨ジャムの手をフラット(call)= 「参加はしている」線の違い。大ミスではなく minor。
   if (d.kind === "facingOpen" && advice.primary === "jam" &&
       (verdict === "minor" || verdict === "blunder")) {
-    if (chosen === "raise" && ctx.effBB >= 15) verdict = "mixed";
+    if (chosen === "raise" && ctx.effBB >= 14) verdict = "mixed";
     else if (chosen === "call") verdict = "minor";
+  }
+  // #3 BBが小さいオープンに対し、良い価格(深い+安い)で投機ハンドをフラットするのは大ミスにしない。
+  //    (BBディフェンスの実装レンジは保守的=モデル近似。小オープンには本来かなり広く受ける)
+  if (d.kind === "facingOpen" && ctx.posIdx === POS_BB && chosen === "call" &&
+      advice.primary === "fold" && verdict === "blunder" &&
+      ctx.effBB >= 16 && ctx.toCallBB > 0 && ctx.toCallBB <= ctx.potBB * 0.45) {
+    verdict = "minor";
+    d.bbWideDefend = true;
   }
   // ===== EVとICMが割れたら「ミス」でなく「注意」。両方が違うと言った時だけ「ミス」 =====
   // (ユーザー方針: チップEVの理屈とICMの理屈を統合して1つの正解にしない)
@@ -543,6 +559,11 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
         ? `現在 実効<b>${bb1(effS)}BB</b>(あなたは${bb1(ctx.stackBB)}BB持ちですが、後ろの最大スタックがそれだけなので、リスクに晒されるのはこの分だけ)`
         : `現在 <b>${bb1(effS)}BB</b>`;
       lines.push(`<p>ナッシュ均衡(計算済み)では、${ctx.seatName}の ${hand} は${thText}。${stackText}。</p>`);
+      if (d.openMinRaiseOk) {
+        lines.push(`<p>💡 <b>ミニレイズで参加するのも自然な選択です。</b>` +
+          (d.effLimited ? `実スタックは深く、有効スタックが短いのは相手が短いから。この時は大きくオールインする代わりに、<b>小さくレイズして相手のジャムを誘い、コールする</b>のも同等に有効です。` : `オールインの代わりに刻んで相手の3ベットを誘う線もあります。`) +
+          `「刻む/コール止め」も含め、ここは線の違いで大きな差はありません。<span class="dim">(本アプリはゲーム木をジャム中心に単純化したモデル近似)</span></p>`);
+      }
       if (Number.isFinite(effS) && effS < 2.5 && effS > 0) {
         lines.push(`<p>💡 実効<b>${bb1(effS)}BB</b>は実質オールイン級の浅さ。この深さでは細かいEV計算より「降りずに押す/受ける」が基本です。</p>`);
       }
@@ -682,11 +703,15 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
     } else if (correct === "call" && chosen === "jam") {
       lines.push(`<p>${hand} はジャムするには弱く、捨てるには強い「コール向き」のハンドです。ジャムだと相手の継続レンジ(上位${d.rejamPct.toFixed(0)}%級)に対して分が悪くなります。</p>`);
     } else if (correct === "fold" && (chosen === "call" || chosen === "jam")) {
-      lines.push(`<p>${hand} はリジャムにもコールにも届きません。${ctx.posIdx === POS_BB ? "BBのポットオッズをもってしても継続は-EVです。" : "ポジション外から弱いハンドで参加すると、その後の全ストリートで損をし続けます。"}</p>`);
+      if (d.bbWideDefend) {
+        lines.push(`<p>このアプリのBBディフェンスレンジ上は ${hand} は「降り」ですが、<b>有効${bb0(ctx.effBB)}BBと深く、コール額も安い(必要勝率 約${pct(ctx.toCallBB / (ctx.potBB + ctx.toCallBB))})</b>ため、投機的にフラットして深いポットを狙う手も実戦では十分あります。小さいオープンに対してBBは本来かなり広く受けます(インプライドオッズ)。<span class="dim">※本アプリのBBコールレンジは保守的なモデル近似です。</span></p>`);
+      } else {
+        lines.push(`<p>${hand} はリジャムにもコールにも届きにくいハンドです。${ctx.posIdx === POS_BB ? "ポットオッズを踏まえても、ここは継続が薄い局面という計算です。" : "ポジション外から弱いハンドで参加すると、その後のストリートで不利が続きやすくなります。"}</p>`);
+      }
     }
     if (correct === "jam") { const bn = blockerNote(hand); if (bn) lines.push(`<p>${bn}</p>`); }
-    if (correct === "jam" && chosen === "raise" && ctx.effBB >= 15) {
-      lines.push(`<p>💡 <b>あなたのノンオールイン3ベットも正解の一つです。</b>本アプリのゲーム木は浅いスタックの標準に合わせて「ジャムかフォールド」に単純化していますが、有効15BB以上の実際のGTOは約3〜3.5倍の小さい3ベットも混ぜます(4ベットジャムされた時の対応計画はセットで)。</p>`);
+    if (correct === "jam" && chosen === "raise" && ctx.effBB >= 14) {
+      lines.push(`<p>💡 <b>あなたのノンオールイン3ベットも正解の一つです。</b>本アプリのゲーム木は浅いスタックの標準に合わせて「ジャムかフォールド」に単純化していますが、有効14BB以上の実際のGTOは約3〜3.5倍の小さい3ベットも混ぜます(4ベットジャムされた時の対応計画はセットで)。</p>`);
     }
     // FTのICM判定(両者一致時のみ。割れる場合は上の splitBox で既に説明済み)
     if (d.icmJamEval && !(d._ftSplit && verdict === "caution")) {
