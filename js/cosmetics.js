@@ -25,7 +25,7 @@ const Cosmetics = (() => {
       { id: "tiger",   name: "ゴールデンタイガー", icon: "🐯", img: "img/dogs/tiger.webp",     chip: true, runPal: { O: "#c89a2f", W: "#f0d98a", M: "#c0392b" }, cond: p => p.wins >= 65,  goal: "通算65勝で仲間に" },
       { id: "lion",    name: "シルバーライオン",   icon: "🦁", img: "img/rivals/lion.webp",    chip: true, runPal: { O: "#9aa0a6", W: "#e2e4e8", M: "#c89a2f" }, cond: p => p.wins >= 90,  goal: "通算90勝で仲間に" },
       { id: "bear",    name: "アイスベア",         icon: "🐻", img: "img/dogs/bear.webp",      chip: true, runPal: { O: "#6a8aa8", W: "#dde8f0", M: "#2a5a8a" }, cond: p => p.wins >= 115, goal: "通算115勝で仲間に" },
-      { id: "unicorn", name: "レインボーユニコーン", icon: "🦄", img: "img/rivals/unicorn.webp", chip: true, runPal: { O: "#d8c0a0", W: "#ffffff", M: "#a06cff" }, cond: p => p.wins >= 140, goal: "通算140勝で仲間に" },
+      { id: "unicorn", name: "レインボーユニコーン", icon: "🦄", img: "img/dogs/unicorn.webp",  chip: true, runPal: { O: "#d8c0a0", W: "#ffffff", M: "#a06cff" }, cond: p => p.wins >= 140, goal: "通算140勝で仲間に" },
     ],
     tables: [
       { id: "classic",  name: "クラシック",       icon: "🟢", cond: () => true,           goal: "既定" },
