@@ -39,7 +39,7 @@ body {
   overflow-x: hidden;
 }
 .hidden { display: none !important; }
-.screen { min-height: 100vh; }
+.screen { min-height: 100vh; min-height: 100dvh; }
 button {
   background: var(--panel2); color: var(--text);
   border: 1px solid #3a4a5d; border-radius: 8px;
@@ -1068,7 +1068,7 @@ body.mode-phone .ask-teacher .ask-chip { width: 48px; height: 48px; }
 body.mode-phone #table-wrap { padding: 6px; }
 body.mode-phone #table {
   width: 94vw;
-  height: min(125vw, calc(100vh - 215px));
+  height: min(125vw, calc(100dvh - 215px));
   border-width: 7px;
 }
 body.mode-phone .seat { width: 86px; }
@@ -1808,7 +1808,7 @@ body.mode-phone #log-panel { display: none; }
 
 /* バーが消えた分テーブルを拡大(縦領域を取り戻す) */
 body:not(.mode-phone) #table { height: min(56vw, 560px, calc(100vh - 300px)); }
-body.mode-phone #table { height: min(132vw, calc(100vh - 188px)); }
+body.mode-phone #table { height: min(132vw, calc(100dvh - 188px)); }
 
 /* =========================================================
  * スマホ: スート記号(ピップ)が数字(ランク)に被るので小さく+角へ寄せる
@@ -1919,7 +1919,7 @@ body[data-fx="min"] .vic-sparkle, body[data-fx="min"] .victory-flash, body[data-
  * スマホ: テーブル+スタックHUDを下方へ寄せ、下のブラインド表示との空きを詰める
  * (上部の余白＝残り人数/MENUオーバーレイの場所。フリックなし)
  * ========================================================= */
-body.mode-phone #screen-game { display: flex; flex-direction: column; box-sizing: border-box; padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
+body.mode-phone #screen-game { display: flex; flex-direction: column; box-sizing: border-box; height: 100dvh; overflow: hidden; padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
 body.mode-phone #table-wrap { margin-top: auto; }
 
 /* =========================================================
