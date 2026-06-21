@@ -806,17 +806,22 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
     if (chosen === "fold" && ev > 0.3) lines.push(`<p>この+EVコールを淡々と積み重ねられるかが、長期の成績を分けます。</p>`);
     // 📐 計算方法
     const potC = ctx.potBB, callC = ctx.toCallBB;
+    const winPotC = (ctx.winnablePotBB != null && ctx.winnablePotBB > 0) ? ctx.winnablePotBB : (potC + callC);
+    const sidePotCapped = winPotC < (potC + callC) - 0.1; // 複数オールインで満額より小さいサイドポット
+    const mw = (d.multiwayPrem || 0) > 0;
     lines.push(calcBox("📐 コール判断の計算方法(3ステップ)",
       `<b>手順1: 必要勝率(ポットオッズ)を出す</b><br>` +
-      `必要勝率 = コール額 ÷ (ポット + コール額)<br>` +
-      `= ${callC.toFixed(1)} ÷ (${potC.toFixed(1)} + ${callC.toFixed(1)}) = <b>${pct(d.breakeven)}</b><br>` +
+      (sidePotCapped
+        ? `複数オールインのため、あなたが勝てるのは満額(${(potC + callC).toFixed(1)}BB)ではなく<b>サイドポット ${winPotC.toFixed(1)}BB</b>(自分のスタックまで)。<br>必要勝率 = コール額 ÷ 勝てるポット = ${callC.toFixed(1)} ÷ ${winPotC.toFixed(1)} = <b>${pct(d.breakeven)}</b><br>`
+        : `必要勝率 = コール額 ÷ (ポット + コール額) = ${callC.toFixed(1)} ÷ (${potC.toFixed(1)} + ${callC.toFixed(1)}) = <b>${pct(d.breakeven)}</b><br>`) +
+      (mw ? `さらに<b>${ctx.jamCount}人のオールイン全員に勝つ</b>必要があるため、必要勝率に<b>+${pct(d.multiwayPrem)}</b>を上乗せ(表示エクイティは先頭の1人に対する値で、対フィールドの実勝率より高めに出るため)。<br>` : "") +
       `${POT_ODDS_CHEAT}<br><br>` +
       `<b>手順2: 自分の勝率(エクイティ)を見積もる</b><br>` +
       EQUITY_CHEAT + `<br>` +
-      `今回: 相手のジャムレンジ(上位${d.jamRangePct.toFixed(0)}%)に対する ${hand} の厳密値 = <b>${pct(d.equity)}</b><br><br>` +
+      `今回: 相手のジャムレンジ(上位${d.jamRangePct.toFixed(0)}%)に対する ${hand} の厳密値 = <b>${pct(d.equity)}</b>${mw ? "(先頭の1人に対する値)" : ""}<br><br>` +
       `<b>手順3: 比較して決める</b><br>` +
-      `勝率${pct(d.equity)} ${d.equity >= thr ? "≥" : "＜"} 必要勝率${pct(thr)} → <b>${d.equity >= thr ? "コール" : "フォールド"}</b>${icmOn ? "(ICM補正後)" : ""}<br>` +
-      `EVに直すと: EV = ${pct(d.equity)} × ${(potC + callC).toFixed(1)} − ${callC.toFixed(1)} = <b class="${d.evCallBB >= 0 ? "pos" : "neg"}">${d.evCallBB >= 0 ? "+" : ""}${d.evCallBB.toFixed(2)}BB</b>`));
+      `勝率${pct(d.equity)} ${d.equity >= thr ? "≥" : "＜"} 必要勝率${pct(thr)} → <b>${d.equity >= thr ? "コール" : "フォールド"}</b>${icmOn ? "(ICM補正後)" : ""}${mw ? "(マルチウェイ補正後)" : ""}<br>` +
+      `EVに直すと: EV ≈ ${pct(d.equity)} × ${winPotC.toFixed(1)} − ${callC.toFixed(1)} = <b class="${d.evCallBB >= 0 ? "pos" : "neg"}">${d.evCallBB >= 0 ? "+" : ""}${d.evCallBB.toFixed(2)}BB</b>`));
     if (d.icmDetail) {
       const i = d.icmDetail;
       lines.push(calcBox("📐 ICM(賞金圧力)の計算方法",

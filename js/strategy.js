@@ -401,7 +401,9 @@ async function preflopAdvice(ctx) {
     }
     // 深いスタックでは「小さい3ベット(刻む)」を頻度で混ぜる。ジャム一択をやめ、フォールド余地を残す線。
     // AA/KK/AK/AQはジャム寄り、JJ等のバリューは刻み寄り。※ツリー単純化下のヒューリスティック近似。
-    if (freqs.jam > 0 && ctx.effBB >= 14) {
+    // ジャムが明確に主体(≥0.6)の時だけ小3ベットに分割する。混合(0.5/0.5)で分割すると
+    // フォールドが最多になりprimaryがfoldに反転してしまうため除外。
+    if (freqs.jam >= 0.6 && ctx.effBB >= 14) {
       const share = smallThreeBetShare(label, ctx.effBB);
       if (share > 0.02) {
         freqs.raise = (freqs.raise || 0) + freqs.jam * share;
@@ -420,7 +422,9 @@ async function preflopAdvice(ctx) {
       const res = equityVsRange(ctx.heroCards, ctx.jamRange, [], ctx.fast ? 400 : 3000);
       eq = res.equity;
     }
-    const be = ctx.toCallBB / (ctx.potBB + ctx.toCallBB);
+    // 必要勝率(ポットオッズ)は「自分が勝てるサイドポット」基準(満額ポットは短いスタックのoddsを過大評価する)
+    const winPotBB = (ctx.winnablePotBB != null && ctx.winnablePotBB > 0) ? ctx.winnablePotBB : (ctx.potBB + ctx.toCallBB);
+    const be = ctx.toCallBB / winPotBB;
     // FTのICM補正があれば、それが必要勝率の精密な物差し。雑な後続補正は二重計上になるので足さない。
     let icmActive = false;
     if (ctx.icm && typeof Icm !== "undefined") {
@@ -432,14 +436,16 @@ async function preflopAdvice(ctx) {
         icmActive = true;
       }
     }
+    // マルチウェイ・オールイン: 複数の相手全員に勝たねばならず、表示エクイティ(先頭ジャマー1人に対する値)は
+    // 実際の対フィールド勝率より高め。必要勝率に「マルチウェイ・プレミアム」を上乗せして近似補正する。
+    const multiwayPrem = (ctx.jamCount || 1) > 1 ? Math.min(0.18, 0.09 * (ctx.jamCount - 1)) : 0;
     let margin;
     if (icmActive) {
-      // ICMが必要勝率を精密に算出済み。後続/マルチの雑な上乗せはしない(微小マージンのみ)
-      margin = (data.icmReq - be) + 0.01;
+      // ICMが必要勝率を精密に算出済み。微小マージン + マルチウェイ補正のみ。
+      margin = (data.icmReq - be) + 0.01 + multiwayPrem;
     } else {
-      // ChipEV: ポットオッズ + 控えめな後続/マルチ補正(上限を抑え過剰フォールドを防ぐ)
-      margin = 0.005 + Math.min(0.05, 0.02 * (ctx.playersBehind || 0))
-        + 0.04 * Math.max(0, (ctx.jamCount || 1) - 1);
+      // ChipEV: ポットオッズ + 控えめな後続補正 + マルチウェイ補正。
+      margin = 0.005 + Math.min(0.05, 0.02 * (ctx.playersBehind || 0)) + multiwayPrem;
     }
     const threshold = be + margin;
     data.kind = "facingJam";
@@ -447,8 +453,10 @@ async function preflopAdvice(ctx) {
     data.breakeven = be;
     data.margin = margin;
     data.threshold = threshold;
+    data.multiwayPrem = multiwayPrem;
+    data.jamCount = ctx.jamCount;
     data.jamRangePct = rangePercent(ctx.jamRange);
-    data.evCallBB = eq * (ctx.potBB + ctx.toCallBB) - ctx.toCallBB;
+    data.evCallBB = eq * winPotBB - ctx.toCallBB;
     const diff = eq - threshold;
     if (diff > 0.015) freqs.call = 1;
     else if (diff > -0.015) { freqs.call = 0.5; freqs.fold = 0.5; }
