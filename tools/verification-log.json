@@ -1,1 +1,1 @@
-[]
+[{"tool":"selfplay-audit","eq":0,"checks":23598,"hands":3035,"note":"セルフプレイ異常検知","at":"2026-06-22T11:31:20.338Z"},{"tool":"validate-reference","eq":0,"checks":35,"hands":0,"note":"外部数値リファレンス照合","at":"2026-06-22T11:31:20.498Z"},{"tool":"extract-comments","eq":0,"checks":0,"hands":305,"note":"コメント整合性抽出","at":"2026-06-22T11:31:28.344Z"}]

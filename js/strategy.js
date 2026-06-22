@@ -499,6 +499,8 @@ async function postflopAdvice(ctx) {
   const spr = ctx.potBB > 0 ? ctx.effBehindBB / ctx.potBB : 99;
   data.spr = spr;
   const multiway = (ctx.playersIn || 2) > 2;
+  const isHU = (ctx.playersIn || 2) <= 2;   // ヘッズアップ専用化(レンジが超ワイド=より攻撃的)
+  data.hu = isHU;
 
   if (ctx.facing === "none") {
     // ベットするか、チェックするか
@@ -572,6 +574,8 @@ async function postflopAdvice(ctx) {
       else if (bluffCandidate) { setF(freqs, { bet66: 0.35, check: 0.65 }); }
       else { setF(freqs, { check: 0.95, bet33: 0.05 }); }
     }
+    // HU専用: アグレッサーはレンジが超ワイド → c-bet/バレル頻度を上げる(checkの一部をベットへ)
+    if (isHU && aggressor) huAggro(freqs, ctx.street === "flop" ? 0.3 : 0.2);
     return { freqs, primary: maxFreqAction(freqs), data };
   }
 
@@ -635,6 +639,18 @@ async function postflopAdvice(ctx) {
 
 /* ---------- 小道具 ---------- */
 function setF(freqs, obj) { for (const k in obj) freqs[k] = obj[k]; }
+
+// HU専用のアグレッション補正: checkの一定割合を、既にあるベット群へ比例配分する(攻撃頻度↑)
+function huAggro(freqs, frac) {
+  const ck = freqs.check || 0;
+  if (ck <= 0 || frac <= 0) return;
+  const betKeys = ["bet33", "bet66", "jam"].filter(k => (freqs[k] || 0) > 0);
+  if (!betKeys.length) return; // 純チェックの手はそのまま(無理にブラフ化しない)
+  const move = ck * frac;
+  const betSum = betKeys.reduce((s, k) => s + freqs[k], 0);
+  for (const k of betKeys) freqs[k] += move * (freqs[k] / betSum);
+  freqs.check = ck - move;
+}
 
 function shiftToward(freqs, target, amount) {
   // 他のアクションから target に確率を移す

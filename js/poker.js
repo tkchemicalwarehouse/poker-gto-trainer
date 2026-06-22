@@ -504,10 +504,11 @@ function applyAction(state, p, action, currentBet, street, io) {
   if (street === "preflop") {
     const posIdx = posIdxOf(state, p.seat);
     const stackBB = toBB(p.startChips);
+    const huNow = aliveSeats(state).length === 2;   // ヘッズアップは専用レンジ(超ワイド)を想定
     if (action.id === "jam") {
       let range;
       if (state.preflopOpen && state.preflopOpen.seat !== p.seat) {
-        range = Ranges.rejam(state.preflopOpen.cls, Math.min(stackBB, state.preflopOpen.stackBB));
+        range = huNow ? Ranges.huRejam(Math.min(stackBB, state.preflopOpen.stackBB)) : Ranges.rejam(state.preflopOpen.cls, Math.min(stackBB, state.preflopOpen.stackBB));
         p.rangeNote = "リジャム";
       } else {
         range = Ranges.push(posIdx, stackBB);
@@ -519,13 +520,13 @@ function applyAction(state, p, action, currentBet, street, io) {
       if (io.sound) io.sound("jam");
     } else if (state.preflopOpen && state.preflopOpen.seat !== p.seat) {
       // 非オールインの3ベット: リジャムレンジ相当とみなす
-      p.assumedRange = Ranges.rejam(state.preflopOpen.cls, Math.min(stackBB, state.preflopOpen.stackBB));
+      p.assumedRange = huNow ? Ranges.huRejam(Math.min(stackBB, state.preflopOpen.stackBB)) : Ranges.rejam(state.preflopOpen.cls, Math.min(stackBB, state.preflopOpen.stackBB));
       p.rangeNote = "3ベット";
       state.preflopOpen = { seat: p.seat, posIdx, cls: openerClass(posIdx), sizeBB: toBB(target), stackBB };
       io.log(`${tag}: レイズ ${fmtChips(target)}`, "raise");
       if (io.sound) io.sound("chip");
     } else {
-      p.assumedRange = Ranges.open(posIdx, stackBB);
+      p.assumedRange = huNow ? Ranges.huOpen() : Ranges.open(posIdx, stackBB);
       p.rangeNote = "オープンレイズ";
       state.preflopOpen = { seat: p.seat, posIdx, cls: openerClass(posIdx), sizeBB: toBB(target), stackBB };
       io.log(`${tag}: レイズ ${fmtChips(target)}`, "raise");
@@ -632,7 +633,9 @@ function buildCtx(state, p, currentBet, street) {
   let oppRange = mainOpp && mainOpp.assumedRange;
   if (!oppRange) {
     // レンジ情報なし(BBチェックなど) → BBディフェンスレンジで代用
-    oppRange = state.preflopOpen ? Ranges.bbCall(state.preflopOpen.cls, 20) : parseRange("22+,A2s+,A2o+,K2s+,K2o+,Q2s+,Q5o+,J4s+,J8o+,T6s+,T8o+,96s+,98o,85s+,87o,75s+,64s+,54s");
+    const huNow = aliveSeats(state).length === 2;
+    oppRange = huNow ? Ranges.huCall(20)
+      : (state.preflopOpen ? Ranges.bbCall(state.preflopOpen.cls, 20) : parseRange("22+,A2s+,A2o+,K2s+,K2o+,Q2s+,Q5o+,J4s+,J8o+,T6s+,T8o+,96s+,98o,85s+,87o,75s+,64s+,54s"));
   }
   let facing = "none";
   if (toCall > 0) {
@@ -720,7 +723,7 @@ async function botAct(state, p, ctx, legal, io) {
   const act = legal.find(a => a.id === id) || legal[0];
   // BBがオープンにコールしたらレンジを記録
   if (ctx.phase === "preflop" && id === "call" && ctx.facing === "open" && ctx.posIdx === POS_BB) {
-    p.assumedRange = Ranges.bbCall(ctx.openerClass, ctx.effBB);
+    p.assumedRange = (ctx.tableN === 2) ? Ranges.huCall(ctx.effBB) : Ranges.bbCall(ctx.openerClass, ctx.effBB);
     p.rangeNote = "BBディフェンス";
   }
   return act;

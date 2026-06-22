@@ -864,6 +864,9 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
     } else {
       lines.push(`<p>${postflopReason(ctx, advice, chosen)}</p>`);
     }
+    if (d.hu) {
+      lines.push(`<p>🎯 <b>ヘッズアップの原則</b>: 両者のレンジが非常に広いので、①cベット/バレルは高頻度 ②薄いバリューも積極的に取る ③ブラフ頻度も上げる ④ボタン(後手=IP)の優位が大きい。狭く守りすぎると搾取されます。<span class="dim">(本アプリのポストフロップはHU向けに調整したヒューリスティック=目安。厳密解ではありません)</span></p>`);
+    }
     // 📐 計算方法
     let calcParts = [];
     if (fe != null) {
