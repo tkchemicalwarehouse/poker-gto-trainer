@@ -526,7 +526,7 @@ function applyAction(state, p, action, currentBet, street, io) {
       io.log(`${tag}: レイズ ${fmtChips(target)}`, "raise");
       if (io.sound) io.sound("chip");
     } else {
-      p.assumedRange = huNow ? Ranges.huOpen() : Ranges.open(posIdx, stackBB);
+      p.assumedRange = huNow ? Ranges.huOpen(stackBB) : Ranges.open(posIdx, stackBB);
       p.rangeNote = "オープンレイズ";
       state.preflopOpen = { seat: p.seat, posIdx, cls: openerClass(posIdx), sizeBB: toBB(target), stackBB };
       io.log(`${tag}: レイズ ${fmtChips(target)}`, "raise");

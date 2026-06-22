@@ -269,6 +269,8 @@ function rejamNashAvailable() {
 }
 // ジャムする最大有効スタック(BB)。cls: EP/MP/LP/SB/HU、heroType: BB/IP
 function rejamThreshold(cls, heroType, label) {
+  // HUは自前ソルブの取り込みデータ(HU_SOLVE)があればそちらを優先 → huRejam にフォールスルーさせる
+  if (cls === "HU" && typeof HU_SOLVE !== "undefined" && typeof HU_SOLVE_STACKS !== "undefined" && HU_SOLVE_STACKS.length) return null;
   if (!rejamNashAvailable() || !REJAM_THRESH[cls]) return null;
   const tbl = REJAM_THRESH[cls][heroType] || REJAM_THRESH[cls]["BB"];
   if (!tbl) return null;
@@ -308,11 +310,27 @@ function nashRangeAt(posIdx, stackBB) {
   return range;
 }
 
+/* ---------- HU自前ソルブ取り込み(data-hu.js)ヘルパー ---------- */
+// HU_SOLVE があれば effBB 最近傍スタックの spot(sbOpen/bbCall/bb3bet)を Map で返す。無ければ null。
+function huFromSolve(spot, effBB) {
+  if (typeof HU_SOLVE === "undefined" || typeof HU_SOLVE_STACKS === "undefined" || !HU_SOLVE_STACKS.length) return null;
+  let best = HU_SOLVE_STACKS[0];
+  for (const s of HU_SOLVE_STACKS) if (Math.abs(s - effBB) < Math.abs(best - effBB)) best = s;
+  const arr = HU_SOLVE[best] && HU_SOLVE[best][spot];
+  if (!arr) return null;
+  const m = new Map();
+  for (let i = 0; i < arr.length; i++) if (arr[i] >= 0.5) m.set(ALL_HANDS[i], 1);
+  return m.size ? m : null;
+}
+
 /* ---------- レンジ取得API(strategy.jsから使用) ---------- */
 const Ranges = {
-  huOpen() { return parseRange(HU_SB_OPEN); },
-  huRejam(effStackBB) { return parseRange(HU_REJAM[rejamBucketFor(effStackBB)]); },
+  // HU_SOLVE(自前ソルブ取り込み)を優先し、無ければ手書き近似にフォールバック
+  huOpen(effStackBB) { return huFromSolve("sbOpen", effStackBB || 20) || parseRange(HU_SB_OPEN); },
+  huRejam(effStackBB) { return huFromSolve("bb3bet", effStackBB) || parseRange(HU_REJAM[rejamBucketFor(effStackBB)]); },
   huCall(effStackBB) {
+    const solved = huFromSolve("bbCall", effStackBB);
+    if (solved) return solved;
     const total = parseRange(HU_DEFEND_TOTAL);
     const jam = parseRange(HU_REJAM[rejamBucketFor(effStackBB)]);
     return rangeSubtract(total, jam);

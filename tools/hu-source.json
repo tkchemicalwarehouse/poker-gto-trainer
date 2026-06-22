@@ -1,0 +1,27 @@
+{
+  "note": "【プレースホルダ=現状の手書き近似レンジ。HRC自前ソルブの結果で置換してください】",
+  "source": "現状はプレースホルダ。HRCで解いたら source を 'HRC v3 chipEV (SB0.5/BB1/BBante1)' 等に更新",
+  "_howto": "各スタックで HRC を SB0.5/BB1/BBアンティ1・レーキ0 で解き、SBのオープン範囲/ BBのフラットコール範囲/ BBの3ベット範囲を標準表記でここに記入。混合は 'AKo:0.5' 可。記入後 node tools/import-hu.cjs を実行。",
+  "stacks": {
+    "16": {
+      "sbOpen": "22+,A2+,K2+,Q2+,J2+,T2s+,T4o+,92s+,95o+,82s+,85o+,72s+,75o+,62s+,64o+,52s+,54o,42s+,43o,32s",
+      "bbCall": "22+,A2+,K2+,Q2+,J2s+,J6o+,T3s+,T7o+,93s+,96o+,84s+,86o+,74s+,75o+,63s+,64o+,53s+,43s,42s",
+      "bb3bet": "22+,A2s+,A3o+,K5s+,K9o+,Q8s+,QJo,J8s+,T8s+,98s,87s,76s"
+    },
+    "20": {
+      "sbOpen": "22+,A2+,K2+,Q2+,J2+,T2s+,T4o+,92s+,95o+,82s+,85o+,72s+,75o+,62s+,64o+,52s+,54o,42s+,43o,32s",
+      "bbCall": "22+,A2+,K2+,Q2+,J2s+,J6o+,T3s+,T7o+,93s+,96o+,84s+,86o+,74s+,75o+,63s+,64o+,53s+,43s,42s",
+      "bb3bet": "22+,A2s+,A8o+,A5o,K9s+,KJo+,QTs+,JTs,T9s"
+    },
+    "25": {
+      "sbOpen": "22+,A2+,K2+,Q2+,J2+,T2s+,T4o+,92s+,95o+,82s+,85o+,72s+,75o+,62s+,64o+,52s+,54o,42s+,43o,32s",
+      "bbCall": "22+,A2+,K2+,Q2+,J2s+,J6o+,T3s+,T7o+,93s+,96o+,84s+,86o+,74s+,75o+,63s+,64o+,53s+,43s,42s",
+      "bb3bet": "33+,A7s+,A5s-A2s,ATo+,KTs+,KQo,QJs,JTs"
+    },
+    "30": {
+      "sbOpen": "22+,A2+,K2+,Q2+,J2+,T2s+,T4o+,92s+,95o+,82s+,85o+,72s+,75o+,62s+,64o+,52s+,54o,42s+,43o,32s",
+      "bbCall": "22+,A2+,K2+,Q2+,J2s+,J6o+,T3s+,T7o+,93s+,96o+,84s+,86o+,74s+,75o+,63s+,64o+,53s+,43s,42s",
+      "bb3bet": "33+,A7s+,A5s-A2s,ATo+,KTs+,KQo,QJs,JTs"
+    }
+  }
+}

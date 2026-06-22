@@ -324,7 +324,7 @@ async function preflopAdvice(ctx) {
         if (rangeHas(push, label)) freqs.jam = 1; else freqs.fold = 1;
       }
     } else {
-      const open = (data.hu && ctx.posIdx === POS_SB) ? Ranges.huOpen() : Ranges.open(ctx.posIdx, ctx.stackBB);
+      const open = (data.hu && ctx.posIdx === POS_SB) ? Ranges.huOpen(ctx.effBB || ctx.stackBB) : Ranges.open(ctx.posIdx, ctx.stackBB);
       data.kind = "openRaise";
       data.range = open;
       data.rangePct = rangePercent(open);
@@ -361,7 +361,7 @@ async function preflopAdvice(ctx) {
     }
     data.rejamPct = rangePercent(data.rejamRange);
     // オープンレンジに対する実エクイティ(テーブルがあれば)
-    const openRange = hu ? Ranges.huOpen() : (typeof OPEN_RANGES !== "undefined"
+    const openRange = hu ? Ranges.huOpen(ctx.effBB) : (typeof OPEN_RANGES !== "undefined"
       ? parseRange(OPEN_RANGES[ctx.effBB <= 20 ? 15 : 25][{ EP: 1, MP: 4, LP: 6, SB: 7 }[opClass]]) : null);
     if (openRange) data.eqVsOpen = eqVsRangeTable(label, openRange);
     // 教材用: リジャムEVの分解(UI時 or FTのICM評価に必要な時)
