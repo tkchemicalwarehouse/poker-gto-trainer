@@ -1657,10 +1657,11 @@ select {
 
 /* --- ディーラーボタン --- */
 #dealer-disc {
-  background: radial-gradient(circle at 34% 28%, #ffffff, #e3e7ec 60%, #b9c0c8);
-  border: 3px solid var(--gold);
-  box-shadow: 0 0 14px rgba(231,189,82,.8), 0 3px 8px rgba(0,0,0,.6);
+  background: url('../img/ui/dealer.webp') center/cover no-repeat;
+  border: 2px solid rgba(231,189,82,.65);
+  box-shadow: 0 0 12px rgba(231,189,82,.55), 0 3px 8px rgba(0,0,0,.6);
 }
+#dealer-disc span { display: none; }  /* 旧"D"テキストは隠す(コイン画像を使用) */
 
 /* =========================================================
  * コレクション(犬舎) — コスメ装備UI
