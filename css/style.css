@@ -1956,6 +1956,11 @@ body:not(.mode-phone) #hu-pov{height:min(72vh,560px)}
 #hu-pov .pov-opp-dog canvas{image-rendering:pixelated;display:block;margin:0 auto;filter:drop-shadow(0 6px 8px rgba(0,0,0,.5))}
 #hu-pov .pov-opp-cards{display:flex;gap:5px;justify-content:center;margin-top:2px;min-height:36px}
 #hu-pov .pov-info{font-size:12.5px;color:#eef3f8;margin-top:3px}
+/* HUポジションバッジ(SB=ボタン / BB) — ヘッズアップで自分の立場を明示 */
+#hu-pov .hu-pos{display:inline-block;font-weight:900;font-size:12px;line-height:1;padding:3px 9px;border-radius:999px;margin-right:7px;vertical-align:middle;letter-spacing:.04em}
+#hu-pov .hu-pos small{font-size:8px;font-weight:800;margin-left:3px;opacity:.85}
+#hu-pov .hu-pos.btn{background:var(--grad-gold);color:#2a2008;box-shadow:0 0 8px rgba(231,189,82,.5)}
+#hu-pov .hu-pos.bb{background:linear-gradient(135deg,#f0934f,#d35400);color:#2a1402}
 #hu-pov .pov-info b{color:var(--gold-2)}
 #hu-pov .pov-felt{position:relative;flex:1 1 0;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;width:100%;overflow:hidden}
 #hu-pov .pov-board{display:flex;gap:5px;justify-content:center;min-height:50px}

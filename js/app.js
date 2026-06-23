@@ -1034,6 +1034,14 @@ const FACE_TUNE = {
 };
 function faceTune(id) { return FACE_TUNE[id] || ""; }
 
+// HUのポジションバッジ(ヘッズアップはBTN=SB)。プレイヤーがボタン(SB)かBBかを明示
+function huPos(state, p) {
+  if (!p || state.btn == null) return "";
+  return (p.seat === state.btn)
+    ? `<span class="hu-pos btn" title="スモールブラインド＝ボタン(ディーラー)。プリフロップ先攻・ポストフロップ後攻">SB<small>BTN</small></span>`
+    : `<span class="hu-pos bb" title="ビッグブラインド。プリフロップ後攻・ポストフロップ先攻">BB</span>`;
+}
+
 // HUの大きなアクション表示(レイズ額・オールイン・コール等)
 function povActHTML(p) {
   if (!p || !p.actBanner) return "";
@@ -1065,7 +1073,7 @@ function renderHUPov(state) {
   const oName = (typeof Dog !== "undefined" && Dog.oppName) ? Dog.oppName() : (opp ? opp.name : "");
   const oppAllIn = opp && opp.allIn && state.street !== "idle";
   $("pov-opp-info").innerHTML = opp
-    ? `${oName}　<b>${oppAllIn ? `<span class="allin-badge">ALL-IN</span> ${fmtBB(opp.committed)}BB` : `${fmtChips(opp.chips)} (${fmtBB(opp.chips)}BB)`}</b>`
+    ? `${huPos(state, opp)}${oName}　<b>${oppAllIn ? `<span class="allin-badge">ALL-IN</span> ${fmtBB(opp.committed)}BB` : `${fmtChips(opp.chips)} (${fmtBB(opp.chips)}BB)`}</b>`
     : "";
   // 大きなアクション表示(相手・自分)
   $("pov-opp-act").innerHTML = povActHTML(opp);
@@ -1087,7 +1095,7 @@ function renderHUPov(state) {
   // 自分の手札・スタック
   setCards($("pov-hole"), (hero.cards && hero.cards.length) ? "h" + hero.cards.join(",") : "none", (hero.cards && hero.cards.length) ? hero.cards.map(c => cardHTML(c)).join("") : "");
   const heroAllIn = hero.allIn && state.street !== "idle";
-  $("pov-hero-info").innerHTML = `<b style="color:#5fd492">YOU</b>　<b>${heroAllIn ? `<span class="allin-badge">ALL-IN</span> ${fmtBB(hero.committed)}BB` : `${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)`}</b>`;
+  $("pov-hero-info").innerHTML = `${huPos(state, hero)}<b style="color:#5fd492">YOU</b>　<b>${heroAllIn ? `<span class="allin-badge">ALL-IN</span> ${fmtBB(hero.committed)}BB` : `${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)`}</b>`;
   // 前景の手(一度だけ生成)
   const pw = $("pov-paws");
   if (pw && !pw.firstChild && typeof Dog !== "undefined" && Dog.pawsCanvas) { const c = Dog.pawsCanvas(document.body.classList.contains("mode-phone") ? 10 : 12); if (c) pw.appendChild(c); }
