@@ -232,6 +232,57 @@ function setCards(el, key, html) {
   el.innerHTML = html;
 }
 
+/* ---------- チップ増減のカウント演出 ----------
+ * オールイン決着で committed が0にリセットされ「ALL-IN 0.0BB」や残高0が一瞬出ると
+ * 「終わった」と誤認するため、賭けていた額から確定スタックへ数字をカウントさせる。 */
+function sgClassFor(bb) { return bb < 10 ? "sg-danger" : bb < 20 ? "sg-warn" : bb < 35 ? "sg-ok" : "sg-big"; }
+function paintSeatStack(stackEl, fill, chips) {
+  const bb = toBB(chips);
+  const sgCls = sgClassFor(bb);
+  stackEl.innerHTML = `${fmtChips(chips)} <span class="bb ${sgCls}-t">(${fmtBB(chips)}BB)</span>`;
+  fill.className = "sg-fill " + sgCls;
+  fill.style.width = Math.min(100, bb / 40 * 100) + "%";
+}
+function paintHeroCorner(hc, chips) {
+  const sgClsH = sgClassFor(toBB(chips));
+  hc.innerHTML = `<div class="hc-bb ${sgClsH}-t">${fmtBB(chips)}<span>BB</span></div>` +
+                 `<div class="hc-chips">${fmtChips(chips)}</div>`;
+}
+// el._chipRaf にRAF IDを保持。fromChips→toChips を easeOut でカウントし、各フレーム paint(chips)。
+function countChipsTo(el, paint, fromChips, toChips, dur) {
+  if (el._chipRaf) cancelAnimationFrame(el._chipRaf);
+  const t0 = performance.now(), span = dur || 800;
+  paint(fromChips);
+  function frame(now) {
+    let k = Math.min(1, (now - t0) / span);
+    k = 1 - Math.pow(1 - k, 3); // easeOutCubic
+    paint(Math.round(fromChips + (toChips - fromChips) * k));
+    if (k < 1) el._chipRaf = requestAnimationFrame(frame);
+    else { el._chipRaf = null; paint(toChips); }
+  }
+  el._chipRaf = requestAnimationFrame(frame);
+}
+// HU一人称(POV)の情報行(名前＋残高)。決着時は committed→chips をカウント。
+function renderPovInfo(infoEl, prefixHTML, p, allIn, atShowdown) {
+  if (allIn) {
+    if (infoEl._chipRaf) { cancelAnimationFrame(infoEl._chipRaf); infoEl._chipRaf = null; }
+    infoEl.innerHTML = `${prefixHTML}<b><span class="allin-badge">ALL-IN</span> ${fmtBB(p.committed)}BB</b>`;
+    infoEl._shownChips = p.committed;
+  } else if (infoEl._chipRaf && atShowdown) {
+    // カウント演出中: 触らない
+  } else {
+    const prev = infoEl._shownChips;
+    const paint = (c) => { infoEl.innerHTML = `${prefixHTML}<b>${fmtChips(c)} (${fmtBB(c)}BB)</b>`; };
+    if (atShowdown && prev != null && Math.abs(toBB(prev) - toBB(p.chips)) >= 0.5) {
+      countChipsTo(infoEl, paint, prev, p.chips, 850);
+    } else {
+      if (infoEl._chipRaf) { cancelAnimationFrame(infoEl._chipRaf); infoEl._chipRaf = null; }
+      paint(p.chips);
+    }
+    infoEl._shownChips = p.chips;
+  }
+}
+
 /* ---------- レンダリング ---------- */
 function render(state) {
   if (!state) return;
@@ -291,20 +342,34 @@ function render(state) {
   if (hc) {
     const coachOpen = !$("coach-panel").classList.contains("hidden");
     hc.classList.toggle("hidden", coachOpen || state.street === "idle" || hero.out);
+    // ショーダウン(決着)では committed が0リセット済み → ALL-IN表示をやめ、確定スタックへカウント
+    const atShowdownH = state.street === "showdown" && !!hero.showResult;
     // オールイン中は残り0なので「賭けている額(=負けると飛ぶ額)」を大きく表示
-    const hAllIn = hero.allIn && state.street !== "idle";
-    const hShow = hAllIn ? hero.committed : hero.chips;
-    const hbb = +fmtBB(hShow);
-    const sgClsH = hbb < 10 ? "sg-danger" : hbb < 20 ? "sg-warn" : hbb < 35 ? "sg-ok" : "sg-big";
-    const htxt = hShow + "|" + sgClsH + "|" + (hAllIn ? "ai" : "");
-    if (hc.dataset.t !== htxt) {
-      hc.dataset.t = htxt;
-      hc.innerHTML = hAllIn
-        ? `<div class="hc-allin">ALL-IN</div>` +
+    const hAllIn = hero.allIn && state.street !== "idle" && !atShowdownH;
+    if (hAllIn) {
+      if (hc._chipRaf) { cancelAnimationFrame(hc._chipRaf); hc._chipRaf = null; }
+      const sgClsH = sgClassFor(+fmtBB(hero.committed));
+      const htxt = "ai|" + hero.committed + "|" + sgClsH;
+      if (hc.dataset.t !== htxt) {
+        hc.dataset.t = htxt;
+        hc.innerHTML = `<div class="hc-allin">ALL-IN</div>` +
           `<div class="hc-bb ${sgClsH}-t">${fmtBB(hero.committed)}<span>BB</span></div>` +
-          `<div class="hc-chips">${fmtChips(hero.committed)}</div>`
-        : `<div class="hc-bb ${sgClsH}-t">${fmtBB(hero.chips)}<span>BB</span></div>` +
-          `<div class="hc-chips">${fmtChips(hero.chips)}</div>`;
+          `<div class="hc-chips">${fmtChips(hero.committed)}</div>`;
+      }
+      hc._shownChips = hero.committed;   // 次の決着でここからカウント
+    } else if (hc._chipRaf && atShowdownH) {
+      // カウント演出中: tween に任せて触らない
+    } else {
+      const prev = hc._shownChips;
+      if (atShowdownH && prev != null && Math.abs(+fmtBB(prev) - +fmtBB(hero.chips)) >= 0.5) {
+        hc.dataset.t = "anim";
+        countChipsTo(hc, (c) => paintHeroCorner(hc, c), prev, hero.chips, 850);
+      } else {
+        if (hc._chipRaf) { cancelAnimationFrame(hc._chipRaf); hc._chipRaf = null; }
+        const htxt = "n|" + hero.chips;
+        if (hc.dataset.t !== htxt) { hc.dataset.t = htxt; paintHeroCorner(hc, hero.chips); }
+      }
+      hc._shownChips = hero.chips;
     }
   }
 
@@ -332,16 +397,32 @@ function render(state) {
     el.querySelector(".seat-name").innerHTML =
       `${p.name}<span class="pos-badge ${badgeCls}">${pos}</span>`;
     // スタックゲージ: BB量を色で表現(赤<10 / 黄10-20 / 緑20-35 / 青35+)
-    // オールイン中は残り0なので、代わりに「賭けている額(=負けると飛ぶ額)」を表示する
-    const allIn = p.allIn && state.street !== "idle";
-    const bb = allIn ? toBB(p.committed) : toBB(p.chips);
-    const sgCls = bb < 10 ? "sg-danger" : bb < 20 ? "sg-warn" : bb < 35 ? "sg-ok" : "sg-big";
-    el.querySelector(".seat-stack").innerHTML = allIn
-      ? `<span class="allin-badge">ALL-IN</span> <span class="bb ${sgCls}-t">${fmtBB(p.committed)}BB</span>`
-      : `${fmtChips(p.chips)} <span class="bb ${sgCls}-t">(${fmtBB(p.chips)}BB)</span>`;
+    // オールイン中は残り0なので、代わりに「賭けている額(=負けると飛ぶ額)」を表示する。
+    // ショーダウン(決着)では committed が0リセット済み → ALL-IN表示をやめ、確定スタックへカウント。
+    const stackEl = el.querySelector(".seat-stack");
     const fill = el.querySelector(".sg-fill");
-    fill.className = "sg-fill " + sgCls;
-    fill.style.width = Math.min(100, bb / 40 * 100) + "%";
+    const atShowdown = state.street === "showdown" && !!p.showResult;
+    const allIn = p.allIn && state.street !== "idle" && !atShowdown;
+    if (allIn) {
+      if (el._chipRaf) { cancelAnimationFrame(el._chipRaf); el._chipRaf = null; }
+      const cbb = toBB(p.committed);
+      const sgCls = sgClassFor(cbb);
+      stackEl.innerHTML = `<span class="allin-badge">ALL-IN</span> <span class="bb ${sgCls}-t">${fmtBB(p.committed)}BB</span>`;
+      fill.className = "sg-fill " + sgCls;
+      fill.style.width = Math.min(100, cbb / 40 * 100) + "%";
+      el._shownChips = p.committed;   // 次の決着でここからカウント
+    } else if (el._chipRaf && atShowdown) {
+      // カウント演出中: tween に任せて上書きしない
+    } else {
+      const prev = el._shownChips;
+      if (atShowdown && prev != null && Math.abs(toBB(prev) - toBB(p.chips)) >= 0.5) {
+        countChipsTo(el, (c) => paintSeatStack(stackEl, fill, c), prev, p.chips, 850);
+      } else {
+        if (el._chipRaf) { cancelAnimationFrame(el._chipRaf); el._chipRaf = null; }
+        paintSeatStack(stackEl, fill, p.chips);
+      }
+      el._shownChips = p.chips;
+    }
     const cardsEl = el.querySelector(".seat-cards");
     const heroFolded = p.isHero && p.folded && state.street !== "idle";
     if (state.street === "idle") { setCards(cardsEl, "none", ""); cardsEl.classList.remove("folded-cards"); }
@@ -1038,7 +1119,7 @@ function faceTune(id) { return FACE_TUNE[id] || ""; }
 function huPos(state, p) {
   if (!p || state.btn == null) return "";
   return (p.seat === state.btn)
-    ? `<span class="hu-pos btn" title="スモールブラインド＝ボタン(ディーラー)。プリフロップ先攻・ポストフロップ後攻">SB<small>BTN</small></span>`
+    ? `<img class="hu-dealer-coin" src="img/ui/dealer.webp" alt="DEALER" title="ディーラー(ボタン)＝スモールブラインド。プリフロップ先攻・ポストフロップ後攻"><span class="hu-pos btn">SB</span>`
     : `<span class="hu-pos bb" title="ビッグブラインド。プリフロップ後攻・ポストフロップ先攻">BB</span>`;
 }
 
@@ -1071,10 +1152,13 @@ function renderHUPov(state) {
   const oppKey = !opp ? "none" : (opp.folded ? "fold" : (showOpp ? "o" + opp.cards.join(",") : "back"));
   setCards($("pov-opp-cards"), oppKey, !opp ? "" : (opp.folded ? "" : (showOpp ? opp.cards.map(c => cardHTML(c, true)).join("") : backHTML(true) + backHTML(true))));
   const oName = (typeof Dog !== "undefined" && Dog.oppName) ? Dog.oppName() : (opp ? opp.name : "");
-  const oppAllIn = opp && opp.allIn && state.street !== "idle";
-  $("pov-opp-info").innerHTML = opp
-    ? `${huPos(state, opp)}${oName}　<b>${oppAllIn ? `<span class="allin-badge">ALL-IN</span> ${fmtBB(opp.committed)}BB` : `${fmtChips(opp.chips)} (${fmtBB(opp.chips)}BB)`}</b>`
-    : "";
+  const oppInfo = $("pov-opp-info");
+  if (!opp) { oppInfo.innerHTML = ""; if (oppInfo._chipRaf) { cancelAnimationFrame(oppInfo._chipRaf); oppInfo._chipRaf = null; } oppInfo._shownChips = null; }
+  else {
+    const atShowdownO = state.street === "showdown" && !!opp.showResult;
+    const oppAllIn = opp.allIn && state.street !== "idle" && !atShowdownO;
+    renderPovInfo(oppInfo, `${huPos(state, opp)}${oName}　`, opp, oppAllIn, atShowdownO);
+  }
   // 大きなアクション表示(相手・自分)
   $("pov-opp-act").innerHTML = povActHTML(opp);
   $("pov-hero-act").innerHTML = povActHTML(hero);
@@ -1094,8 +1178,9 @@ function renderHUPov(state) {
   $("pov-chips").innerHTML = chipStackHTML(pot, false, 8);
   // 自分の手札・スタック
   setCards($("pov-hole"), (hero.cards && hero.cards.length) ? "h" + hero.cards.join(",") : "none", (hero.cards && hero.cards.length) ? hero.cards.map(c => cardHTML(c)).join("") : "");
-  const heroAllIn = hero.allIn && state.street !== "idle";
-  $("pov-hero-info").innerHTML = `${huPos(state, hero)}<b style="color:#5fd492">YOU</b>　<b>${heroAllIn ? `<span class="allin-badge">ALL-IN</span> ${fmtBB(hero.committed)}BB` : `${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)`}</b>`;
+  const atShowdownHe = state.street === "showdown" && !!hero.showResult;
+  const heroAllIn = hero.allIn && state.street !== "idle" && !atShowdownHe;
+  renderPovInfo($("pov-hero-info"), `${huPos(state, hero)}<b style="color:#5fd492">YOU</b>　`, hero, heroAllIn, atShowdownHe);
   // 前景の手(一度だけ生成)
   const pw = $("pov-paws");
   if (pw && !pw.firstChild && typeof Dog !== "undefined" && Dog.pawsCanvas) { const c = Dog.pawsCanvas(document.body.classList.contains("mode-phone") ? 10 : 12); if (c) pw.appendChild(c); }
