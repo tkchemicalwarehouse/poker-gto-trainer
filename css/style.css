@@ -1657,11 +1657,11 @@ select {
 
 /* --- ディーラーボタン --- */
 #dealer-disc {
-  background: url('../img/ui/dealer.webp') center/cover no-repeat;
-  border: 2px solid rgba(231,189,82,.65);
-  box-shadow: 0 0 12px rgba(231,189,82,.55), 0 3px 8px rgba(0,0,0,.6);
+  background: #ffffff;   /* 多人数卓は小さいので白地に"D"1文字(コインは小さすぎるため) */
+  border: 2px solid var(--gold);
+  box-shadow: 0 0 12px rgba(231,189,82,.6), 0 3px 8px rgba(0,0,0,.55);
 }
-#dealer-disc span { display: none; }  /* 旧"D"テキストは隠す(コイン画像を使用) */
+#dealer-disc span { color: #1a1a1a; }
 
 /* =========================================================
  * コレクション(犬舎) — コスメ装備UI
@@ -1962,6 +1962,8 @@ body:not(.mode-phone) #hu-pov{height:min(72vh,560px)}
 #hu-pov .hu-pos small{font-size:8px;font-weight:800;margin-left:3px;opacity:.85}
 #hu-pov .hu-pos.btn{background:var(--grad-gold);color:#2a2008;box-shadow:0 0 8px rgba(231,189,82,.5)}
 #hu-pov .hu-pos.bb{background:linear-gradient(135deg,#f0934f,#d35400);color:#2a1402}
+/* HUのディーラーボタン(コイン): SB(ボタン)側に表示 */
+#hu-pov .hu-dealer-coin{width:30px;height:30px;vertical-align:middle;margin-right:5px;filter:drop-shadow(0 2px 5px rgba(0,0,0,.55))}
 #hu-pov .pov-info b{color:var(--gold-2)}
 #hu-pov .pov-felt{position:relative;flex:1 1 0;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;width:100%;overflow:hidden}
 #hu-pov .pov-board{display:flex;gap:5px;justify-content:center;min-height:50px}
