@@ -526,6 +526,8 @@ function logMsg(msg, cls) {
 // AAが配られたらKIMが走り抜ける(ハンドごとに1回)
 let lastAARun = 0;
 let huSplashShown = false;  // ヘッズアップ突入VS演出(トーナメント中1回)
+let huDealerSeat = null;    // HUディーラーボタンの現在席(変化時に回転移動)
+let huDealerRot = 0;        // 累積回転角(度)
 function checkAARun(state) {
   if (typeof Mascot === "undefined" || !state || state.street !== "preflop") return;
   const hero = state.players[0];
@@ -994,6 +996,7 @@ async function startTournament() {
   G = newTournament("あなた", fieldSizeSel(), heroBBSel());
   tally = newTally();
   huSplashShown = false;
+  huDealerSeat = null; huDealerRot = 0;
   const hero = G.players[0];
   logMsg(`${G.fieldSize}人トーナメント開始! あなたのスタック: ${fmtChips(hero.chips)} (${fmtBB(hero.chips)}BB)`, "info");
   render(G);
@@ -1181,10 +1184,21 @@ function renderHUPov(state) {
   const atShowdownHe = state.street === "showdown" && !!hero.showResult;
   const heroAllIn = hero.allIn && state.street !== "idle" && !atShowdownHe;
   renderPovInfo($("pov-hero-info"), `${huPos(state, hero)}<b style="color:#5fd492">YOU</b>　`, hero, heroAllIn, atShowdownHe);
-  // 前景の手(一度だけ生成)。フロップ以降は手を消して、その分スペースを空けて自分のカードを下げる
+  // 前足(手)は廃止 — 常に非表示(CSSでも非表示)
   const pw = $("pov-paws");
-  if (pw && !pw.firstChild && typeof Dog !== "undefined" && Dog.pawsCanvas) { const c = Dog.pawsCanvas(document.body.classList.contains("mode-phone") ? 10 : 12); if (c) pw.appendChild(c); }
-  if (pw) pw.style.display = (state.board && state.board.length > 0) ? "none" : "";
+  if (pw) pw.style.display = "none";
+  // ディーラーボタン(コイン): ボタン席に応じて上(相手)/下(自分)へ。席が移ったらくるっと回転して移動
+  const dz = $("pov-dealer");
+  if (dz && state.btn != null) {
+    const heroBtn = (state.btn === hero.seat);
+    dz.classList.toggle("hero", heroBtn);
+    dz.classList.toggle("opp", !heroBtn);
+    if (huDealerSeat !== state.btn) {
+      if (huDealerSeat != null) huDealerRot += 540;   // 席が変わった時だけ1回転半スピン
+      huDealerSeat = state.btn;
+    }
+    dz.style.transform = `rotate(${huDealerRot}deg)`;
+  }
 }
 
 function showVictory() {

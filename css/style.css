@@ -1965,8 +1965,18 @@ body:not(.mode-phone) #hu-pov{height:min(72vh,560px)}
 #hu-pov .hu-pos small{font-size:8px;font-weight:800;margin-left:3px;opacity:.85}
 #hu-pov .hu-pos.btn{background:var(--grad-gold);color:#2a2008;box-shadow:0 0 8px rgba(231,189,82,.5)}
 #hu-pov .hu-pos.bb{background:linear-gradient(135deg,#f0934f,#d35400);color:#2a1402}
-/* HUのディーラーボタン(コイン): SB(ボタン)側に表示 */
-#hu-pov .hu-dealer-coin{width:30px;height:30px;vertical-align:middle;margin-right:5px;filter:drop-shadow(0 2px 5px rgba(0,0,0,.55))}
+/* HUのディーラーボタン(コイン): 左寄りの大きめコイン。ボタンが移ると回転しながら上下移動 */
+#hu-pov .hu-dealer-coin{display:none}  /* 旧インライン版は廃止(下の#pov-dealerを使用) */
+#hu-pov .pov-paws{display:none!important}  /* 前足は廃止 */
+#pov-dealer{
+  position:absolute; left:10px; width:clamp(46px,13vw,64px); aspect-ratio:1; z-index:40;
+  background:url('../img/ui/dealer.webp') center/contain no-repeat;
+  filter:drop-shadow(0 4px 9px rgba(0,0,0,.6));
+  pointer-events:none; opacity:0; top:50%;
+  transition:top .6s cubic-bezier(.4,1.35,.45,1), transform .6s cubic-bezier(.4,1.35,.45,1), opacity .3s;
+}
+#pov-dealer.opp{top:13%; opacity:1}
+#pov-dealer.hero{top:74%; opacity:1}
 #hu-pov .pov-info b{color:var(--gold-2)}
 #hu-pov .pov-felt{position:relative;flex:1 1 0;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;width:100%;overflow:visible}
 #hu-pov .pov-board{display:flex;gap:5px;justify-content:center;min-height:50px;position:relative;z-index:6}
