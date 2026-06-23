@@ -1194,7 +1194,7 @@ function renderHUPov(state) {
     dz.classList.toggle("hero", heroBtn);
     dz.classList.toggle("opp", !heroBtn);
     if (huDealerSeat !== state.btn) {
-      if (huDealerSeat != null) huDealerRot += 540;   // 席が変わった時だけ1回転半スピン
+      if (huDealerSeat != null) huDealerRot += 360;   // 席が変わった時だけゆっくり1回転
       huDealerSeat = state.btn;
     }
     dz.style.transform = `rotate(${huDealerRot}deg)`;

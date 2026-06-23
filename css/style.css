@@ -1969,11 +1969,11 @@ body:not(.mode-phone) #hu-pov{height:min(72vh,560px)}
 #hu-pov .hu-dealer-coin{display:none}  /* 旧インライン版は廃止(下の#pov-dealerを使用) */
 #hu-pov .pov-paws{display:none!important}  /* 前足は廃止 */
 #pov-dealer{
-  position:absolute; left:10px; width:clamp(46px,13vw,64px); aspect-ratio:1; z-index:40;
+  position:absolute; left:12px; width:clamp(72px,22vw,104px); aspect-ratio:1; z-index:40;
   background:url('../img/ui/dealer.webp') center/contain no-repeat;
-  filter:drop-shadow(0 4px 9px rgba(0,0,0,.6));
+  filter:drop-shadow(0 5px 12px rgba(0,0,0,.6));
   pointer-events:none; opacity:0; top:50%;
-  transition:top .6s cubic-bezier(.4,1.35,.45,1), transform .6s cubic-bezier(.4,1.35,.45,1), opacity .3s;
+  transition:top 1.4s cubic-bezier(.45,.05,.3,1), transform 1.4s cubic-bezier(.45,.05,.3,1), opacity .4s;
 }
 #pov-dealer.opp{top:13%; opacity:1}
 #pov-dealer.hero{top:74%; opacity:1}
