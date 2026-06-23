@@ -1181,9 +1181,10 @@ function renderHUPov(state) {
   const atShowdownHe = state.street === "showdown" && !!hero.showResult;
   const heroAllIn = hero.allIn && state.street !== "idle" && !atShowdownHe;
   renderPovInfo($("pov-hero-info"), `${huPos(state, hero)}<b style="color:#5fd492">YOU</b>　`, hero, heroAllIn, atShowdownHe);
-  // 前景の手(一度だけ生成)
+  // 前景の手(一度だけ生成)。フロップ以降は手を消して、その分スペースを空けて自分のカードを下げる
   const pw = $("pov-paws");
   if (pw && !pw.firstChild && typeof Dog !== "undefined" && Dog.pawsCanvas) { const c = Dog.pawsCanvas(document.body.classList.contains("mode-phone") ? 10 : 12); if (c) pw.appendChild(c); }
+  if (pw) pw.style.display = (state.board && state.board.length > 0) ? "none" : "";
 }
 
 function showVictory() {
