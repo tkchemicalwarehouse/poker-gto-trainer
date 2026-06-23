@@ -1953,7 +1953,10 @@ body[data-fx="min"] #hu-splash{animation:none}
 body.mode-phone #hu-pov{flex:1 1 0;min-height:0;width:96vw;margin:4px auto;padding:6px 8px 4px}
 body:not(.mode-phone) #hu-pov{height:min(72vh,560px)}
 #hu-pov .pov-opp,#hu-pov .pov-hero{flex:0 0 auto}
-#hu-pov .pov-opp{text-align:center}
+/* レイヤー順: 盤面(felt)を相手/自分の前足より前面に固定 → フロップが手や前足に隠れない */
+#hu-pov .pov-opp{text-align:center;position:relative;z-index:10}
+#hu-pov .pov-hero{z-index:10}
+#hu-pov .pov-felt{z-index:30}
 #hu-pov .pov-opp-dog canvas{image-rendering:pixelated;display:block;margin:0 auto;filter:drop-shadow(0 6px 8px rgba(0,0,0,.5))}
 #hu-pov .pov-opp-cards{display:flex;gap:5px;justify-content:center;margin-top:2px;min-height:36px}
 #hu-pov .pov-info{font-size:12.5px;color:#eef3f8;margin-top:3px}
@@ -1965,8 +1968,8 @@ body:not(.mode-phone) #hu-pov{height:min(72vh,560px)}
 /* HUのディーラーボタン(コイン): SB(ボタン)側に表示 */
 #hu-pov .hu-dealer-coin{width:30px;height:30px;vertical-align:middle;margin-right:5px;filter:drop-shadow(0 2px 5px rgba(0,0,0,.55))}
 #hu-pov .pov-info b{color:var(--gold-2)}
-#hu-pov .pov-felt{position:relative;flex:1 1 0;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;width:100%;overflow:hidden}
-#hu-pov .pov-board{display:flex;gap:5px;justify-content:center;min-height:50px}
+#hu-pov .pov-felt{position:relative;flex:1 1 0;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;width:100%;overflow:visible}
+#hu-pov .pov-board{display:flex;gap:5px;justify-content:center;min-height:50px;position:relative;z-index:6}
 #hu-pov .pov-pot{background:rgba(0,0,0,.4);border:1px solid rgba(231,189,82,.32);border-radius:999px;padding:3px 13px;color:var(--gold-2);font-weight:700;font-size:13px}
 #hu-pov .pov-chips{display:flex;justify-content:center}
 #hu-pov .pov-hero{position:relative;width:100%;text-align:center}
