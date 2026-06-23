@@ -167,6 +167,16 @@ function gradeDecision(ctx, advice, chosenId, act, opts) {
       // 推奨と逆に打った
       if (ftSplit.chipDo !== ftSplit.icmDo) verdict = "caution"; // もう一方の枠組みが支持 → 注意
       else verdict = "blunder";                                  // EVもICMも推奨を支持 → ミス
+      // 後ろにまだ生存プレイヤーが複数 → スクイーズ/被ドミネートのリスクを「対ジャマー1人」の
+      // 単純なエクイティ計算は織り込めない。僅差で推奨どおりコール+EVのフォールドは
+      // 「重点ミス」ではなく「僅差」に格下げし、後ろの人数リスクを理由として補足する。
+      if (verdict === "blunder" && d.kind === "facingJam" && chosen === "fold" &&
+          (ctx.playersBehind || 0) >= 2 &&
+          d.equity != null && d.icmReq != null && (d.equity - d.icmReq) < 0.06 &&
+          (d.evCallBB == null || d.evCallBB < 1.0)) {
+        verdict = "minor";
+        d._behindRisk = ctx.playersBehind;
+      }
     }
     d._ftSplit = ftSplit;
   }
@@ -799,6 +809,9 @@ function buildExplanation(ctx, advice, chosen, verdict, sizing, hint) {
         : `賞金期待値(ICM)から計算すると、必要勝率が <b>${pct(d.breakeven)} → ${pct(d.icmReq)}</b>(+${pct(d.icmPremium)})に上がります。この手のエクイティ <b>${pct(d.equity)}</b> では届かないため、チップ単体なら受けられても、<b>フォールドの選択肢も検討すべき</b>です(飛んだ時に失う賞金が大きいため)。`;
       lines.push(`<p>🏆 <b>ICM補正(ファイナルテーブル)</b>: ${icmText}` +
         `<br><span class="dim">一般則: <b>相手にカバーされている(負ければ飛ぶ)</b>時ほど必要勝率は上がり、<b>自分が相手をカバーしている</b>時は比較的緩く受けられます — FTで最も差がつく感覚です。</span></p>`);
+    }
+    if (d._behindRisk) {
+      lines.push(`<p>👥 <b>後ろに${d._behindRisk}人が未アクションで残っています。</b> 上の計算は「ジャムした相手1人に対する勝率」で出していて、<b>後ろの誰かがオーバーコール/被せジャム(スクイーズ)してくる可能性</b>や、コール後に複数人と戦って被ドミネートするリスクは含めていません。そのため計算上は僅差で+EVでも、ここでのフォールドは<b>十分に弁護できる</b>選択です。実戦の目安: 価格がとても良ければ受ける／後ろが多く価格も並なら降りる。</p>`);
     }
     if (Math.abs(eqMargin) < 0.015) lines.push(`<p>勝率と必要勝率がほぼ同じ<b>無差別点</b>です。${MIX_WHY}</p>`);
     if (callRight) { const bn = blockerNote(hand); if (bn) lines.push(`<p>${bn}</p>`); }
